@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import atlantafx.base.controls.CustomTextField?>
+<?import atlantafx.base.controls.ToggleSwitch?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.layout.BorderPane?>
+
+<BorderPane stylesheets="@FollowChannelsView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.channel.FollowChannelsView">
+   <top>
+      <BorderPane BorderPane.alignment="CENTER">
+         <center>
+            <CustomTextField fx:id="searchField" />
+         </center>
+         <right>
+            <ToggleSwitch fx:id="onlyLiveSwitch" text="配信中のみ" BorderPane.alignment="CENTER" />
+         </right>
+      </BorderPane>
+   </top>
+   <center>
+      <ListView fx:id="channels" BorderPane.alignment="CENTER" />
+   </center>
+</BorderPane>
