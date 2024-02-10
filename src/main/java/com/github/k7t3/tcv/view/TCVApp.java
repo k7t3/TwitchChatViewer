@@ -1,10 +1,12 @@
-package com.github.k7t3.tcv.vm;
+package com.github.k7t3.tcv.view;
 
-import atlantafx.base.theme.CupertinoDark;
-import com.github.k7t3.tcv.view.core.MainView;
+import atlantafx.base.theme.NordDark;
+import atlantafx.base.theme.NordLight;
+import atlantafx.base.theme.PrimerLight;
+import com.github.k7t3.tcv.view.main.MainView;
 import com.github.k7t3.tcv.view.core.Resources;
 import com.github.k7t3.tcv.vm.core.AppHelper;
-import com.github.k7t3.tcv.vm.core.WindowEventHelper;
+import com.github.k7t3.tcv.vm.service.WindowEventHelper;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import javafx.application.Application;
 import javafx.scene.Scene;
@@ -31,7 +33,9 @@ public class TCVApp extends Application {
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-        Application.setUserAgentStylesheet(new CupertinoDark().getUserAgentStylesheet());
+        //Application.setUserAgentStylesheet(new CupertinoDark().getUserAgentStylesheet());
+        Application.setUserAgentStylesheet(new NordDark().getUserAgentStylesheet());
+        //Application.setUserAgentStylesheet(new PrimerLight().getUserAgentStylesheet());
 
         var loader = FluentViewLoader.fxmlView(MainView.class);
         loader.resourceBundle(Resources.getResourceBundle());

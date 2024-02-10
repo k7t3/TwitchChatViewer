@@ -1,4 +1,5 @@
-.follow-channel-view {
+.follow-channels-view {
+  -fx-pref-width: 250;
 }
 
 .names-container {

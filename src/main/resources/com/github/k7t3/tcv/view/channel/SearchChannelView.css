@@ -1,0 +1,10 @@
+.search-channel-view {
+  -fx-background-color: -color-bg-default;
+}
+
+.user-name-label {
+  -fx-font-weight: bold;
+}
+
+.loading-mask {
+}

@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import atlantafx.base.controls.CustomTextField?>
 <?import atlantafx.base.controls.ModalPane?>
 <?import java.lang.String?>
+<?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.MenuButton?>
 <?import javafx.scene.control.MenuItem?>
-<?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
@@ -16,18 +15,10 @@
 <?import javafx.scene.layout.StackPane?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
-<StackPane fx:id="rootPane" prefHeight="768.0" prefWidth="1024.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.core.MainView">
+<StackPane fx:id="rootPane" prefHeight="768.0" prefWidth="1024.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.main.MainView">
    <children>
       <ModalPane fx:id="modalPane" />
       <BorderPane fx:id="headerPane" stylesheets="@MainView.css">
-         <center>
-            <SplitPane fx:id="splitPane" dividerPositions="0.2">
-               <items>
-                  <StackPane fx:id="leftContainer" />
-                  <StackPane fx:id="rightContainer" layoutX="10.0" layoutY="10.0" />
-               </items>
-            </SplitPane>
-         </center>
          <top>
             <GridPane styleClass="header-pane" BorderPane.alignment="CENTER">
               <columnConstraints>
@@ -46,17 +37,29 @@
                               <FontIcon iconLiteral="fab-twitch" />
                            </graphic>
                            <styleClass>
-                              <String fx:value="title-4" />
+                              <String fx:value="title-2" />
                               <String fx:value="title-label" />
                            </styleClass>
                         </Label>
                         <Pane prefWidth="10.0" />
-                        <Label fx:id="userNameLabel" text="Label" />
                      </children>
                   </HBox>
-                  <CustomTextField fx:id="searchField" prefWidth="400.0" promptText="Search Channel" GridPane.columnIndex="1" />
-                  <HBox alignment="CENTER_RIGHT" GridPane.columnIndex="2">
+                  <Button fx:id="searchChannelButton" contentDisplay="GRAPHIC_ONLY" maxWidth="1.7976931348623157E308" mnemonicParsing="false" styleClass="search-button" text="Button" GridPane.columnIndex="1">
+                     <graphic>
+                        <HBox alignment="CENTER_LEFT">
+                           <children>
+                              <Label text="Search">
+                                 <graphic>
+                                    <FontIcon iconLiteral="fth-search" />
+                                 </graphic>
+                              </Label>
+                           </children>
+                        </HBox>
+                     </graphic>
+                  </Button>
+                  <HBox alignment="CENTER_RIGHT" spacing="10.0" GridPane.columnIndex="2">
                      <children>
+                        <Label fx:id="userNameLabel" text="Label" />
                         <MenuButton fx:id="userMenuButton" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" text="MenuButton">
                           <items>
                             <MenuItem mnemonicParsing="false" text="Action 1" />
@@ -71,6 +74,12 @@
                </children>
             </GridPane>
          </top>
+         <left>
+            <StackPane fx:id="leftContainer" BorderPane.alignment="CENTER" />
+         </left>
+         <center>
+            <StackPane fx:id="rightContainer" BorderPane.alignment="CENTER" />
+         </center>
       </BorderPane>
    </children>
 </StackPane>

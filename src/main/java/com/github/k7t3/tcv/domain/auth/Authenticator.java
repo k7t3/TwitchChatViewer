@@ -2,11 +2,11 @@ package com.github.k7t3.tcv.domain.auth;
 
 import com.github.philippheuer.credentialmanager.CredentialManager;
 import com.github.philippheuer.credentialmanager.authcontroller.DeviceFlowController;
+import com.github.philippheuer.credentialmanager.domain.DeviceAuthorization;
 import com.github.philippheuer.credentialmanager.domain.DeviceTokenResponse;
 import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
 import com.github.twitch4j.auth.domain.TwitchScopes;
 import com.github.twitch4j.auth.providers.TwitchIdentityProvider;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,7 +14,6 @@ import java.io.Closeable;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 import java.util.function.Consumer;
 
 public class Authenticator implements Closeable {
@@ -33,11 +32,7 @@ public class Authenticator implements Closeable {
     private final boolean authorized;
 
     public Authenticator() {
-        var flowExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
-            var thread = new Thread(r);
-            thread.setDaemon(true);
-            return thread;
-        });
+        var flowExecutor = Executors.newSingleThreadScheduledExecutor(Thread.ofVirtual().factory());
         authController = new DeviceFlowController(flowExecutor, 0);
         credentialManager = new CredentialManager(new CredentialFileStorage(Path.of("userinfo")), authController);
         credentialManager.registerIdentityProvider(identityProvider);
@@ -59,7 +54,7 @@ public class Authenticator implements Closeable {
     public boolean validateToken() {
         if (!authorized) return false;
         var credential = credentialManager.getCredentials().getFirst();
-        return identityProvider.isValid(credential);
+        return identityProvider.isCredentialValid((OAuth2Credential) credential).orElse(false);
     }
 
     public OAuth2Credential refreshToken() {
@@ -69,7 +64,7 @@ public class Authenticator implements Closeable {
             var refreshed = identityProvider.refreshCredential(credential).orElse(null);
             if (refreshed != null) {
                 credentialManager.getCredentials().clear();
-                credentialManager.addCredential(identityProvider.getProviderName(), credential);
+                credentialManager.addCredential(identityProvider.getProviderName(), refreshed);
                 credentialManager.save();
             }
             return refreshed;
@@ -87,9 +82,9 @@ public class Authenticator implements Closeable {
     /**
      * デバイス認証URIを返す
      * @param consumer 認証結果を受け取るコールバック
-     * @return デバイス認証URI
+     * @return デバイス認証
      */
-    public String authenticate(Consumer<DeviceTokenResponse> consumer) {
+    public DeviceAuthorization authenticate(Consumer<DeviceTokenResponse> consumer) {
         List<Object> scopes = List.of(
                 TwitchScopes.CHAT_READ,
                 TwitchScopes.HELIX_USER_FOLLOWS_READ
@@ -97,8 +92,7 @@ public class Authenticator implements Closeable {
         if (credentialManager.getCredentials() != null) {
             credentialManager.getCredentials().clear();
         }
-        var request = authController.startOAuth2DeviceAuthorizationGrantType(identityProvider, scopes, r -> callback(r, consumer));
-        return request.getCompleteUri();
+        return authController.startOAuth2DeviceAuthorizationGrantType(identityProvider, scopes, r -> callback(r, consumer));
     }
 
     /**

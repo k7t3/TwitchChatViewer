@@ -2,12 +2,15 @@ package com.github.k7t3.tcv.vm.channel;
 
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
 import com.github.k7t3.tcv.domain.channel.ChannelRepository;
+import com.github.k7t3.tcv.vm.chat.ChatContainerViewModel;
 import com.github.k7t3.tcv.vm.core.AppHelper;
 import com.github.k7t3.tcv.vm.service.FXTask;
 import com.github.k7t3.tcv.vm.service.TaskWorker;
+import com.github.philippheuer.events4j.api.domain.IDisposable;
 import com.github.philippheuer.events4j.api.domain.IEventSubscription;
 import com.github.twitch4j.events.ChannelGoLiveEvent;
 import com.github.twitch4j.events.ChannelGoOfflineEvent;
+import com.github.twitch4j.events.ChannelViewerCountUpdateEvent;
 import com.github.twitch4j.eventsub.events.ChannelFollowEvent;
 import de.saxsys.mvvmfx.SceneLifecycle;
 import de.saxsys.mvvmfx.ViewModel;
@@ -21,6 +24,7 @@ import javafx.collections.transformation.SortedList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
@@ -48,9 +52,11 @@ public class FollowChannelsViewModel implements ViewModel, SceneLifecycle {
 
     private final ObjectProperty<ChannelRepository> channelRepository = new SimpleObjectProperty<>(null);
 
-    private IEventSubscription goLiveSubscription;
-    private IEventSubscription goOfflineSubscription;
-    private IEventSubscription followSubscription;
+    private final ObjectProperty<FollowChannelViewModel> selectedBroadcaster = new SimpleObjectProperty<>(null);
+
+    private ChatContainerViewModel chatContainerViewModel;
+
+    private List<IEventSubscription> eventSubscriptions;
 
     public FollowChannelsViewModel() {
         var filtered = new FilteredList<>(followBroadcasters);
@@ -102,12 +108,15 @@ public class FollowChannelsViewModel implements ViewModel, SceneLifecycle {
             var evm = client.getEventManager();
 
             followBroadcasters.setAll(task.getValue());
-            goLiveSubscription = evm.onEvent(ChannelGoLiveEvent.class, ev -> Platform.runLater(() -> handleOnline(ev)));
-            goOfflineSubscription = evm.onEvent(ChannelGoOfflineEvent.class, ev -> Platform.runLater(() -> handleOffline(ev)));
+
+            eventSubscriptions = new ArrayList<>();
+            eventSubscriptions.add(evm.onEvent(ChannelGoLiveEvent.class, ev -> Platform.runLater(() -> handleOnline(ev))));
+            eventSubscriptions.add(evm.onEvent(ChannelGoOfflineEvent.class, ev -> Platform.runLater(() -> handleOffline(ev))));
+            eventSubscriptions.add(evm.onEvent(ChannelViewerCountUpdateEvent.class, ev -> Platform.runLater(() -> handleViewerCountUpdate(ev))));
 
             // フォローしたときのイベントを登録
             // TODO フォロー解除したときのイベントは？
-            followSubscription = evm.onEvent(ChannelFollowEvent.class, this::handleFollowChannel);
+            eventSubscriptions.add(evm.onEvent(ChannelFollowEvent.class, this::handleFollowChannel));
 
             loaded.set(true);
         });
@@ -135,6 +144,18 @@ public class FollowChannelsViewModel implements ViewModel, SceneLifecycle {
             if (broadcaster.getUserId().equalsIgnoreCase(userId)) {
                 broadcaster.getChannel().setStream(null);
                 broadcaster.goOffline();
+                break;
+            }
+        }
+    }
+
+    private void handleViewerCountUpdate(ChannelViewerCountUpdateEvent e) {
+        var userId = e.getChannel().getId();
+
+        for (var broadcaster : followBroadcasters) {
+            if (broadcaster.getUserId().equalsIgnoreCase(userId)) {
+                broadcaster.setViewerCount(e.getViewerCount());
+                break;
             }
         }
     }
@@ -154,16 +175,27 @@ public class FollowChannelsViewModel implements ViewModel, SceneLifecycle {
         Platform.runLater(() -> followBroadcasters.add(vm));
     }
 
+    public void setChatContainerViewModel(ChatContainerViewModel chatContainerViewModel) {
+        this.chatContainerViewModel = chatContainerViewModel;
+    }
+
+    public void joinChat() {
+        if (chatContainerViewModel == null)
+            throw new IllegalStateException();
+
+        var selectedBroadcaster = getSelectedBroadcaster();
+        if (selectedBroadcaster == null) return;
+
+        var channel = selectedBroadcaster.getChannel();
+
+        chatContainerViewModel.register(channel);
+    }
+
     public void unsubscribe() {
         if (!isLoaded()) return;
 
-        goLiveSubscription.dispose();
-        goOfflineSubscription.dispose();
-        followSubscription.dispose();
-
-        goLiveSubscription = null;
-        goOfflineSubscription = null;
-        followSubscription = null;
+        eventSubscriptions.forEach(IDisposable::dispose);
+        eventSubscriptions.clear();
     }
 
     @Override
@@ -189,4 +221,8 @@ public class FollowChannelsViewModel implements ViewModel, SceneLifecycle {
     public ObjectProperty<ChannelRepository> channelRepositoryProperty() { return channelRepository; }
     public ChannelRepository getChannelRepository() { return channelRepository.get(); }
     public void setChannelRepository(ChannelRepository channelRepository) { this.channelRepository.set(channelRepository); }
+
+    public ObjectProperty<FollowChannelViewModel> selectedBroadcasterProperty() { return selectedBroadcaster; }
+    public FollowChannelViewModel getSelectedBroadcaster() { return selectedBroadcaster.get(); }
+    public void setSelectedBroadcaster(FollowChannelViewModel selectedBroadcaster) { this.selectedBroadcaster.set(selectedBroadcaster); }
 }

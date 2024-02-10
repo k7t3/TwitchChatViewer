@@ -1,4 +1,4 @@
-package com.github.k7t3.tcv.vm.core;
+package com.github.k7t3.tcv.vm.service;
 
 import atlantafx.base.controls.Notification;
 import atlantafx.base.theme.Styles;

@@ -21,7 +21,7 @@ javafx {
 }
 
 application {
-    mainClass = 'com.github.k7t3.tcv.vm.TCVApp'
+    mainClass = 'com.github.k7t3.tcv.view.TCVApp'
 }
 
 dependencies {
@@ -41,7 +41,7 @@ dependencies {
     implementation 'org.kordamp.ikonli:ikonli-fontawesome5-pack:12.3.1'
     implementation 'de.saxsys:mvvmfx:1.8.0'
     implementation 'io.github.mkpaz:atlantafx-base:2.0.1'
-    implementation 'org.fxmisc.flowless:flowless:0.7.2'
+//    implementation 'org.fxmisc.flowless:flowless:0.7.2'
 
     testImplementation platform('org.junit:junit-bom:5.9.1')
     testImplementation 'org.junit.jupiter:junit-jupiter'

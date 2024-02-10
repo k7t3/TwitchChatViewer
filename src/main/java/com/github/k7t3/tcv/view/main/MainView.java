@@ -1,16 +1,18 @@
-package com.github.k7t3.tcv.view.core;
+package com.github.k7t3.tcv.view.main;
 
-import atlantafx.base.controls.CustomTextField;
 import atlantafx.base.controls.ModalPane;
+import atlantafx.base.util.Animations;
 import com.github.k7t3.tcv.domain.channel.ChannelRepository;
 import com.github.k7t3.tcv.view.auth.AuthenticatorView;
 import com.github.k7t3.tcv.view.channel.FollowChannelsView;
+import com.github.k7t3.tcv.view.channel.SearchChannelView;
 import com.github.k7t3.tcv.view.chat.ChatContainerView;
-import com.github.k7t3.tcv.vm.channel.FollowChannelViewModel;
+import com.github.k7t3.tcv.view.core.Resources;
 import com.github.k7t3.tcv.vm.channel.FollowChannelsViewModel;
 import com.github.k7t3.tcv.vm.chat.ChatContainerViewModel;
 import com.github.k7t3.tcv.vm.core.AppHelper;
-import com.github.k7t3.tcv.vm.core.MainViewModel;
+import com.github.k7t3.tcv.vm.core.ExceptionHandler;
+import com.github.k7t3.tcv.vm.main.MainViewModel;
 import com.github.k7t3.tcv.vm.service.FXTask;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
@@ -18,11 +20,14 @@ import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.geometry.Side;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.SplitPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
+import javafx.util.Duration;
 import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.javafx.FontIcon;
 
@@ -41,7 +46,7 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
     private Label userNameLabel;
 
     @FXML
-    private CustomTextField searchField;
+    private Button searchChannelButton;
 
     @FXML
     private MenuButton userMenuButton;
@@ -63,33 +68,31 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
     private FollowChannelsViewModel channelsViewModel;
 
-    private ChatContainerViewModel chatsViewModel;
+    private ChatContainerViewModel chatContainerViewModel;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         var unauthorized = viewModel.authorizedProperty().not();
         headerPane.disableProperty().bind(unauthorized);
-        splitPane.disableProperty().bind(unauthorized);
+        //splitPane.disableProperty().bind(unauthorized);
 
         var helper = AppHelper.getInstance();
         userNameLabel.textProperty().bind(helper.userNameProperty());
 
-        var clearIcon = new FontIcon(Feather.X);
-        clearIcon.setOnMouseClicked(e -> viewModel.setSearchWord(null));
+        searchChannelButton.setOnAction(e -> openSearchChannelView());
 
-        searchField.textProperty().bind(viewModel.searchWordProperty());
-        searchField.setRight(clearIcon);
-        searchField.setLeft(new FontIcon(Feather.SEARCH));
-
-        loadFollowersView();
         loadChatContainerView();
+        loadFollowersView();
     }
 
     private void loadFollowersView() {
         var loader = FluentViewLoader.fxmlView(FollowChannelsView.class);
         loader.resourceBundle(Resources.getResourceBundle());
         var tuple = loader.load();
+
         channelsViewModel = tuple.getViewModel();
+        channelsViewModel.setChatContainerViewModel(chatContainerViewModel);
+
         leftContainer.getChildren().add(tuple.getView());
     }
 
@@ -97,7 +100,7 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         var loader = FluentViewLoader.fxmlView(ChatContainerView.class);
         loader.resourceBundle(Resources.getResourceBundle());
         var tuple = loader.load();
-        chatsViewModel = tuple.getViewModel();
+        chatContainerViewModel = tuple.getViewModel();
         rightContainer.getChildren().add(tuple.getView());
     }
 
@@ -106,17 +109,10 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
         // フォローしているチャンネルを初期化
         channelsViewModel.setChannelRepository(new ChannelRepository(helper.getTwitch()));
-        channelsViewModel.loadAsync().setOnSucceeded(e -> {
-            channelsViewModel.getFollowBroadcasters().stream()
-                    .filter(FollowChannelViewModel::isLive)
-                    .filter(v -> v.getUserLogin().equalsIgnoreCase("raderaderader"))
-                    .map(FollowChannelViewModel::getChannel)
-                    .findFirst()
-                    .ifPresent(channel -> chatsViewModel.register(channel));
-        });
+        channelsViewModel.loadAsync();
 
         // チャットコンテナを初期化
-        chatsViewModel.loadAsync();
+        chatContainerViewModel.loadAsync();
     }
 
     public void loadAuthorizationView() {
@@ -127,6 +123,8 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         var authViewModel = tuple.getViewModel();
 
         // 読み込み画面を表示
+        modalPane.usePredefinedTransitionFactories(Side.TOP);
+        modalPane.setPersistent(true);
         modalPane.show(view);
 
         // 既存の資格情報を読み込む
@@ -160,6 +158,12 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
                 if (!n) return;
 
+                // ModalPaneを非表示にする
+                modalPane.hide(true);
+
+                // リソースのクリーンアップ
+                authViewModel.close();
+
                 loadViewResources();
             });
 
@@ -171,6 +175,20 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
             });
 
         });
+    }
+
+    private void openSearchChannelView() {
+        var loader = FluentViewLoader.fxmlView(SearchChannelView.class);
+        var tuple = loader.load();
+        var view = tuple.getView();
+        var viewModel = tuple.getViewModel();
+        viewModel.setChatContainerViewModel(chatContainerViewModel);
+
+        modalPane.usePredefinedTransitionFactories(Side.TOP);
+        modalPane.setPersistent(false);
+        modalPane.show(view);
+
+        tuple.getCodeBehind().getKeywordField().requestFocus();
     }
 
 }

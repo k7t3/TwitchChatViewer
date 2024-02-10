@@ -41,7 +41,6 @@ public class ChatContainerViewModel implements ViewModel, Closeable {
 
         var task = FXTask.task(() -> {
             repository = new ChatRoomRepository(twitch);
-            repository.load();
             var globalBadges = new GlobalChatBadges(twitch);
             globalBadges.load();
             globalBadgeStore = new GlobalChatBadgeStore(globalBadges);
@@ -55,7 +54,7 @@ public class ChatContainerViewModel implements ViewModel, Closeable {
 
     /**
      * チャンネルのChatインスタンスを取得する。
-     * チャットに接続されているかは{@link ChatViewModel#chatJoinedProperty()}で参照できる。
+     * 新規作成された{@link ChatViewModel}のインスタンスはChatに自動的に接続されている。
      * @param channel チャンネル
      * @return Chat
      */

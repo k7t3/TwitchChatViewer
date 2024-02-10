@@ -35,6 +35,8 @@ public class AuthenticatorViewModel implements ViewModel, Closeable {
 
     private final ReadOnlyBooleanWrapper initialized = new ReadOnlyBooleanWrapper(false);
 
+    private final ReadOnlyStringWrapper userCode = new ReadOnlyStringWrapper();
+
     private final ReadOnlyStringWrapper authUri = new ReadOnlyStringWrapper();
 
     private final ReadOnlyStringWrapper error = new ReadOnlyStringWrapper();
@@ -98,7 +100,7 @@ public class AuthenticatorViewModel implements ViewModel, Closeable {
         return task;
     }
 
-    public FXTask<String> startAuthenticateAsync() {
+    public FXTask<?> startAuthenticateAsync() {
         if (!initialized.get()) {
             throw new IllegalStateException("first, do loadCredentialAsync");
         }
@@ -107,9 +109,11 @@ public class AuthenticatorViewModel implements ViewModel, Closeable {
 
         var task = FXTask.task(() -> authenticator.authenticate(this::handleToken));
         task.addEventHandler(WorkerStateEvent.WORKER_STATE_SUCCEEDED, e -> {
-            var uri = task.getValue();
+            var authorization = task.getValue();
             // 認証URI
-            authUri.set(uri);
+            authUri.set(authorization.getCompleteUri());
+            // ユーザーコード
+            userCode.set(authorization.getUserCode());
         });
 
         TaskWorker.getInstance().submit(task);
@@ -187,6 +191,9 @@ public class AuthenticatorViewModel implements ViewModel, Closeable {
     // ******************** properties ********************
     public ReadOnlyStringProperty authUriProperty() { return authUri.getReadOnlyProperty(); }
     public String getAuthUri() { return authUri.get(); }
+
+    public ReadOnlyStringProperty userCodeProperty() { return userCode.getReadOnlyProperty(); }
+    public String getUserCode() { return userCode.get(); }
 
     public ReadOnlyStringProperty errorProperty() { return error.getReadOnlyProperty(); }
     public String getError() { return error.get(); }

@@ -1,4 +1,4 @@
-package com.github.k7t3.tcv.view.core;
+package com.github.k7t3.tcv.vm.core;
 
 import javafx.scene.control.Alert;
 import javafx.scene.control.TextArea;
@@ -22,9 +22,11 @@ public class ExceptionHandler {
     }
 
     public static void handle(Stage parent, Throwable e) {
+        LOGGER.error(e.getMessage(), e);
+
         var alert = new Alert(Alert.AlertType.ERROR);
         alert.setTitle("Exception Occurred");
-        alert.setContentText("Exception Occurred: " + e.getMessage());
+        alert.setHeaderText("Exception Occurred: " + e.getMessage());
         if (parent != null) alert.initOwner(parent);
 
         var stacktrace = new TextArea();

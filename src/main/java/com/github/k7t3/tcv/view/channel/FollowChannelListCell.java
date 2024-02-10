@@ -1,12 +1,14 @@
 package com.github.k7t3.tcv.view.channel;
 
 import com.github.k7t3.tcv.vm.channel.FollowChannelViewModel;
-import de.saxsys.mvvmfx.InjectViewModel;
-import de.saxsys.mvvmfx.JavaView;
-import javafx.fxml.Initializable;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.Tooltip;
 import javafx.scene.effect.SepiaTone;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
@@ -15,10 +17,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Rectangle;
 
-import java.net.URL;
-import java.util.ResourceBundle;
-
-public class FollowChannelView extends BorderPane implements JavaView<FollowChannelViewModel>, Initializable {
+public class FollowChannelListCell extends ListCell<FollowChannelViewModel> {
 
     private static final double PROFILE_IMAGE_WIDTH = 32;
     private static final double PROFILE_IMAGE_HEIGHT = 32;
@@ -30,11 +29,11 @@ public class FollowChannelView extends BorderPane implements JavaView<FollowChan
     private static final String GAME_TITLE_STYLE_CLASS = "game-title-label";
     private static final String ONLINE_MARK_STYLE_CLASS = "online-mark";
 
+    private BorderPane layout;
+
     private ImageView profileImageView;
 
     private Label userNameLabel;
-
-    private Label loginLabel;
 
     private Label gameTitleLabel;
 
@@ -42,62 +41,50 @@ public class FollowChannelView extends BorderPane implements JavaView<FollowChan
 
     private Circle onlineMark;
 
-    @InjectViewModel
-    private FollowChannelViewModel viewModel;
+    private BooleanProperty live;
 
-    public FollowChannelView() {
+    private Tooltip tooltip;
+
+    public FollowChannelListCell() {
         getStyleClass().add(STYLE_CLASS);
+        setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
     }
 
-    @Override
-    public void initialize(URL location, ResourceBundle resources) {
+    private void initialize() {
         profileImageView = new ImageView();
         profileImageView.getStyleClass().add(PROFILE_IMAGE_STYLE_CLASS);
         profileImageView.setFitWidth(PROFILE_IMAGE_WIDTH);
         profileImageView.setFitHeight(PROFILE_IMAGE_HEIGHT);
-        profileImageView.imageProperty().bind(viewModel.profileImageProperty());
         var clip = new Rectangle();
         clip.widthProperty().bind(profileImageView.fitWidthProperty());
         clip.heightProperty().bind(profileImageView.fitHeightProperty());
         clip.setArcWidth(PROFILE_IMAGE_WIDTH);
         clip.setArcHeight(PROFILE_IMAGE_HEIGHT);
         profileImageView.setClip(clip);
-        profileImageView.effectProperty().bind(viewModel.liveProperty().map(live -> live ? null : new SepiaTone()));
+
+        live = new SimpleBooleanProperty(false);
+        profileImageView.effectProperty().bind(live.map(live -> live ? null : new SepiaTone()));
 
         userNameLabel = new Label();
         userNameLabel.getStyleClass().add(USER_NAME_STYLE_CLASS);
-        userNameLabel.textProperty().bind(viewModel.userNameProperty());
-
-        loginLabel = new Label();
-        loginLabel.getStyleClass().add(USER_NAME_STYLE_CLASS);
-        loginLabel.textProperty().bind(viewModel.userLoginProperty().map(s -> "(" + s + ")"));
-        loginLabel.visibleProperty().bind(viewModel.userLoginProperty().isEqualToIgnoreCase(viewModel.userNameProperty()).not());
 
         gameTitleLabel = new Label();
         gameTitleLabel.getStyleClass().add(GAME_TITLE_STYLE_CLASS);
-        gameTitleLabel.textProperty().bind(viewModel.gameNameProperty());
 
         onlineMark = new Circle(4);
         onlineMark.getStyleClass().add(ONLINE_MARK_STYLE_CLASS);
 
         viewerCountLabel = new Label();
-        viewerCountLabel.textProperty().bind(viewModel.viewerCountProperty().asString("%,d"));
 
-        gameTitleLabel.visibleProperty().bind(viewModel.liveProperty());
+        gameTitleLabel.visibleProperty().bind(live);
         gameTitleLabel.managedProperty().bind(gameTitleLabel.visibleProperty());
-        onlineMark.visibleProperty().bind(viewModel.liveProperty());
+        onlineMark.visibleProperty().bind(live);
         onlineMark.managedProperty().bind(onlineMark.visibleProperty());
-        viewerCountLabel.visibleProperty().bind(viewModel.liveProperty());
+        viewerCountLabel.visibleProperty().bind(live);
         viewerCountLabel.managedProperty().bind(viewerCountLabel.visibleProperty());
 
-        // TODO 名前、ゲームタイトルが縮小されるように
-
-        // 表示名とユーザーIDのコンテナ
-        var names = new HBox(userNameLabel, loginLabel);
-        names.setSpacing(4);
-
         // ユーザー名とゲーム名のコンテナ
-        var center = new VBox(names, gameTitleLabel);
+        var center = new VBox(userNameLabel, gameTitleLabel);
         center.getStyleClass().add(NAMES_CONTAINER_CLASS);
         center.setAlignment(Pos.CENTER_LEFT);
         center.setFillWidth(true);
@@ -108,10 +95,68 @@ public class FollowChannelView extends BorderPane implements JavaView<FollowChan
         right.setPadding(new Insets(0, 10, 0, 0));
         right.setAlignment(Pos.CENTER_RIGHT);
 
+        layout = new BorderPane();
+
+        center.prefWidthProperty().bind(
+                widthProperty()
+                        .subtract(200) // FIXME
+                        .subtract(right.widthProperty())
+                        .subtract(10)
+        );
+
         BorderPane.setAlignment(profileImageView, Pos.CENTER);
 
-        setLeft(profileImageView);
-        setCenter(center);
-        setRight(right);
+        layout.setLeft(profileImageView);
+        layout.setCenter(center);
+        layout.setRight(right);
+
+        tooltip = new Tooltip();
+    }
+
+    private void update(FollowChannelViewModel viewModel) {
+        profileImageView.imageProperty().bind(viewModel.profileImageProperty());
+
+        // ユーザー名はそうそう変更されないことを見越してバインドしない
+        var userName = viewModel.getUserName();
+        var loginName = viewModel.getUserLogin();
+        if (loginName.equalsIgnoreCase(userName)) {
+            userNameLabel.setText(userName);
+        } else {
+            userNameLabel.setText("%s (%s)".formatted(userName, loginName));
+        }
+
+        gameTitleLabel.textProperty().bind(viewModel.gameNameProperty());
+        viewerCountLabel.textProperty().bind(
+                viewModel.viewerCountProperty()
+                        .divide(1000d)
+                        .map(d -> Double.max(d.doubleValue(), 0.1))
+                        .map("%.1f K"::formatted)
+        );
+        live.bind(viewModel.liveProperty());
+
+        var title = viewModel.getTitle();
+        if (title != null) {
+            tooltip.setText(title);
+            setTooltip(tooltip);
+        } else {
+            setTooltip(null);
+        }
+    }
+
+    @Override
+    protected void updateItem(FollowChannelViewModel item, boolean empty) {
+        super.updateItem(item, empty);
+
+        if (item == null || empty) {
+            setGraphic(null);
+            return;
+        }
+
+        if (layout == null) {
+            initialize();
+        }
+
+        update(item);
+        setGraphic(layout);
     }
 }

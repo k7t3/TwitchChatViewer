@@ -2,17 +2,21 @@
 
 <?import atlantafx.base.controls.CustomTextField?>
 <?import atlantafx.base.controls.ToggleSwitch?>
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.ListView?>
 <?import javafx.scene.layout.BorderPane?>
 
-<BorderPane stylesheets="@FollowChannelsView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.channel.FollowChannelsView">
+<BorderPane styleClass="follow-channels-view" stylesheets="@FollowChannelsView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.channel.FollowChannelsView">
    <top>
       <BorderPane BorderPane.alignment="CENTER">
          <center>
-            <CustomTextField fx:id="searchField" />
+            <CustomTextField fx:id="searchField" promptText="Filter">
+               <BorderPane.margin>
+                  <Insets right="4.0" />
+               </BorderPane.margin></CustomTextField>
          </center>
          <right>
-            <ToggleSwitch fx:id="onlyLiveSwitch" text="配信中のみ" BorderPane.alignment="CENTER" />
+            <ToggleSwitch fx:id="onlyLiveSwitch" text="Live" BorderPane.alignment="CENTER_RIGHT" />
          </right>
       </BorderPane>
    </top>

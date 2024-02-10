@@ -25,7 +25,7 @@ public class TwitchChannel {
 
     private final Twitch twitch;
 
-    TwitchChannel(Twitch twitch, Broadcaster broadcaster, Stream stream) {
+    public TwitchChannel(Twitch twitch, Broadcaster broadcaster, Stream stream) {
         this.twitch = twitch;
         this.broadcaster = broadcaster;
         this.stream = stream;

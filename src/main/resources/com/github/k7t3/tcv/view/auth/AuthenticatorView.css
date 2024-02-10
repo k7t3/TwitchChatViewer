@@ -1,9 +1,5 @@
 .auth-root {
   -fx-background-color: -color-bg-default;
-  -fx-min-width: 500px;
-  -fx-min-height: 240px;
-  -fx-max-width: 500px;
-  -fx-max-height: 240px;
 }
 
 .twitch-icon {

@@ -52,6 +52,10 @@ public class ChatDataViewModel implements ViewModel {
         update();
     }
 
+    public ChatData getChatData() {
+        return chatData;
+    }
+
     private void update() {
         userName.set(chatData.userName());
         displayName.set(chatData.userDisplayName());

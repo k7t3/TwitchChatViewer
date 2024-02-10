@@ -1,4 +1,4 @@
-package com.github.k7t3.tcv.vm.core;
+package com.github.k7t3.tcv.vm.main;
 
 import de.saxsys.mvvmfx.SceneLifecycle;
 import de.saxsys.mvvmfx.ViewModel;

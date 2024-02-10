@@ -1,6 +1,6 @@
 package com.github.k7t3.tcv.vm.service;
 
-import com.github.k7t3.tcv.view.core.ExceptionHandler;
+import com.github.k7t3.tcv.vm.core.ExceptionHandler;
 import javafx.concurrent.WorkerStateEvent;
 
 import java.io.Closeable;

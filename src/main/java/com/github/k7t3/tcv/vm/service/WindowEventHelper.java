@@ -1,4 +1,4 @@
-package com.github.k7t3.tcv.vm.core;
+package com.github.k7t3.tcv.vm.service;
 
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
