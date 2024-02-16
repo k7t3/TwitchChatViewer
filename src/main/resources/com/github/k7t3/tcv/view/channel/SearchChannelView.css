@@ -1,5 +1,6 @@
 .search-channel-view {
   -fx-background-color: -color-bg-default;
+  -fx-background-radius: 4;
 }
 
 .user-name-label {

@@ -1,8 +1,8 @@
 package com.github.k7t3.tcv.view.chat;
 
 import com.github.k7t3.tcv.domain.chat.ChatMessage;
-import com.github.k7t3.tcv.vm.chat.ChannelEmoteStore;
-import com.github.k7t3.tcv.vm.chat.ChatDataViewModel;
+import com.github.k7t3.tcv.app.chat.ChannelEmoteStore;
+import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Pos;

@@ -1,5 +1,8 @@
 package com.github.k7t3.tcv.domain.channel;
 
+/**
+ * 検索して見つかったチャンネル
+ */
 public class FoundChannel {
 
     private final Broadcaster broadcaster;

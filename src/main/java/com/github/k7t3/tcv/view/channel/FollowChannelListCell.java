@@ -1,6 +1,6 @@
 package com.github.k7t3.tcv.view.channel;
 
-import com.github.k7t3.tcv.vm.channel.FollowChannelViewModel;
+import com.github.k7t3.tcv.app.channel.FollowChannelViewModel;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Insets;

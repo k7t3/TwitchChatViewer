@@ -2,22 +2,24 @@ package com.github.k7t3.tcv.domain.channel;
 
 import com.github.k7t3.tcv.domain.Twitch;
 import com.github.k7t3.tcv.domain.chat.ChatBadge;
+import com.github.k7t3.tcv.domain.chat.ChatRoom;
+import com.github.philippheuer.events4j.api.domain.IDisposable;
+import com.github.twitch4j.events.*;
 import com.github.twitch4j.helix.domain.ChatBadgeSet;
-import com.github.twitch4j.helix.domain.Stream;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * チャットを視聴するときに必要な情報を持つクラス。
- */
 public class TwitchChannel {
 
     private final Broadcaster broadcaster;
 
-    private Stream stream;
+    private final AtomicReference<StreamInfo> streamRef;
 
     private List<ChatBadgeSet> badgeSets = null;
 
@@ -25,10 +27,87 @@ public class TwitchChannel {
 
     private final Twitch twitch;
 
-    public TwitchChannel(Twitch twitch, Broadcaster broadcaster, Stream stream) {
+    private final ExecutorService eventExecutor;
+
+    private final CopyOnWriteArraySet<TwitchChannelListener> listeners = new CopyOnWriteArraySet<>();
+
+    private boolean following = false;
+
+    public TwitchChannel(Twitch twitch, ExecutorService eventExecutor, Broadcaster broadcaster, StreamInfo stream) {
         this.twitch = twitch;
+        this.eventExecutor = eventExecutor;
         this.broadcaster = broadcaster;
-        this.stream = stream;
+        this.streamRef = new AtomicReference<>(stream);
+    }
+
+    private List<IDisposable> eventSubs;
+
+    void updateEventSubs() {
+        clearEventSubs();
+
+        var client = twitch.getClient();
+        var eventManager = client.getEventManager();
+
+        eventSubs = new ArrayList<>();
+
+        eventSubs.add(
+                eventManager.onEvent(ChannelGoLiveEvent.class, e -> {
+                    var stream = StreamInfo.of(e.getStream());
+                    setStream(stream);
+                    for (var listener : listeners)
+                        eventExecutor.submit(() -> listener.onOnline(stream));
+                })
+        );
+        eventSubs.add(
+                eventManager.onEvent(ChannelGoOfflineEvent.class, e -> {
+                    setStream(null);
+                    for (var listener : listeners)
+                        eventExecutor.submit(listener::onOffline);
+                })
+        );
+        eventSubs.add(
+                eventManager.onEvent(ChannelViewerCountUpdateEvent.class, e -> {
+                    var stream = StreamInfo.of(e.getStream());
+                    setStream(stream);
+                    for (var listener : listeners)
+                        eventExecutor.submit(() -> listener.onViewerCountUpdated(stream));
+                })
+        );
+        eventSubs.add(
+                eventManager.onEvent(ChannelChangeTitleEvent.class, e -> {
+                    var stream = StreamInfo.of(e.getStream());
+                    setStream(stream);
+                    for (var listener : listeners)
+                        eventExecutor.submit(() -> listener.onTitleChanged(stream));
+                })
+        );
+        eventSubs.add(
+                eventManager.onEvent(ChannelChangeGameEvent.class, e -> {
+                    var stream = StreamInfo.of(e.getStream());
+                    setStream(stream);
+                    for (var listener : listeners)
+                        eventExecutor.submit(() -> listener.onGameChanged(stream));
+                })
+        );
+    }
+
+    private void clearEventSubs() {
+        if (eventSubs == null) {
+            return;
+        }
+
+        for (var sub : eventSubs) {
+            sub.dispose();
+        }
+        eventSubs.clear();
+    }
+
+    public void addListener(TwitchChannelListener listener) {
+        listeners.add(listener);
+    }
+
+    public void removeListener(TwitchChannelListener listener) {
+        listeners.remove(listener);
     }
 
     public void loadBadgesIfNotLoaded() {
@@ -47,40 +126,60 @@ public class TwitchChannel {
         badgeLoaded.set(true);
     }
 
+    private ChatRoom chatRoom;
+
+    public ChatRoom getChatRoom() {
+        if (chatRoom != null) return chatRoom;
+
+        chatRoom = new ChatRoom(twitch, eventExecutor, broadcaster);
+        chatRoom.listen();
+        return chatRoom;
+    }
+
+    public void leaveChat() {
+        if (chatRoom == null) return;
+
+        chatRoom.leave();
+
+        var repository = twitch.getChannelRepository();
+
+        // フォローされていないチャンネルはチャットを使い終わった時点でクリアする
+        if (!isFollowing()) {
+
+            repository.releaseChannel(this);
+
+            clearEventSubs();
+        }
+
+        chatRoom = null;
+    }
+
     public Broadcaster getBroadcaster() {
         return broadcaster;
     }
 
-    public String getBroadcasterId() {
-        return broadcaster.getUserId();
-    }
-
-    public String getBroadcasterLogin() {
+    public String getChannelName() {
         return broadcaster.getUserLogin();
     }
 
-    public String getBroadcasterName() {
-        return broadcaster.getUserName();
+    public void setStream(StreamInfo stream) {
+        this.streamRef.set(stream);
     }
 
-    public void setStream(Stream stream) {
-        this.stream = stream;
-    }
-
-    public Stream getStream() {
-        return stream;
+    public StreamInfo getStream() {
+        return streamRef.get();
     }
 
     public boolean isStreaming() {
-        return stream != null;
+        return streamRef.get() != null;
     }
 
-    public String getCurrentTitle() {
-        return stream == null ? "" : stream.getTitle();
+    public void setFollowing(boolean following) {
+        this.following = following;
     }
 
-    public String getCurrentGameName() {
-        return stream == null ? "" : stream.getGameName();
+    public boolean isFollowing() {
+        return following;
     }
 
     public Optional<String> getBadgeUrl(ChatBadge badge) {
@@ -103,7 +202,7 @@ public class TwitchChannel {
     public String toString() {
         return "TwitchChannel{" +
                 "broadcaster=" + broadcaster +
-                ", stream=" + stream +
+                ", stream=" + streamRef +
                 '}';
     }
 }

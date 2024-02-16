@@ -1,12 +1,11 @@
 package com.github.k7t3.tcv.view;
 
 import atlantafx.base.theme.NordDark;
-import atlantafx.base.theme.NordLight;
 import atlantafx.base.theme.PrimerLight;
 import com.github.k7t3.tcv.view.main.MainView;
 import com.github.k7t3.tcv.view.core.Resources;
-import com.github.k7t3.tcv.vm.core.AppHelper;
-import com.github.k7t3.tcv.vm.service.WindowEventHelper;
+import com.github.k7t3.tcv.app.core.AppHelper;
+import com.github.k7t3.tcv.view.core.WindowEventHelper;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import javafx.application.Application;
 import javafx.scene.Scene;
@@ -34,8 +33,8 @@ public class TCVApp extends Application {
     @Override
     public void start(Stage primaryStage) throws Exception {
         //Application.setUserAgentStylesheet(new CupertinoDark().getUserAgentStylesheet());
-        Application.setUserAgentStylesheet(new NordDark().getUserAgentStylesheet());
-        //Application.setUserAgentStylesheet(new PrimerLight().getUserAgentStylesheet());
+        //Application.setUserAgentStylesheet(new NordDark().getUserAgentStylesheet());
+        Application.setUserAgentStylesheet(new PrimerLight().getUserAgentStylesheet());
 
         var loader = FluentViewLoader.fxmlView(MainView.class);
         loader.resourceBundle(Resources.getResourceBundle());
@@ -58,49 +57,6 @@ public class TCVApp extends Application {
 
         primaryStage.setScene(scene);
         primaryStage.show();
-
-//        AppHelper.getInstance().setPrimaryStage(primaryStage);
-//
-//        // ルート
-//        var root = new RootPane();
-//        // 通知用ノードの設定
-//        MessageNotificator.setRoot(root);
-//
-//        var loader = FluentViewLoader.fxmlView(FollowChannelsView.class);
-//        loader.resourceBundle(Resources.getResourceBundle());
-//        var tuple = loader.load();
-//        var view = tuple.getView();
-//        var viewModel = tuple.getViewModel();
-//        root.getContentContainer().getChildren().add(view);
-//
-//        Runnable callback = () -> {
-//            try {
-//                authDialog = null;
-//                var twitch = AppHelper.getInstance();
-//                viewModel.setChannelRepository(new ChannelRepository(twitch.getTwitch()));
-//                viewModel.loadAsync();
-//            } catch (Exception e) {
-//                ExceptionHandler.handle(primaryStage, e);
-//            }
-//        };
-//
-//        // 認証
-//        WindowEventHelper.shownOnce(primaryStage, e -> {
-//            authDialog = new AuthenticatorDialog(root.getModalPane(), callback);
-//            authDialog.load();
-//        });
-//
-//        // クローズ
-//        WindowEventHelper.closed(primaryStage, () -> {
-//            if (authDialog != null) {
-//                authDialog.cleanup();
-//            }
-//            var app = AppHelper.getInstance();
-//            app.close();
-//        });
-//
-//        primaryStage.setScene(new Scene(root, 1024, 768));
-//        primaryStage.show();
     }
 
 }

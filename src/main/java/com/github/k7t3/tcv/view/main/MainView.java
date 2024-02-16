@@ -1,19 +1,16 @@
 package com.github.k7t3.tcv.view.main;
 
 import atlantafx.base.controls.ModalPane;
-import atlantafx.base.util.Animations;
-import com.github.k7t3.tcv.domain.channel.ChannelRepository;
 import com.github.k7t3.tcv.view.auth.AuthenticatorView;
 import com.github.k7t3.tcv.view.channel.FollowChannelsView;
 import com.github.k7t3.tcv.view.channel.SearchChannelView;
 import com.github.k7t3.tcv.view.chat.ChatContainerView;
 import com.github.k7t3.tcv.view.core.Resources;
-import com.github.k7t3.tcv.vm.channel.FollowChannelsViewModel;
-import com.github.k7t3.tcv.vm.chat.ChatContainerViewModel;
-import com.github.k7t3.tcv.vm.core.AppHelper;
-import com.github.k7t3.tcv.vm.core.ExceptionHandler;
-import com.github.k7t3.tcv.vm.main.MainViewModel;
-import com.github.k7t3.tcv.vm.service.FXTask;
+import com.github.k7t3.tcv.app.channel.FollowChannelsViewModel;
+import com.github.k7t3.tcv.app.chat.ChatContainerViewModel;
+import com.github.k7t3.tcv.app.core.ExceptionHandler;
+import com.github.k7t3.tcv.app.main.MainViewModel;
+import com.github.k7t3.tcv.app.service.FXTask;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
@@ -24,12 +21,8 @@ import javafx.geometry.Side;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
-import javafx.scene.control.SplitPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
-import javafx.util.Duration;
-import org.kordamp.ikonli.feather.Feather;
-import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -55,9 +48,6 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
     private Pane headerPane;
 
     @FXML
-    private SplitPane splitPane;
-
-    @FXML
     private StackPane leftContainer;
 
     @FXML
@@ -72,13 +62,12 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        var unauthorized = viewModel.authorizedProperty().not();
-        headerPane.disableProperty().bind(unauthorized);
-        //splitPane.disableProperty().bind(unauthorized);
+        leftContainer.disableProperty().bind(viewModel.authorizedProperty().not());
+        rightContainer.disableProperty().bind(viewModel.authorizedProperty().not());
 
-        var helper = AppHelper.getInstance();
-        userNameLabel.textProperty().bind(helper.userNameProperty());
+        userNameLabel.textProperty().bind(viewModel.userNameProperty());
 
+        searchChannelButton.disableProperty().bind(viewModel.authorizedProperty().not());
         searchChannelButton.setOnAction(e -> openSearchChannelView());
 
         loadChatContainerView();
@@ -104,17 +93,6 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         rightContainer.getChildren().add(tuple.getView());
     }
 
-    private void loadViewResources() {
-        var helper = AppHelper.getInstance();
-
-        // フォローしているチャンネルを初期化
-        channelsViewModel.setChannelRepository(new ChannelRepository(helper.getTwitch()));
-        channelsViewModel.loadAsync();
-
-        // チャットコンテナを初期化
-        chatContainerViewModel.loadAsync();
-    }
-
     public void loadAuthorizationView() {
         var loader = FluentViewLoader.fxmlView(AuthenticatorView.class);
         loader.resourceBundle(Resources.getResourceBundle());
@@ -128,22 +106,21 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         modalPane.show(view);
 
         // 既存の資格情報を読み込む
-        var loadAsync = authViewModel.loadCredentialAsync();
+        var loadAsync = authViewModel.loadClientAsync();
         FXTask.setOnSucceeded(loadAsync, e -> {
 
             // 資格情報の取得に成功
             if (loadAsync.getValue() != null) {
 
-                // 認証済み
-                viewModel.setAuthorized(true);
-
                 // ModalPaneを非表示にする
                 modalPane.hide(true);
 
-                // リソースのクリーンアップ
-                authViewModel.close();
+                // フォローしているチャンネルを初期化
+                channelsViewModel.loadAsync();
 
-                loadViewResources();
+                // チャットコンテナを初期化
+                chatContainerViewModel.loadAsync();
+
                 return;
             }
 
@@ -153,25 +130,22 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
             // 認証が成功したときに処理を行うリスナーを登録
             authViewModel.authorizedProperty().addListener((ob, o, n) -> {
-                // 認証結果を反映
-                viewModel.setAuthorized(n);
-
                 if (!n) return;
 
                 // ModalPaneを非表示にする
                 modalPane.hide(true);
 
-                // リソースのクリーンアップ
-                authViewModel.close();
+                // フォローしているチャンネルを初期化
+                channelsViewModel.loadAsync();
 
-                loadViewResources();
+                // チャットコンテナを初期化
+                chatContainerViewModel.loadAsync();
             });
 
             // 認証フローの開始
             var flowAsync = authViewModel.startAuthenticateAsync();
             flowAsync.addEventHandler(WorkerStateEvent.WORKER_STATE_FAILED, e2 -> {
                 ExceptionHandler.handle(flowAsync.getException());
-                authViewModel.close();
             });
 
         });

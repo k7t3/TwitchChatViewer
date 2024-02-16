@@ -2,11 +2,10 @@ package com.github.k7t3.tcv.view.channel;
 
 import atlantafx.base.controls.CustomTextField;
 import atlantafx.base.controls.ToggleSwitch;
-import com.github.k7t3.tcv.vm.channel.FollowChannelViewModel;
-import com.github.k7t3.tcv.vm.channel.FollowChannelsViewModel;
+import com.github.k7t3.tcv.app.channel.FollowChannelViewModel;
+import com.github.k7t3.tcv.app.channel.FollowChannelsViewModel;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
-import de.saxsys.mvvmfx.utils.viewlist.CachedViewModelCellFactory;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.ListView;

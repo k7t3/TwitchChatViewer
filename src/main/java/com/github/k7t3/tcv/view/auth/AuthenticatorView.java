@@ -1,7 +1,7 @@
 package com.github.k7t3.tcv.view.auth;
 
 import atlantafx.base.controls.CustomTextField;
-import com.github.k7t3.tcv.vm.auth.AuthenticatorViewModel;
+import com.github.k7t3.tcv.app.auth.AuthenticatorViewModel;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.application.Platform;

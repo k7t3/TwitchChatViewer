@@ -8,17 +8,14 @@ import java.util.Optional;
 
 public class GlobalChatBadges {
 
-    private final Twitch twitch;
-
     private List<ChatBadgeSet> badgeSets;
 
     private boolean loaded = false;
 
-    public GlobalChatBadges(Twitch twitch) {
-        this.twitch = twitch;
+    public GlobalChatBadges() {
     }
 
-    public void load() {
+    public void load(Twitch twitch) {
         if (loaded) return;
 
         var client = twitch.getClient();

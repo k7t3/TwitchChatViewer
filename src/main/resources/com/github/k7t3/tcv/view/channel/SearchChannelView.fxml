@@ -37,7 +37,7 @@
             <ListView fx:id="foundChannels" />
          </children>
          <padding>
-            <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
+            <Insets bottom="4.0" left="4.0" right="4.0" top="4.0" />
          </padding>
       </StackPane>
    </center>

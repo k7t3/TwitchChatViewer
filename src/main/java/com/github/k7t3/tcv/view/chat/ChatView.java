@@ -2,8 +2,8 @@ package com.github.k7t3.tcv.view.chat;
 
 import atlantafx.base.controls.ToggleSwitch;
 import atlantafx.base.theme.Styles;
-import com.github.k7t3.tcv.vm.chat.ChatDataViewModel;
-import com.github.k7t3.tcv.vm.chat.ChatViewModel;
+import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
+import com.github.k7t3.tcv.app.chat.ChatViewModel;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.collections.ListChangeListener;

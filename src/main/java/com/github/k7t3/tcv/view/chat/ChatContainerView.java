@@ -1,8 +1,8 @@
 package com.github.k7t3.tcv.view.chat;
 
 import com.github.k7t3.tcv.view.core.Resources;
-import com.github.k7t3.tcv.vm.chat.ChatContainerViewModel;
-import com.github.k7t3.tcv.vm.chat.ChatViewModel;
+import com.github.k7t3.tcv.app.chat.ChatContainerViewModel;
+import com.github.k7t3.tcv.app.chat.ChatViewModel;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;

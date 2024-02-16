@@ -1,36 +1,89 @@
 package com.github.k7t3.tcv.domain;
 
+import com.github.k7t3.tcv.domain.channel.ChannelRepository;
 import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
 import com.github.twitch4j.TwitchClient;
+import com.github.twitch4j.chat.TwitchChat;
 
-public class Twitch {
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicReference;
 
-    private OAuth2Credential credential;
+/**
+ * TwitchのAPIアクセスに必要な情報を管理するクラス。
+ */
+public class Twitch implements Closeable {
 
-    private TwitchClient client;
+    private final AtomicReference<OAuth2Credential> credential = new AtomicReference<>();
 
-    public void update(OAuth2Credential credential, TwitchClient client) {
-        this.credential = credential;
-        this.client = client;
+    private final AtomicReference<TwitchClient> client = new AtomicReference<>();
+
+    private final TwitchClient chatClient;
+
+    private final TwitchClientRefreshScheduler refreshScheduler;
+
+    Twitch(OAuth2Credential credential, TwitchClient apiClient, TwitchClient chatClient) {
+        this.chatClient = chatClient;
+        setCredential(credential);
+        setClient(apiClient);
+        refreshScheduler = new TwitchClientRefreshScheduler(this);
+        refreshScheduler.start();
     }
 
-    public OAuth2Credential getCredential() {
-        return credential;
+    private ChannelRepository channelRepository;
+
+    public ChannelRepository getChannelRepository() {
+        if (channelRepository == null) channelRepository = new ChannelRepository(this);
+        return channelRepository;
+    }
+
+    void setClient(TwitchClient client) {
+        this.client.set(client);
+    }
+
+    void setCredential(OAuth2Credential credential) {
+        this.credential.set(credential);
+    }
+
+    private OAuth2Credential getCredential() {
+        return credential.get();
     }
 
     public String getAccessToken() {
-        return credential.getAccessToken();
+        return getCredential().getAccessToken();
     }
 
     public String getUserId() {
-        return credential.getUserId();
+        return getCredential().getUserId();
     }
 
     public String getUserName() {
-        return credential.getUserName();
+        return getCredential().getUserName();
     }
 
+    /**
+     * ドメインパッケージでの使用に限りたい。
+     */
     public TwitchClient getClient() {
-        return client;
+        return client.get();
+    }
+
+    public TwitchChat getChat() {
+        return chatClient.getChat();
+    }
+
+    @Override
+    public void close() {
+        var client = getClient();
+        if (client != null) {
+            client.close();
+        }
+        chatClient.close();
+
+        try {
+            refreshScheduler.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
