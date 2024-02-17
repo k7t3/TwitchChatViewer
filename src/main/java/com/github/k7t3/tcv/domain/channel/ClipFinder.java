@@ -13,7 +13,7 @@ public class ClipFinder {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ClipFinder.class);
 
-    private static final Pattern CLIP_URL_PATTERN = Pattern.compile("^https://(www.twitch.tv|m.twitch.tv)/[^/]+/clip/[^ ]+");
+    private static final Pattern CLIP_URL_PATTERN = Pattern.compile("https://(www\\.twitch\\.tv|m\\.twitch\\.tv|clips\\.twitch\\.tv)/([^/]+/clip/)?[^ 　]+");
 
     private final Twitch twitch;
 
@@ -25,7 +25,8 @@ public class ClipFinder {
      * チャットに投稿されたクリップのURLをパースしてAPIに投げるメソッド
      */
     public Optional<VideoClip> findClip(String link) {
-        if (!CLIP_URL_PATTERN.matcher(link).hasMatch()) {
+        var matcher = CLIP_URL_PATTERN.matcher(link);
+        if (!matcher.find()) {
             return Optional.empty();
         }
 
@@ -37,13 +38,12 @@ public class ClipFinder {
             // 2: clip
             // 3: クリップのID
             var paths = uri.getPath().split("/");
-            if (paths.length != 4) {
+            if (paths.length != 4 && paths.length != 2) {
                 LOGGER.error("unexpected clip url {}", link);
                 return Optional.empty();
             }
 
-            var userLogin = paths[1];
-            var clipId = paths[3];
+            var clipId = paths[paths.length - 1];
 
             var client = twitch.getClient();
             if (client == null) {
@@ -54,7 +54,7 @@ public class ClipFinder {
             var helix = client.getHelix();
             var clipsCommand = helix.getClips(
                     twitch.getAccessToken(),
-                    userLogin,
+                    null,
                     null,
                     List.of(clipId),
                     null,
@@ -67,13 +67,14 @@ public class ClipFinder {
 
             var clips = clipsCommand.execute().getData();
             if (clips.isEmpty()) {
+                LOGGER.warn("clip not found clip_id={}", clipId);
                 return Optional.empty();
             }
 
             return Optional.of(VideoClip.of(clips.getFirst()));
 
         } catch (Exception e) {
-            LOGGER.error("unexpected clip url {}", link);
+            LOGGER.error(link, e);
             return Optional.empty();
         }
     }

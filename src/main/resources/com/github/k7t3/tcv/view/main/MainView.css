@@ -17,6 +17,6 @@
 }
 
 .chat-room-state {
-  -fx-icon-color: -color-fg-default;
+  -fx-icon-color: -color-accent-fg;
   -fx-icon-size: 18;
 }

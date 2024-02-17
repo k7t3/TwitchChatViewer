@@ -1,6 +1,7 @@
 package com.github.k7t3.tcv.domain;
 
 import com.github.k7t3.tcv.domain.channel.ChannelRepository;
+import com.github.k7t3.tcv.domain.clip.VideoClipRepository;
 import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
 import com.github.twitch4j.TwitchClient;
 import com.github.twitch4j.chat.TwitchChat;
@@ -35,6 +36,13 @@ public class Twitch implements Closeable {
     public ChannelRepository getChannelRepository() {
         if (channelRepository == null) channelRepository = new ChannelRepository(this);
         return channelRepository;
+    }
+
+    private VideoClipRepository clipRepository;
+
+    public VideoClipRepository getClipRepository() {
+        if (clipRepository == null) clipRepository = new VideoClipRepository();
+        return clipRepository;
     }
 
     void setClient(TwitchClient client) {

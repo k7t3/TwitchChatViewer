@@ -61,6 +61,8 @@ public class ChatRoom {
     private List<IDisposable> subscriptions;
 
     public void listen() {
+        LOGGER.info("{} chat room event listening started", getBroadcaster().getUserLogin());
+
         subscriptions = new ArrayList<>();
 
         var chat = twitch.getChat();
@@ -81,6 +83,7 @@ public class ChatRoom {
 
     public void leave() {
         if (subscriptions == null) return;
+        LOGGER.info("{} leave chat", getBroadcaster().getUserLogin());
 
         var chat = twitch.getChat();
         chat.leaveChannel(getBroadcaster().getUserLogin());

@@ -1,9 +1,7 @@
 package com.github.k7t3.tcv.domain.channel;
 
 import com.github.k7t3.tcv.domain.Twitch;
-import com.github.k7t3.tcv.domain.auth.CredentialController;
-import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
-import com.github.twitch4j.TwitchClientBuilder;
+import com.github.k7t3.tcv.domain.TwitchLoader;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -24,26 +22,9 @@ class ChannelsTest {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        var authenticator = new CredentialController();
-        try {
-            boolean authorized;
-            if (!authenticator.isAuthorized()) {
-                authorized = authenticator.validateToken();
-            } else {
-                authorized = true;
-            }
 
-            if (authorized) {
-                var cred = (OAuth2Credential) authenticator.getCredentialManager().getCredentials().getFirst();
-                var client = TwitchClientBuilder.builder()
-                        .withCredentialManager(authenticator.getCredentialManager())
-                        .withEnableHelix(true)
-                        .build();
-                twitch = new Twitch(cred, client, null);
-            }
-        } finally {
-            authenticator.disposeAuthenticate();
-        }
+        var loader = new TwitchLoader();
+        loader.load().ifPresent(t -> twitch = t);
     }
 
     @AfterAll

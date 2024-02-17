@@ -33,7 +33,11 @@ class TwitchClientRefreshScheduler implements Closeable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TwitchClientRefreshScheduler.class);
 
-    private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+    // 3h 30m
+    private static final long DELAY_MINUTES = 210;
+
+    private final ScheduledExecutorService executor =
+            Executors.newSingleThreadScheduledExecutor(Thread.ofVirtual().factory());
 
     private final Twitch twitch;
 
@@ -44,10 +48,12 @@ class TwitchClientRefreshScheduler implements Closeable {
     public void start() {
         LOGGER.info("refresh scheduler started");
 
-        // 3 h 30 m
-        var delayMinutes = 210;
-
-        executor.scheduleAtFixedRate(this::updateToken, delayMinutes, delayMinutes, TimeUnit.MINUTES);
+        executor.scheduleAtFixedRate(
+                this::updateToken,
+                DELAY_MINUTES,
+                DELAY_MINUTES,
+                TimeUnit.MINUTES
+        );
     }
 
     private void updateToken() {

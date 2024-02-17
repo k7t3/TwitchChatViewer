@@ -90,7 +90,10 @@ public class SearchChannelView implements FxmlView<SearchChannelViewModel>, Init
     }
 
     private void initContextMenu() {
+        var empty = foundChannels.getSelectionModel().selectedItemProperty().isNull();
+
         var openChat = new MenuItem(Resources.getString("search.open.chat"));
+        openChat.disableProperty().bind(empty);
         openChat.setOnAction(e -> {
             var channel = foundChannels.getSelectionModel().getSelectedItem();
             if (channel == null) return;
@@ -99,6 +102,7 @@ public class SearchChannelView implements FxmlView<SearchChannelViewModel>, Init
         });
 
         var openBrowser = new MenuItem(Resources.getString("search.open.browser"));
+        openBrowser.disableProperty().bind(empty);
         openBrowser.setOnAction(e -> {
             var channel = foundChannels.getSelectionModel().getSelectedItem();
             if (channel == null) return;

@@ -5,6 +5,7 @@ import com.github.k7t3.tcv.view.auth.AuthenticatorView;
 import com.github.k7t3.tcv.view.channel.FollowChannelsView;
 import com.github.k7t3.tcv.view.channel.SearchChannelView;
 import com.github.k7t3.tcv.view.chat.ChatContainerView;
+import com.github.k7t3.tcv.view.clip.VideoClipViewCallActionHandler;
 import com.github.k7t3.tcv.view.core.Resources;
 import com.github.k7t3.tcv.app.channel.FollowChannelsViewModel;
 import com.github.k7t3.tcv.app.chat.ChatContainerViewModel;
@@ -21,6 +22,7 @@ import javafx.geometry.Side;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 
@@ -69,6 +71,10 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
         searchChannelButton.disableProperty().bind(viewModel.authorizedProperty().not());
         searchChannelButton.setOnAction(e -> openSearchChannelView());
+
+        var clipMenuItem = new MenuItem();
+        clipMenuItem.setOnAction(new VideoClipViewCallActionHandler(modalPane));
+        userMenuButton.getItems().add(clipMenuItem);
 
         loadChatContainerView();
         loadFollowersView();

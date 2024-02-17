@@ -1,7 +1,6 @@
 package com.github.k7t3.tcv.view;
 
-import atlantafx.base.theme.NordDark;
-import atlantafx.base.theme.PrimerLight;
+import atlantafx.base.theme.*;
 import com.github.k7t3.tcv.view.main.MainView;
 import com.github.k7t3.tcv.view.core.Resources;
 import com.github.k7t3.tcv.app.core.AppHelper;
@@ -33,11 +32,12 @@ public class TCVApp extends Application {
     @Override
     public void start(Stage primaryStage) throws Exception {
         //Application.setUserAgentStylesheet(new CupertinoDark().getUserAgentStylesheet());
-        //Application.setUserAgentStylesheet(new NordDark().getUserAgentStylesheet());
-        Application.setUserAgentStylesheet(new PrimerLight().getUserAgentStylesheet());
+        Application.setUserAgentStylesheet(new NordDark().getUserAgentStylesheet());
+        //Application.setUserAgentStylesheet(new PrimerLight().getUserAgentStylesheet());
 
         var loader = FluentViewLoader.fxmlView(MainView.class);
         loader.resourceBundle(Resources.getResourceBundle());
+
         var tuple = loader.load();
         var view = tuple.getView();
         var codeBehind = tuple.getCodeBehind();

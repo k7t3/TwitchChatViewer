@@ -1,8 +1,11 @@
 package com.github.k7t3.tcv.view.chat;
 
+import atlantafx.base.theme.Styles;
 import com.github.k7t3.tcv.domain.chat.ChatRoomState;
 import com.github.k7t3.tcv.view.core.Resources;
 import javafx.scene.Node;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
@@ -12,6 +15,7 @@ import java.util.Map;
 
 public class ChatRoomStateNodes {
 
+    private static final String STYLE_CLASS_LABEL = "chat-room-state-label";
     private static final String STYLE_CLASS = "chat-room-state";
 
     private final Map<ChatRoomState, Node> stateNodes = new HashMap<>();
@@ -36,17 +40,26 @@ public class ChatRoomStateNodes {
             default -> throw new IllegalArgumentException();
         };
         icon.getStyleClass().add(STYLE_CLASS);
-        applyTooltip(state, icon);
-        return icon;
+
+        var label = new Label("", icon);
+        label.getStyleClass().addAll(STYLE_CLASS_LABEL);
+        label.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+
+        applyText(state, label);
+
+        return label;
     }
 
-    private void applyTooltip(ChatRoomState state, Node node) {
-        switch (state) {
-            case EMOTE_ONLY -> Tooltip.install(node, new Tooltip(Resources.getString("chat.state.emote_only")));
-            case FOLLOWERS_ONLY -> Tooltip.install(node, new Tooltip(Resources.getString("chat.state.followers_only")));
-            case SLOW_MODE -> Tooltip.install(node, new Tooltip(Resources.getString("chat.state.slow_mode")));
-            case SUBSCRIBERS_ONLY -> Tooltip.install(node, new Tooltip(Resources.getString("chat.state.subscribers_only")));
-        }
+    private void applyText(ChatRoomState state, Label label) {
+        var text = switch (state) {
+            case EMOTE_ONLY -> Resources.getString("chat.state.emote_only");
+            case FOLLOWERS_ONLY -> Resources.getString("chat.state.followers_only");
+            case SLOW_MODE -> Resources.getString("chat.state.slow_mode");
+            case SUBSCRIBERS_ONLY -> Resources.getString("chat.state.subscribers_only");
+            default -> "";
+        };
+
+        label.setTooltip(new Tooltip(text));
     }
 
 }

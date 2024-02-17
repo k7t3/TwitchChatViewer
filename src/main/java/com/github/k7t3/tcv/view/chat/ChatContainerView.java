@@ -1,16 +1,18 @@
 package com.github.k7t3.tcv.view.chat;
 
-import com.github.k7t3.tcv.view.core.Resources;
 import com.github.k7t3.tcv.app.chat.ChatContainerViewModel;
 import com.github.k7t3.tcv.app.chat.ChatViewModel;
+import com.github.k7t3.tcv.view.core.Resources;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
+import javafx.geometry.Pos;
+import javafx.scene.Node;
+import javafx.scene.control.SplitPane;
+import javafx.scene.layout.*;
 
 import java.net.URL;
 import java.util.HashMap;
@@ -20,17 +22,22 @@ import java.util.ResourceBundle;
 public class ChatContainerView implements FxmlView<ChatContainerViewModel>, Initializable {
 
     @FXML
-    private TabPane container;
+    private BorderPane container;
+
+    private GridPane chatContainer;
 
     @InjectViewModel
     private ChatContainerViewModel viewModel;
 
-    private Map<ChatViewModel, Tab> tabs;
+    private Map<ChatViewModel, Node> items;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        tabs = new HashMap<>();
+        items = new HashMap<>();
         viewModel.getChatList().addListener(this::chatChanged);
+
+        chatContainer = new GridPane();
+        container.setCenter(chatContainer);
     }
 
     private void chatChanged(ListChangeListener.Change<? extends ChatViewModel> c) {
@@ -47,10 +54,10 @@ public class ChatContainerView implements FxmlView<ChatContainerViewModel>, Init
     }
 
     private void onRemoved(ChatViewModel chat) {
-        var tab = tabs.get(chat);
-        if (tab == null) return;
+        var node = items.get(chat);
+        if (node == null) return;
 
-        container.getTabs().remove(tab);
+        chatContainer.getChildren().remove(node);
     }
 
     private void onAdded(ChatViewModel chat) {
@@ -59,17 +66,18 @@ public class ChatContainerView implements FxmlView<ChatContainerViewModel>, Init
                 .resourceBundle(Resources.getResourceBundle())
                 .load();
 
-        var tab = new Tab("", tuple.getView());
-        tab.textProperty().bind(chat.userNameProperty());
-        tab.setOnCloseRequest(e -> {
-            chat.leaveChatAsync();
-            tab.setDisable(true);
-        });
+        var node = tuple.getView();
 
-        container.getTabs().add(tab);
+        var columnCount = chatContainer.getColumnCount();
+        GridPane.setFillWidth(node, true);
+        GridPane.setFillHeight(node, true);
+        GridPane.setHgrow(node, Priority.ALWAYS);
+        GridPane.setVgrow(node, Priority.ALWAYS);
+        chatContainer.addColumn(columnCount, node);
+
         tuple.getViewModel().joinChatAsync();
 
-        tabs.put(chat, tab);
+        items.put(chat, node);
     }
 
 }

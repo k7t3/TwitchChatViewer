@@ -1,6 +1,8 @@
 package com.github.k7t3.tcv.app.chat;
 
+import com.github.k7t3.tcv.domain.channel.StreamInfo;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
+import com.github.k7t3.tcv.domain.channel.TwitchChannelListener;
 import com.github.k7t3.tcv.domain.channel.VideoClip;
 import com.github.k7t3.tcv.domain.chat.ChatData;
 import com.github.k7t3.tcv.domain.chat.ChatRoom;
@@ -17,13 +19,17 @@ import javafx.scene.image.Image;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ChatViewModel implements ViewModel, ChatRoomListener {
+public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoomListener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ChatViewModel.class);
 
     private final ReadOnlyStringWrapper title = new ReadOnlyStringWrapper();
 
+    private final ReadOnlyStringWrapper gameName = new ReadOnlyStringWrapper();
+
     private final ReadOnlyStringWrapper userName = new ReadOnlyStringWrapper();
+
+    private final ReadOnlyIntegerWrapper viewerCount = new ReadOnlyIntegerWrapper();
 
     private final ReadOnlyObjectWrapper<Image> profileImage = new ReadOnlyObjectWrapper<>();
 
@@ -72,11 +78,21 @@ public class ChatViewModel implements ViewModel, ChatRoomListener {
     }
 
     private void update() {
-        title.set(channel.getStream().title());
+        if (channel.isStreaming()) {
+            LOGGER.info("{} {}", channel.getBroadcaster().getUserName(), channel.getStream().title());
+            updateStreamInfo(channel.getStream());
+        }
         userName.set(channel.getBroadcaster().getUserName());
         channel.getBroadcaster().getProfileImageUrl().ifPresent(
                 url -> profileImage.set(new Image(url, true))
         );
+    }
+
+    private void updateStreamInfo(StreamInfo info) {
+        title.set(info.title());
+        gameName.set(info.gameName());
+        viewerCount.set(info.viewerCount());
+        live.set(true);
     }
 
     public FXTask<?> joinChatAsync() {
@@ -89,6 +105,7 @@ public class ChatViewModel implements ViewModel, ChatRoomListener {
         FXTask.setOnSucceeded(task, e -> {
             chatRoom = task.getValue();
             chatRoom.addListener(this);
+            channel.addListener(this);
             setChatJoined(true);
         });
         TaskWorker.getInstance().submit(task);
@@ -98,14 +115,17 @@ public class ChatViewModel implements ViewModel, ChatRoomListener {
     public FXTask<Void> leaveChatAsync() {
         if (!isChatJoined()) return FXTask.empty();
 
-        chatRoom = null;
-
         // 親であるコンテナにチャットを抜けたことを伝える
         containerViewModel.onLeft(this);
 
         setChatJoined(false);
 
-        var task = FXTask.task(channel::leaveChat);
+        var task = FXTask.task(() -> {
+            channel.leaveChat();
+            chatRoom.removeListener(this);
+            channel.removeListener(this);
+        });
+        FXTask.setOnSucceeded(task, e -> chatRoom = null);
         TaskWorker.getInstance().submit(task);
 
         return task;
@@ -177,6 +197,31 @@ public class ChatViewModel implements ViewModel, ChatRoomListener {
         LOGGER.info("{} {} sub gifted by {}", getUserName(), userName, giverName);
     }
 
+    @Override
+    public void onOnline(StreamInfo info) {
+        Platform.runLater(() -> updateStreamInfo(info));
+    }
+
+    @Override
+    public void onOffline() {
+        Platform.runLater(() -> live.set(false));
+    }
+
+    @Override
+    public void onViewerCountUpdated(StreamInfo info) {
+        Platform.runLater(() -> updateStreamInfo(info));
+    }
+
+    @Override
+    public void onTitleChanged(StreamInfo info) {
+        Platform.runLater(() -> updateStreamInfo(info));
+    }
+
+    @Override
+    public void onGameChanged(StreamInfo info) {
+        Platform.runLater(() -> updateStreamInfo(info));
+    }
+
     // ********** PROPERTIES **********
 
     private ReadOnlyStringWrapper titleWrapper() { return title; }
@@ -187,7 +232,13 @@ public class ChatViewModel implements ViewModel, ChatRoomListener {
     private ReadOnlyStringWrapper userNameWrapper() { return userName; }
     public ReadOnlyStringProperty userNameProperty() { return userName.getReadOnlyProperty(); }
     public String getUserName() { return userName.get(); }
-    public void setUserName(String userName) { this.userName.set(userName); }
+    private void setUserName(String userName) { this.userName.set(userName); }
+
+    public ReadOnlyStringProperty gameNameProperty() { return gameName.getReadOnlyProperty(); }
+    public String getGameName() { return gameName.get(); }
+
+    public ReadOnlyIntegerProperty viewerCountProperty() { return viewerCount.getReadOnlyProperty(); }
+    public int getViewerCount() { return viewerCount.get(); }
 
     private ReadOnlyObjectWrapper<Image> profileImageWrapper() { return profileImage; }
     public ReadOnlyObjectProperty<Image> profileImageProperty() { return profileImage.getReadOnlyProperty(); }

@@ -28,7 +28,10 @@ public class FollowChannelViewModel implements ViewModel, TwitchChannelListener,
     private ReadOnlyStringWrapper title = null;
     private ReadOnlyIntegerWrapper viewerCount = null;
 
-    public FollowChannelViewModel(TwitchChannel channel) {
+    private final FollowChannelsViewModel channels;
+
+    public FollowChannelViewModel(FollowChannelsViewModel channels, TwitchChannel channel) {
+        this.channels = channels;
         this.channel = channel;
         update(channel);
     }

@@ -84,7 +84,7 @@ public class FollowChannelsViewModel implements ViewModel {
         var task = FXTask.task(() -> {
             repository.loadAllFollowBroadcasters();
             return repository.getChannels().stream()
-                    .map(FollowChannelViewModel::new)
+                    .map(c -> new FollowChannelViewModel(this, c))
                     .toList();
         });
         FXTask.setOnSucceeded(task, e -> {

@@ -85,7 +85,6 @@ public class CredentialFileStorage implements IStorageBackend {
 
     @Override
     public List<Credential> loadCredentials() {
-        LOGGER.info("load credentials");
         loadOAuthCredentials();
         return new ArrayList<>(credentials);
     }
@@ -119,8 +118,6 @@ public class CredentialFileStorage implements IStorageBackend {
 
                     var epoch = c.getReceivedAt().toEpochMilli();
                     os.writeLong(epoch);
-
-                    LOGGER.info("saved credential {}", credential);
                 }
             }
 
@@ -131,7 +128,6 @@ public class CredentialFileStorage implements IStorageBackend {
 
     @Override
     public void saveCredentials(List<Credential> credentials) {
-        LOGGER.info("save all credentials");
         this.credentials.clear();
         this.credentials.addAll(credentials);
         saveOAuthCredentials();

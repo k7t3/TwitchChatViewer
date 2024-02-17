@@ -109,7 +109,7 @@ public class ChatDataListCell extends ListCell<ChatDataViewModel> {
         );
 
         textFlow.maxWidthProperty().bind(
-                widthProperty().subtract(badgesNode.widthProperty().add(10))
+                widthProperty().subtract(badgesNode.widthProperty().add(30))
         );
 
         BorderPane.setAlignment(textFlow, Pos.CENTER_LEFT);
