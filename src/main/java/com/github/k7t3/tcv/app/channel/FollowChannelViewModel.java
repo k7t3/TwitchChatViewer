@@ -28,6 +28,8 @@ public class FollowChannelViewModel implements ViewModel, TwitchChannelListener,
     private ReadOnlyStringWrapper title = null;
     private ReadOnlyIntegerWrapper viewerCount = null;
 
+    private final BooleanProperty visibleFully = new SimpleBooleanProperty(true);
+
     private final FollowChannelsViewModel channels;
 
     public FollowChannelViewModel(FollowChannelsViewModel channels, TwitchChannel channel) {
@@ -147,4 +149,7 @@ public class FollowChannelViewModel implements ViewModel, TwitchChannelListener,
     public int getViewerCount() { return viewerCount == null ? -1 : viewerCount.get(); }
     private void setViewerCount(int viewerCount) { viewerCountWrapper().set(viewerCount); }
 
+    public BooleanProperty visibleFullyProperty() { return visibleFully; }
+    public boolean isVisibleFully() { return visibleFully.get(); }
+    public void setVisibleFully(boolean visibleFully) { this.visibleFully.set(visibleFully); }
 }

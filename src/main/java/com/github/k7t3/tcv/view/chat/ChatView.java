@@ -18,6 +18,7 @@ import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.net.URL;
+import java.time.format.DateTimeFormatter;
 import java.util.ResourceBundle;
 
 public class ChatView implements FxmlView<ChatViewModel>, Initializable {
@@ -88,6 +89,7 @@ public class ChatView implements FxmlView<ChatViewModel>, Initializable {
         autoScroll.selectedProperty().bindBidirectional(viewModel.scrollToBottomProperty());
 
         installPopover();
+        streamInfoLink.visitedProperty().bind(viewModel.liveProperty());
     }
 
     private void installPopover() {
@@ -104,7 +106,12 @@ public class ChatView implements FxmlView<ChatViewModel>, Initializable {
         viewerCountLabel.getStyleClass().add(Styles.DANGER);
         viewerCountLabel.textProperty().bind(viewModel.viewerCountProperty().asString());
 
-        var vbox = new VBox(gameNameLabel, streamTitleLabel, viewerCountLabel);
+        var formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
+        var startedAtLabel = new Label();
+        startedAtLabel.setGraphic(new FontIcon(FontAwesomeSolid.CLOCK));
+        startedAtLabel.textProperty().bind(viewModel.startedAtProperty().map(formatter::format));
+
+        var vbox = new VBox(gameNameLabel, streamTitleLabel, viewerCountLabel, startedAtLabel);
         vbox.setPrefWidth(300);
         vbox.setSpacing(4);
         vbox.setPadding(new Insets(10, 0, 10, 0));

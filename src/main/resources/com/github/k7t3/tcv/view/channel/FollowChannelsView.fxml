@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import atlantafx.base.controls.CustomTextField?>
-<?import atlantafx.base.controls.ToggleSwitch?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.ToggleButton?>
 <?import javafx.scene.layout.BorderPane?>
 
-<BorderPane styleClass="follow-channels-view" stylesheets="@FollowChannelsView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.channel.FollowChannelsView">
+<BorderPane fx:id="root" styleClass="follow-channels-view" stylesheets="@FollowChannelsView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.channel.FollowChannelsView">
    <top>
       <BorderPane BorderPane.alignment="CENTER">
          <center>
@@ -15,9 +15,9 @@
                   <Insets right="4.0" />
                </BorderPane.margin></CustomTextField>
          </center>
-         <right>
-            <ToggleSwitch fx:id="onlyLiveSwitch" text="Live" BorderPane.alignment="CENTER_RIGHT" />
-         </right>
+         <left>
+            <ToggleButton fx:id="drawLeftToggle" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Drawer" BorderPane.alignment="CENTER" />
+         </left>
       </BorderPane>
    </top>
    <center>

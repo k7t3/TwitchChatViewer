@@ -5,6 +5,8 @@ import com.github.k7t3.tcv.domain.TwitchLoader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class ClipFinderTest {
@@ -26,13 +28,21 @@ class ClipFinderTest {
             return;
         }
 
-        var finder = new ClipFinder(twitch);
-        var op = finder.findClip("https://www.twitch.tv/fantasista_jp/clip/SecretiveSpunkyFlyCmonBruh-7Zz3Psy23ZeN2O7V");
-        if (op.isEmpty()) {
-            fail("op is not present value");
-            return;
-        }
+        var test = List.of(
+                "https://clips.twitch.tv/StylishDullDaikonAMPEnergy-pTmLJ5dazGRB32rq",
+                "https://www.twitch.tv/fantasista_jp/clip/SecretiveSpunkyFlyCmonBruh-7Zz3Psy23ZeN2O7V"
+        );
 
-        System.out.println(op.get());
+        var finder = new ClipFinder(twitch);
+
+        for (var link : test) {
+            var op = finder.findClip(link);
+            if (op.isEmpty()) {
+                fail("op is not present value");
+                return;
+            }
+
+            System.out.println(op.get());
+        }
     }
 }

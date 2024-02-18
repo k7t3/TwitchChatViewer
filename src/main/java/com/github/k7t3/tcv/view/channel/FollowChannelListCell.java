@@ -43,6 +43,8 @@ public class FollowChannelListCell extends ListCell<FollowChannelViewModel> {
 
     private BooleanProperty live;
 
+    private BooleanProperty visibleFully;
+
     private Tooltip tooltip;
 
     public FollowChannelListCell() {
@@ -64,6 +66,8 @@ public class FollowChannelListCell extends ListCell<FollowChannelViewModel> {
 
         live = new SimpleBooleanProperty(false);
         profileImageView.effectProperty().bind(live.map(live -> live ? null : new SepiaTone()));
+
+        visibleFully = new SimpleBooleanProperty(true);
 
         userNameLabel = new Label();
         userNameLabel.getStyleClass().add(USER_NAME_STYLE_CLASS);
@@ -88,12 +92,16 @@ public class FollowChannelListCell extends ListCell<FollowChannelViewModel> {
         center.getStyleClass().add(NAMES_CONTAINER_CLASS);
         center.setAlignment(Pos.CENTER_LEFT);
         center.setFillWidth(true);
+        center.visibleProperty().bind(visibleFully);
+        center.managedProperty().bind(visibleFully);
 
         // 視聴者数とオンラインアイコン
         var right = new HBox(viewerCountLabel, onlineMark);
         right.setSpacing(10);
         right.setPadding(new Insets(0, 10, 0, 0));
         right.setAlignment(Pos.CENTER_RIGHT);
+        right.visibleProperty().bind(visibleFully);
+        right.managedProperty().bind(visibleFully);
 
         layout = new BorderPane();
 
@@ -133,6 +141,8 @@ public class FollowChannelListCell extends ListCell<FollowChannelViewModel> {
                         .map("%.1f K"::formatted)
         );
         live.bind(viewModel.liveProperty());
+
+        visibleFully.bind(viewModel.visibleFullyProperty());
 
         var title = viewModel.getTitle();
         if (title != null) {

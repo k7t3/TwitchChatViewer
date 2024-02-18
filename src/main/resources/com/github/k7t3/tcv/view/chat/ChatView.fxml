@@ -25,7 +25,7 @@
             </HBox>
             <HBox alignment="CENTER_LEFT" spacing="10.0">
                <children>
-                  <Hyperlink fx:id="streamInfoLink" text="%chat.stream.info.link" />
+                  <Hyperlink fx:id="streamInfoLink" text="Streaming" />
                   <Pane HBox.hgrow="ALWAYS" />
                   <ToggleSwitch fx:id="autoScroll" text="%auto.scroll" />
                </children>

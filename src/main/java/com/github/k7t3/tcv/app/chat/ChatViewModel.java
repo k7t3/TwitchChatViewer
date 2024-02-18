@@ -19,6 +19,8 @@ import javafx.scene.image.Image;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDateTime;
+
 public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoomListener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ChatViewModel.class);
@@ -30,6 +32,8 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
     private final ReadOnlyStringWrapper userName = new ReadOnlyStringWrapper();
 
     private final ReadOnlyIntegerWrapper viewerCount = new ReadOnlyIntegerWrapper();
+
+    private final ReadOnlyObjectWrapper<LocalDateTime> startedAt = new ReadOnlyObjectWrapper<>();
 
     private final ReadOnlyObjectWrapper<Image> profileImage = new ReadOnlyObjectWrapper<>();
 
@@ -92,6 +96,7 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
         title.set(info.title());
         gameName.set(info.gameName());
         viewerCount.set(info.viewerCount());
+        startedAt.set(info.startedAt());
         live.set(true);
     }
 
@@ -239,6 +244,9 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
 
     public ReadOnlyIntegerProperty viewerCountProperty() { return viewerCount.getReadOnlyProperty(); }
     public int getViewerCount() { return viewerCount.get(); }
+
+    public ReadOnlyObjectProperty<LocalDateTime> startedAtProperty() { return startedAt.getReadOnlyProperty(); }
+    public LocalDateTime getStartedAt() { return startedAt.get(); }
 
     private ReadOnlyObjectWrapper<Image> profileImageWrapper() { return profileImage; }
     public ReadOnlyObjectProperty<Image> profileImageProperty() { return profileImage.getReadOnlyProperty(); }

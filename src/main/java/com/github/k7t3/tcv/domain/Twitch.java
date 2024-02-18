@@ -5,6 +5,8 @@ import com.github.k7t3.tcv.domain.clip.VideoClipRepository;
 import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
 import com.github.twitch4j.TwitchClient;
 import com.github.twitch4j.chat.TwitchChat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -14,6 +16,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * TwitchのAPIアクセスに必要な情報を管理するクラス。
  */
 public class Twitch implements Closeable {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(Twitch.class);
 
     private final AtomicReference<OAuth2Credential> credential = new AtomicReference<>();
 
@@ -91,7 +95,7 @@ public class Twitch implements Closeable {
         try {
             refreshScheduler.close();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            LOGGER.error(e.getMessage(), e);
         }
     }
 }

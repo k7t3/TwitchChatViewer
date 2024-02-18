@@ -32,8 +32,8 @@ public class TCVApp extends Application {
     @Override
     public void start(Stage primaryStage) throws Exception {
         //Application.setUserAgentStylesheet(new CupertinoDark().getUserAgentStylesheet());
-        Application.setUserAgentStylesheet(new NordDark().getUserAgentStylesheet());
-        //Application.setUserAgentStylesheet(new PrimerLight().getUserAgentStylesheet());
+        //Application.setUserAgentStylesheet(new NordLight().getUserAgentStylesheet());
+        Application.setUserAgentStylesheet(new PrimerLight().getUserAgentStylesheet());
 
         var loader = FluentViewLoader.fxmlView(MainView.class);
         loader.resourceBundle(Resources.getResourceBundle());

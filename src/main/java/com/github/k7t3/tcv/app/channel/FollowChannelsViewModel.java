@@ -41,6 +41,8 @@ public class FollowChannelsViewModel implements ViewModel {
 
     private final ObjectProperty<FollowChannelViewModel> selectedBroadcaster = new SimpleObjectProperty<>(null);
 
+    private final BooleanProperty visibleFully = new SimpleBooleanProperty(true);
+
     private ChatContainerViewModel chatContainerViewModel;
 
     public FollowChannelsViewModel() {
@@ -85,6 +87,7 @@ public class FollowChannelsViewModel implements ViewModel {
             repository.loadAllFollowBroadcasters();
             return repository.getChannels().stream()
                     .map(c -> new FollowChannelViewModel(this, c))
+                    .peek(v -> v.visibleFullyProperty().bind(visibleFully))
                     .toList();
         });
         FXTask.setOnSucceeded(task, e -> {
@@ -129,4 +132,8 @@ public class FollowChannelsViewModel implements ViewModel {
     public ObjectProperty<FollowChannelViewModel> selectedBroadcasterProperty() { return selectedBroadcaster; }
     public FollowChannelViewModel getSelectedBroadcaster() { return selectedBroadcaster.get(); }
     public void setSelectedBroadcaster(FollowChannelViewModel selectedBroadcaster) { this.selectedBroadcaster.set(selectedBroadcaster); }
+
+    public BooleanProperty visibleFullyProperty() { return visibleFully; }
+    public boolean isVisibleFully() { return visibleFully.get(); }
+    public void setVisibleFully(boolean visibleFully) { this.visibleFully.set(visibleFully); }
 }

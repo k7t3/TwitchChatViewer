@@ -15,6 +15,14 @@ java {
     targetCompatibility = JavaVersion.VERSION_21
 }
 
+compileJava {
+    options.encoding = 'UTF-8'
+}
+
+compileTestJava {
+    options.encoding = 'UTF-8'
+}
+
 javafx {
     version = '21'
     modules = [ 'javafx.controls', 'javafx.fxml' ]
@@ -31,9 +39,6 @@ dependencies {
     implementation 'com.github.twitch4j:twitch4j:1.19.0'
     implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
 
-    //noinspection VulnerableLibrariesLocal
-    //implementation 'com.dlsc.gemsfx:gemsfx:1.92.0'
-
     // AtlantaFX同梱のアイコンパックを使用する
     implementation 'org.kordamp.ikonli:ikonli-javafx:12.3.1'
     implementation 'org.kordamp.ikonli:ikonli-feather-pack:12.3.1'
@@ -41,7 +46,6 @@ dependencies {
     implementation 'org.kordamp.ikonli:ikonli-fontawesome5-pack:12.3.1'
     implementation 'de.saxsys:mvvmfx:1.8.0'
     implementation 'io.github.mkpaz:atlantafx-base:2.0.1'
-//    implementation 'org.fxmisc.flowless:flowless:0.7.2'
 
     testImplementation platform('org.junit:junit-bom:5.9.1')
     testImplementation 'org.junit.jupiter:junit-jupiter'

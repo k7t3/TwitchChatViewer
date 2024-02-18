@@ -13,7 +13,7 @@ public class ClipFinder {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ClipFinder.class);
 
-    private static final Pattern CLIP_URL_PATTERN = Pattern.compile("https://(www\\.twitch\\.tv|m\\.twitch\\.tv|clips\\.twitch\\.tv)/([^/]+/clip/)?[^ 　]+");
+    private static final Pattern CLIP_URL_PATTERN = Pattern.compile("https://((www\\.twitch\\.tv|m\\.twitch\\.tv)/[^/]+/clip|clips\\.twitch\\.tv)/[^ 　]+");
 
     private final Twitch twitch;
 
@@ -24,11 +24,13 @@ public class ClipFinder {
     /**
      * チャットに投稿されたクリップのURLをパースしてAPIに投げるメソッド
      */
-    public Optional<VideoClip> findClip(String link) {
-        var matcher = CLIP_URL_PATTERN.matcher(link);
+    public Optional<VideoClip> findClip(String message) {
+        var matcher = CLIP_URL_PATTERN.matcher(message);
         if (!matcher.find()) {
             return Optional.empty();
         }
+
+        var link = matcher.group();
 
         try {
             var uri = new URI(link);
@@ -39,7 +41,7 @@ public class ClipFinder {
             // 3: クリップのID
             var paths = uri.getPath().split("/");
             if (paths.length != 4 && paths.length != 2) {
-                LOGGER.error("unexpected clip url {}", link);
+                LOGGER.error("unexpected clip url {}", message);
                 return Optional.empty();
             }
 
@@ -74,7 +76,7 @@ public class ClipFinder {
             return Optional.of(VideoClip.of(clips.getFirst()));
 
         } catch (Exception e) {
-            LOGGER.error(link, e);
+            LOGGER.error(message, e);
             return Optional.empty();
         }
     }
