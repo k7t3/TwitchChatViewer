@@ -5,6 +5,7 @@ import atlantafx.base.controls.ToggleSwitch;
 import atlantafx.base.theme.Styles;
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.chat.ChatViewModel;
+import com.github.k7t3.tcv.domain.chat.ChatRoomState;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.collections.ListChangeListener;
@@ -59,17 +60,26 @@ public class ChatView implements FxmlView<ChatViewModel>, Initializable {
         chatDataList.setItems(viewModel.getChatDataList());
         chatDataList.getStyleClass().add(Styles.DENSE);
 
+
         var roomStateNodes = new ChatRoomStateNodes();
-        viewModel.roomStateProperty().addListener((ob, o, n) -> {
-            var node = roomStateNodes.getIcon(n);
-            if (node == null)
-                stateContainer.getChildren().clear();
-            else
-                stateContainer.getChildren().setAll(node);
+        viewModel.getRoomStates().addListener((ListChangeListener<? super ChatRoomState>) (c) -> {
+            while (c.next()) {
+                if (c.wasAdded()) {
+                    c.getAddedSubList().stream()
+                            .map(roomStateNodes::getIcon)
+                            .forEach(stateContainer.getChildren()::add);
+                }
+                if (c.wasRemoved()) {
+                    c.getRemoved().stream()
+                            .map(roomStateNodes::getIcon)
+                            .forEach(stateContainer.getChildren()::remove);
+                }
+            }
         });
-        var stateNode = roomStateNodes.getIcon(viewModel.getRoomState());
-        if (stateNode != null)
-            stateContainer.getChildren().setAll(stateNode);
+        viewModel.getRoomStates().stream()
+                .map(roomStateNodes::getIcon)
+                .forEach(stateContainer.getChildren()::add);
+
 
         viewModel.getChatDataList().addListener((ListChangeListener<? super ChatDataViewModel>) c -> {
             if (chatDataScrollBar == null) {

@@ -14,6 +14,7 @@ import com.github.k7t3.tcv.app.service.TaskWorker;
 import de.saxsys.mvvmfx.ViewModel;
 import javafx.application.Platform;
 import javafx.beans.property.*;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.image.Image;
 import org.slf4j.Logger;
@@ -50,7 +51,7 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
 
     private final BooleanProperty visibleName = new SimpleBooleanProperty(true);
 
-    private final ReadOnlyObjectWrapper<ChatRoomState> roomState = new ReadOnlyObjectWrapper<>(ChatRoomState.NORMAL);
+    private final ObservableList<ChatRoomState> roomStates = FXCollections.observableArrayList();
 
     private final TwitchChannel channel;
 
@@ -168,6 +169,10 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
         return chatDataList;
     }
 
+    public ObservableList<ChatRoomState> getRoomStates() {
+        return roomStates;
+    }
+
     @Override
     public void onChatDataPosted(ChatData item) {
         var chatData = new ChatDataViewModel(
@@ -206,9 +211,14 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
     }
 
     @Override
-    public void onStateUpdated(ChatRoomState roomState) {
+    public void onStateUpdated(ChatRoomState roomState, boolean active) {
         LOGGER.info("{} room state updated {}", getUserName(), roomState);
-        Platform.runLater(() -> this.roomState.set(roomState));
+        Platform.runLater(() -> {
+            if (active)
+                roomStates.add(roomState);
+            else
+                roomStates.remove(roomState);
+        });
     }
 
     @Override
@@ -298,8 +308,5 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
     public BooleanProperty visibleNameProperty() { return visibleName; }
     public boolean isVisibleName() { return visibleName.get(); }
     public void setVisibleName(boolean visibleName) { this.visibleName.set(visibleName); }
-
-    public ReadOnlyObjectProperty<ChatRoomState> roomStateProperty() { return roomState.getReadOnlyProperty(); }
-    public ChatRoomState getRoomState() { return roomState.get(); }
 
 }

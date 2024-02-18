@@ -12,7 +12,7 @@ public interface ChatRoomListener {
 
     void onChatMessageDeleted(String messageId);
 
-    void onStateUpdated(ChatRoomState roomState);
+    void onStateUpdated(ChatRoomState roomState, boolean active);
 
     void onRaidReceived(String raiderName, int viewerCount);
 
@@ -38,7 +38,7 @@ public interface ChatRoomListener {
         }
 
         @Override
-        public void onStateUpdated(ChatRoomState roomState) {
+        public void onStateUpdated(ChatRoomState roomState, boolean active) {
         }
 
         @Override

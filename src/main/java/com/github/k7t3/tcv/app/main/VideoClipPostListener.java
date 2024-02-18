@@ -36,7 +36,7 @@ public class VideoClipPostListener implements ChatRoomListener {
     }
 
     @Override
-    public void onStateUpdated(ChatRoomState roomState) {
+    public void onStateUpdated(ChatRoomState roomState, boolean active) {
     }
 
     @Override

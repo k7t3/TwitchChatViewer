@@ -14,7 +14,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 
@@ -30,7 +32,7 @@ public class ChatRoom {
 
     private final ClipFinder clipFinder;
 
-    private ChatRoomState roomState = ChatRoomState.NORMAL;
+    private final Set<ChatRoomState> roomStates = new HashSet<>();
 
     private final CopyOnWriteArraySet<ChatRoomListener> listeners = new CopyOnWriteArraySet<>();
 
@@ -155,19 +157,18 @@ public class ChatRoom {
 
     private void updateRoomState(ChatRoomState roomState, boolean active) {
         if (active) {
-            this.roomState = roomState;
+            roomStates.add(roomState);
         }
-        else if (this.roomState == roomState) {
-            this.roomState = ChatRoomState.NORMAL;
+        else if (roomStates.contains(roomState)) {
+            roomStates.remove(roomState);
         }
         else {
             return;
         }
 
-        var state = this.roomState;
         eventExecutor.submit(() -> {
             for (var listener : listeners)
-                listener.onStateUpdated(state);
+                listener.onStateUpdated(roomState, active);
         });
     }
 
