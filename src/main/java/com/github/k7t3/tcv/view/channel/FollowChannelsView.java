@@ -1,7 +1,6 @@
 package com.github.k7t3.tcv.view.channel;
 
 import atlantafx.base.controls.CustomTextField;
-import atlantafx.base.controls.ToggleSwitch;
 import com.github.k7t3.tcv.app.channel.FollowChannelViewModel;
 import com.github.k7t3.tcv.app.channel.FollowChannelsViewModel;
 import de.saxsys.mvvmfx.FxmlView;
@@ -89,16 +88,15 @@ public class FollowChannelsView implements FxmlView<FollowChannelsViewModel>, In
             if (n) {
                 state.set(ViewState.CLOSE);
                 drawLeftToggle.setGraphic(openIcon);
-                root.setPrefWidth(60);
-                drawLeftToggle.setPrefWidth(60);
             } else {
                 state.set(ViewState.OPEN);
                 drawLeftToggle.setGraphic(closeIcon);
-                root.setPrefWidth(250);
-                drawLeftToggle.setPrefWidth(ToggleButton.USE_COMPUTED_SIZE);
             }
         });
         viewModel.visibleFullyProperty().bind(drawLeftToggle.selectedProperty().not());
+
+        root.prefWidthProperty().bind(state.map(s -> s == ViewState.OPEN ? 250 : 60));
+        drawLeftToggle.prefWidthProperty().bind(state.map(s -> s == ViewState.OPEN ? ToggleButton.USE_COMPUTED_SIZE : 60));
     }
 
 }

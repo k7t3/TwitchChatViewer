@@ -1,17 +1,20 @@
 package com.github.k7t3.tcv.view.main;
 
 import atlantafx.base.controls.ModalPane;
-import com.github.k7t3.tcv.view.auth.AuthenticatorView;
-import com.github.k7t3.tcv.view.channel.FollowChannelsView;
-import com.github.k7t3.tcv.view.channel.SearchChannelView;
-import com.github.k7t3.tcv.view.chat.ChatContainerView;
-import com.github.k7t3.tcv.view.clip.VideoClipViewCallActionHandler;
-import com.github.k7t3.tcv.view.core.Resources;
+import atlantafx.base.theme.*;
+import atlantafx.base.util.Animations;
 import com.github.k7t3.tcv.app.channel.FollowChannelsViewModel;
 import com.github.k7t3.tcv.app.chat.ChatContainerViewModel;
 import com.github.k7t3.tcv.app.core.ExceptionHandler;
 import com.github.k7t3.tcv.app.main.MainViewModel;
 import com.github.k7t3.tcv.app.service.FXTask;
+import com.github.k7t3.tcv.view.auth.AuthenticatorView;
+import com.github.k7t3.tcv.view.channel.FollowChannelsView;
+import com.github.k7t3.tcv.view.channel.SearchChannelViewCaller;
+import com.github.k7t3.tcv.view.chat.ChatContainerView;
+import com.github.k7t3.tcv.view.clip.VideoClipListViewCaller;
+import com.github.k7t3.tcv.view.core.Resources;
+import com.github.k7t3.tcv.view.core.ThemeManager;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
@@ -44,6 +47,12 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
     private Button searchChannelButton;
 
     @FXML
+    private Button clipButton;
+
+    @FXML
+    private Label footerLabel;
+
+    @FXML
     private MenuButton userMenuButton;
 
     @FXML
@@ -64,20 +73,40 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        loadChatContainerView();
+        loadFollowersView();
+
         leftContainer.disableProperty().bind(viewModel.authorizedProperty().not());
         rightContainer.disableProperty().bind(viewModel.authorizedProperty().not());
 
         userNameLabel.textProperty().bind(viewModel.userNameProperty());
 
+        footerLabel.textProperty().bind(viewModel.footerProperty());
+        footerLabel.getStyleClass().addAll(Styles.TEXT_SMALL);
+
         searchChannelButton.disableProperty().bind(viewModel.authorizedProperty().not());
-        searchChannelButton.setOnAction(e -> openSearchChannelView());
+        searchChannelButton.setOnAction(e -> new SearchChannelViewCaller(modalPane, chatContainerViewModel).handle(e));
 
-        var clipMenuItem = new MenuItem();
-        clipMenuItem.setOnAction(new VideoClipViewCallActionHandler(modalPane));
-        userMenuButton.getItems().add(clipMenuItem);
+        clipButton.setOnAction(new VideoClipListViewCaller(modalPane));
+        clipButton.getStyleClass().addAll(Styles.SMALL, Styles.ROUNDED, Styles.SUCCESS);
+        clipButton.visibleProperty().bind(viewModel.clipCountProperty().greaterThan(0));
+        // クリップが投稿されたらアニメーションを実行するリスナ
+        viewModel.clipCountProperty().addListener((ob, o, n) -> {
+            if (0 < n.intValue()) {
+                var animation = Animations.wobble(clipButton);
+                animation.play();
+            }
+        });
 
-        loadChatContainerView();
-        loadFollowersView();
+        var a = new MenuItem("LIGHT");
+        a.setOnAction(e -> {
+            ThemeManager.getInstance().setTheme(new NordLight());
+        });
+        var b = new MenuItem("DARK");
+        b.setOnAction(e -> {
+            ThemeManager.getInstance().setTheme(new PrimerDark());
+        });
+        userMenuButton.getItems().addAll(a, b);
     }
 
     private void loadFollowersView() {
@@ -86,7 +115,8 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         var tuple = loader.load();
 
         channelsViewModel = tuple.getViewModel();
-        channelsViewModel.setChatContainerViewModel(chatContainerViewModel);
+        channelsViewModel.installMainViewModel(viewModel);
+        channelsViewModel.installChatContainerViewModel(chatContainerViewModel);
 
         leftContainer.getChildren().add(tuple.getView());
     }
@@ -95,7 +125,10 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         var loader = FluentViewLoader.fxmlView(ChatContainerView.class);
         loader.resourceBundle(Resources.getResourceBundle());
         var tuple = loader.load();
+
         chatContainerViewModel = tuple.getViewModel();
+        chatContainerViewModel.installMainViewModel(viewModel);
+
         rightContainer.getChildren().add(tuple.getView());
     }
 
@@ -111,22 +144,24 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         modalPane.setPersistent(true);
         modalPane.show(view);
 
+        Runnable callback = () -> {
+            // ModalPaneを非表示にする
+            modalPane.hide(true);
+
+            // フォローしているチャンネルを初期化
+            channelsViewModel.loadAsync();
+
+            // チャットコンテナを初期化
+            chatContainerViewModel.loadAsync();
+        };
+
         // 既存の資格情報を読み込む
         var loadAsync = authViewModel.loadClientAsync();
         FXTask.setOnSucceeded(loadAsync, e -> {
 
             // 資格情報の取得に成功
             if (loadAsync.getValue() != null) {
-
-                // ModalPaneを非表示にする
-                modalPane.hide(true);
-
-                // フォローしているチャンネルを初期化
-                channelsViewModel.loadAsync();
-
-                // チャットコンテナを初期化
-                chatContainerViewModel.loadAsync();
-
+                callback.run();
                 return;
             }
 
@@ -136,16 +171,9 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
             // 認証が成功したときに処理を行うリスナーを登録
             authViewModel.authorizedProperty().addListener((ob, o, n) -> {
-                if (!n) return;
-
-                // ModalPaneを非表示にする
-                modalPane.hide(true);
-
-                // フォローしているチャンネルを初期化
-                channelsViewModel.loadAsync();
-
-                // チャットコンテナを初期化
-                chatContainerViewModel.loadAsync();
+                if (n) {
+                    callback.run();
+                }
             });
 
             // 認証フローの開始
@@ -155,20 +183,6 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
             });
 
         });
-    }
-
-    private void openSearchChannelView() {
-        var loader = FluentViewLoader.fxmlView(SearchChannelView.class);
-        var tuple = loader.load();
-        var view = tuple.getView();
-        var viewModel = tuple.getViewModel();
-        viewModel.setChatContainerViewModel(chatContainerViewModel);
-
-        modalPane.usePredefinedTransitionFactories(Side.TOP);
-        modalPane.setPersistent(false);
-        modalPane.show(view);
-
-        tuple.getCodeBehind().getKeywordField().requestFocus();
     }
 
 }

@@ -67,6 +67,17 @@ public class TwitchChannel {
         eventSubs.add(eventManager.onEvent(ChannelChangeGameEvent.class, this::onChannelChangeGameEvent));
     }
 
+    private void clearEventSubs() {
+        if (eventSubs == null) {
+            return;
+        }
+
+        for (var sub : eventSubs) {
+            sub.dispose();
+        }
+        eventSubs.clear();
+    }
+
     private void onChannelChangeGameEvent(ChannelChangeGameEvent e) {
         if (!e.getChannel().getId().equalsIgnoreCase(broadcaster.getUserId())) {
             return;
@@ -121,17 +132,6 @@ public class TwitchChannel {
             eventExecutor.submit(() -> listener.onOnline(stream));
     }
 
-    private void clearEventSubs() {
-        if (eventSubs == null) {
-            return;
-        }
-
-        for (var sub : eventSubs) {
-            sub.dispose();
-        }
-        eventSubs.clear();
-    }
-
     public void addListener(TwitchChannelListener listener) {
         listeners.add(listener);
     }
@@ -143,15 +143,8 @@ public class TwitchChannel {
     public void loadBadgesIfNotLoaded() {
         if (badgeLoaded.get()) return;
 
-        var client = twitch.getClient();
-        var token = twitch.getAccessToken();
-        var helix = client.getHelix();
-
-        // チャンネルのバッジを取得
-        var badgeCommand = helix.getChannelChatBadges(token, broadcaster.getUserId());
-        var badges = badgeCommand.execute().getBadgeSets();
-
-        badgeSets = new ArrayList<>(badges);
+        var api = twitch.getTwitchAPI();
+        badgeSets = api.getChannelBadgeSet(broadcaster);
 
         badgeLoaded.set(true);
     }

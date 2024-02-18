@@ -18,7 +18,7 @@ public record StreamInfo(
         String thumbnailURL
 ) {
 
-    static StreamInfo of(Stream stream) {
+    public static StreamInfo of(Stream stream) {
         var dateTime = LocalDateTime.ofInstant(stream.getStartedAtInstant(), ZoneId.systemDefault());
         return new StreamInfo(
                 stream.getUserId(),

@@ -5,6 +5,7 @@
 
 .header-pane {
   -fx-padding: 10 10 8 10;
+  -fx-border-color: transparent transparent -color-border-default transparent;
 }
 
 .search-button {
@@ -19,4 +20,9 @@
 .chat-room-state {
   -fx-icon-color: -color-accent-fg;
   -fx-icon-size: 18;
+}
+
+.footer-pane {
+  -fx-padding: 1 10 2 10;
+  -fx-border-color: -color-border-default transparent transparent transparent;
 }

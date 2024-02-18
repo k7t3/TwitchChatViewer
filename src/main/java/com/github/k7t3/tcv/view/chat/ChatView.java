@@ -14,11 +14,13 @@ import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
+import javafx.stage.WindowEvent;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.net.URL;
-import java.time.format.DateTimeFormatter;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ResourceBundle;
 
 public class ChatView implements FxmlView<ChatViewModel>, Initializable {
@@ -89,7 +91,7 @@ public class ChatView implements FxmlView<ChatViewModel>, Initializable {
         autoScroll.selectedProperty().bindBidirectional(viewModel.scrollToBottomProperty());
 
         installPopover();
-        streamInfoLink.visitedProperty().bind(viewModel.liveProperty());
+        streamInfoLink.visibleProperty().bind(viewModel.liveProperty());
     }
 
     private void installPopover() {
@@ -106,12 +108,11 @@ public class ChatView implements FxmlView<ChatViewModel>, Initializable {
         viewerCountLabel.getStyleClass().add(Styles.DANGER);
         viewerCountLabel.textProperty().bind(viewModel.viewerCountProperty().asString());
 
-        var formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
-        var startedAtLabel = new Label();
-        startedAtLabel.setGraphic(new FontIcon(FontAwesomeSolid.CLOCK));
-        startedAtLabel.textProperty().bind(viewModel.startedAtProperty().map(formatter::format));
+        // アップタイムはポップアップを表示したときに計算する
+        var uptimeLabel = new Label();
+        uptimeLabel.setGraphic(new FontIcon(FontAwesomeSolid.CLOCK));
 
-        var vbox = new VBox(gameNameLabel, streamTitleLabel, viewerCountLabel, startedAtLabel);
+        var vbox = new VBox(gameNameLabel, streamTitleLabel, viewerCountLabel, uptimeLabel);
         vbox.setPrefWidth(300);
         vbox.setSpacing(4);
         vbox.setPadding(new Insets(10, 0, 10, 0));
@@ -121,6 +122,21 @@ public class ChatView implements FxmlView<ChatViewModel>, Initializable {
         pop.setHeaderAlwaysVisible(true);
         pop.setDetachable(true);
         pop.setArrowLocation(Popover.ArrowLocation.RIGHT_TOP);
+
+        pop.addEventHandler(WindowEvent.WINDOW_SHOWING, e -> {
+            var now = LocalDateTime.now();
+            var startedAt = viewModel.getStartedAt();
+            var between = Duration.between(startedAt, now);
+            var minutes = between.toMinutes();
+
+            if (minutes < 60) {
+                uptimeLabel.setText("%d m".formatted(minutes));
+            } else {
+                var hours = minutes / 60;
+                minutes = minutes - hours * 60;
+                uptimeLabel.setText("%d h %d m".formatted(hours, minutes));
+            }
+        });
 
         streamInfoLink.setOnAction(e -> pop.show(streamInfoLink));
     }

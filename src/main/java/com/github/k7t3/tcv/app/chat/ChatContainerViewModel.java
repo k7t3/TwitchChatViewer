@@ -1,6 +1,8 @@
 package com.github.k7t3.tcv.app.chat;
 
+import com.github.k7t3.tcv.app.main.MainViewModel;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
+import com.github.k7t3.tcv.domain.chat.ChatRoomListener;
 import com.github.k7t3.tcv.domain.chat.GlobalChatBadges;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.service.FXTask;
@@ -10,6 +12,8 @@ import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+
+import java.util.List;
 
 public class ChatContainerViewModel implements ViewModel {
 
@@ -22,11 +26,20 @@ public class ChatContainerViewModel implements ViewModel {
 
     private final DefinedChatColors definedChatColors = new DefinedChatColors();
 
+    private MainViewModel mainViewModel;
+
+    private List<ChatRoomListener> defaultChatRoomListeners;
+
     public ChatContainerViewModel() {
     }
 
     public ObservableList<ChatViewModel> getChatList() {
         return chatList;
+    }
+
+    public void installMainViewModel(MainViewModel mainViewModel) {
+        this.mainViewModel = mainViewModel;
+        defaultChatRoomListeners = List.of(mainViewModel.createClipPostListener());
     }
 
     public FXTask<Void> loadAsync() {
@@ -47,12 +60,6 @@ public class ChatContainerViewModel implements ViewModel {
         return task;
     }
 
-    /**
-     * チャンネルのChatインスタンスを取得する。
-     * 新規作成された{@link ChatViewModel}のインスタンスはChatに自動的に接続されている。
-     * @param channel チャンネル
-     * @return Chat
-     */
     public ChatViewModel register(TwitchChannel channel) {
         if (!loaded.get()) throw new IllegalStateException("not loaded yet");
 
@@ -65,7 +72,13 @@ public class ChatContainerViewModel implements ViewModel {
             return exist.get();
         }
 
-        var viewModel = new ChatViewModel(channel, globalBadgeStore, definedChatColors, this);
+        var viewModel = new ChatViewModel(
+                channel,
+                globalBadgeStore,
+                definedChatColors,
+                this,
+                defaultChatRoomListeners
+        );
         chatList.add(viewModel);
         return viewModel;
     }

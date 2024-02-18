@@ -1,5 +1,7 @@
 package com.github.k7t3.tcv.app.clip;
 
+import com.github.k7t3.tcv.app.service.FXTask;
+import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.domain.clip.PostedClip;
 import de.saxsys.mvvmfx.ViewModel;
 import javafx.beans.property.ReadOnlyObjectProperty;
@@ -7,6 +9,12 @@ import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.scene.image.Image;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.DataFormat;
+
+import java.awt.*;
+import java.net.URI;
+import java.util.Map;
 
 /**
  * チャットで投稿されたクリップ
@@ -28,6 +36,31 @@ public class VideoClipViewModel implements ViewModel {
         this.posted = new ReadOnlyObjectWrapper<>(posted);
         this.title = new ReadOnlyStringWrapper(posted.getClip().title());
         this.creator = new ReadOnlyStringWrapper(posted.getClip().creatorName());
+    }
+
+    public FXTask<Boolean> openClipPageOnBrowser() {
+        var clip = posted.get().getClip();
+
+        var task = FXTask.task(() -> {
+            var desktop = Desktop.getDesktop();
+            if (!desktop.isSupported(Desktop.Action.BROWSE)) {
+                return false;
+            }
+
+            desktop.browse(new URI(clip.url()));
+            return true;
+        });
+
+        TaskWorker.getInstance().submit(task);
+
+        return task;
+    }
+
+    public void copyClipURL() {
+        var clip = posted.get().getClip();
+
+        var clipBoard = Clipboard.getSystemClipboard();
+        clipBoard.setContent(Map.of(DataFormat.PLAIN_TEXT, clip.url()));
     }
 
     // ******************** PROPERTIES ********************

@@ -1,5 +1,6 @@
 package com.github.k7t3.tcv.app.core;
 
+import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.domain.Twitch;
 import javafx.beans.property.*;
 
@@ -21,11 +22,13 @@ public class AppHelper implements Closeable {
 
     @Override
     public void close() {
+        var worker = TaskWorker.getInstance();
+        worker.close();
+
         var twitch = getTwitch();
-
-        if (twitch == null) return;
-
-        twitch.close();
+        if (twitch != null) {
+            twitch.close();
+        }
     }
 
     // ########################################

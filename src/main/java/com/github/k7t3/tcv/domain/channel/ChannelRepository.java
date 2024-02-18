@@ -44,11 +44,11 @@ public class ChannelRepository implements Closeable {
         LOGGER.info("load all follows");
         if (loaded) return;
 
-        var collections = new Channels(twitch);
+        var api = twitch.getTwitchAPI();
 
-        var broadcasters = collections.getFollowedBroadcasters();
+        var broadcasters = api.getFollowChannelOwners();
         var userIds = broadcasters.stream().map(Broadcaster::getUserId).toList();
-        var streams = collections.getLiveStreams(userIds);
+        var streams = api.getStreams(userIds);
 
         for (var broadcaster : broadcasters) {
 
@@ -80,6 +80,8 @@ public class ChannelRepository implements Closeable {
                 .map(TwitchChannel::getBroadcaster)
                 .map(Broadcaster::getUserLogin)
                 .toList();
+
+        // 現在のイベントリスナを無効化する
         clientHelper.disableStreamEventListener(channelsNames);
 
         // 更新
@@ -102,6 +104,8 @@ public class ChannelRepository implements Closeable {
         }
 
         channel = new TwitchChannel(twitch, eventExecutor, broadcaster, stream);
+        channel.updateEventSubs();
+
         channels.put(broadcaster, channel);
 
         // Stream 監視イベントを有効化
@@ -120,8 +124,8 @@ public class ChannelRepository implements Closeable {
             return channel;
         }
 
-        var col = new Channels(twitch);
-        var stream = col.getLiveStream(broadcaster.getUserId()).orElse(null);
+        var api = twitch.getTwitchAPI();
+        var stream = api.getStream(broadcaster.getUserId()).orElse(null);
 
         return registerBroadcaster(broadcaster, stream);
     }

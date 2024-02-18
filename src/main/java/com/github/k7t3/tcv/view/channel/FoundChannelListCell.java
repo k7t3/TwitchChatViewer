@@ -1,18 +1,23 @@
 package com.github.k7t3.tcv.view.channel;
 
+import atlantafx.base.controls.Spacer;
+import atlantafx.base.theme.Styles;
 import com.github.k7t3.tcv.app.channel.FoundChannelViewModel;
+import com.github.k7t3.tcv.view.core.Resources;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.ContentDisplay;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
+import javafx.scene.control.*;
 import javafx.scene.effect.SepiaTone;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Rectangle;
+import org.kordamp.ikonli.fontawesome5.FontAwesomeRegular;
+import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 public class FoundChannelListCell extends ListCell<FoundChannelViewModel> {
 
@@ -25,7 +30,7 @@ public class FoundChannelListCell extends ListCell<FoundChannelViewModel> {
     private static final String USER_NAME_STYLE_CLASS = "user-name-label";
     private static final String GAME_TITLE_STYLE_CLASS = "game-title-label";
 
-    private BorderPane layout;
+    private HBox layout;
 
     private ImageView profileImageView;
 
@@ -57,9 +62,11 @@ public class FoundChannelListCell extends ListCell<FoundChannelViewModel> {
 
         userNameLabel = new Label();
         userNameLabel.getStyleClass().add(USER_NAME_STYLE_CLASS);
+        userNameLabel.setMinWidth(20);
 
         gameTitleLabel = new Label();
         gameTitleLabel.getStyleClass().add(GAME_TITLE_STYLE_CLASS);
+        gameTitleLabel.setMinWidth(20);
 
         gameTitleLabel.visibleProperty().bind(live);
         gameTitleLabel.managedProperty().bind(gameTitleLabel.visibleProperty());
@@ -68,19 +75,35 @@ public class FoundChannelListCell extends ListCell<FoundChannelViewModel> {
         var center = new VBox(userNameLabel, gameTitleLabel);
         center.getStyleClass().add(NAMES_CONTAINER_CLASS);
         center.setAlignment(Pos.CENTER_LEFT);
-        center.setFillWidth(true);
         center.setPadding(new Insets(0, 0, 0, 4));
+        center.setMinWidth(20);
+        HBox.setHgrow(center, Priority.ALWAYS);
 
-        layout = new BorderPane();
+        var openChatButton = new Button("", new FontIcon(FontAwesomeRegular.COMMENT_DOTS));
+        openChatButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.ACCENT);
+        openChatButton.setTooltip(new Tooltip(Resources.getString("search.open.chat")));
+        openChatButton.setOnAction(e -> getItem().joinChatAsync());
 
-        center.prefWidthProperty().bind(
-                widthProperty().subtract(100)
-        );
+        var openBrowser = new Button("", new FontIcon(FontAwesomeSolid.GLOBE));
+        openBrowser.getStyleClass().addAll(Styles.BUTTON_ICON);
+        openBrowser.setTooltip(new Tooltip(Resources.getString("search.open.browser")));
+        openBrowser.setOnAction(e -> {
+            var task = getItem().openChannelPageOnBrowser();
+            task.setOnSucceeded(e2 -> {
+                if (task.getValue()) return;
 
-        BorderPane.setAlignment(profileImageView, Pos.CENTER);
+                var alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Warning");
+                alert.setHeaderText("Failed to open Browser!");
+                alert.setContentText("Failed to Open Browser!");
+                alert.show();
+            });
+        });
 
-        layout.setLeft(profileImageView);
-        layout.setCenter(center);
+        layout = new HBox(profileImageView, center, new Spacer(), openChatButton, openBrowser);
+        layout.setAlignment(Pos.CENTER_LEFT);
+        layout.setSpacing(4);
+        layout.setPrefWidth(HBox.USE_PREF_SIZE);
     }
 
     private void update(FoundChannelViewModel viewModel) {

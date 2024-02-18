@@ -2,14 +2,14 @@ package com.github.k7t3.tcv.view.channel;
 
 import atlantafx.base.controls.CustomTextField;
 import atlantafx.base.controls.ToggleSwitch;
-import com.github.k7t3.tcv.view.core.Resources;
 import com.github.k7t3.tcv.app.channel.FoundChannelViewModel;
 import com.github.k7t3.tcv.app.channel.SearchChannelViewModel;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.*;
+import javafx.scene.control.ListView;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.Pane;
@@ -33,7 +33,7 @@ public class SearchChannelView implements FxmlView<SearchChannelViewModel>, Init
     private ToggleSwitch liveSwitch;
 
     @FXML
-    private ListView<FoundChannelViewModel> foundChannels;
+    private ListView<FoundChannelViewModel> channelsListView;
 
     @FXML
     private StackPane container;
@@ -45,19 +45,23 @@ public class SearchChannelView implements FxmlView<SearchChannelViewModel>, Init
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        var clearIcon = new FontIcon(Feather.X);
+        clearIcon.setOnMouseClicked(e -> viewModel.setKeyword(null));
+
         keywordField.setLeft(new FontIcon(Feather.SEARCH));
+        keywordField.setRight(clearIcon);
         keywordField.textProperty().bindBidirectional(viewModel.keywordProperty());
         keywordField.textProperty().addListener((ob, o, n) -> viewModel.search());
         liveSwitch.selectedProperty().bindBidirectional(viewModel.onlyLiveProperty());
         liveSwitch.selectedProperty().addListener((ob, o, n) -> viewModel.search(TimeUnit.SECONDS, 0));
 
-        foundChannels.setCellFactory(param -> new FoundChannelListCell());
-        foundChannels.setItems(viewModel.getChannels());
-        foundChannels.setOnMouseClicked(e -> {
+        channelsListView.setCellFactory(param -> new FoundChannelListCell());
+        channelsListView.setItems(viewModel.getChannels());
+        channelsListView.setOnMouseClicked(e -> {
             if (e.getButton() == MouseButton.PRIMARY && e.getClickCount() == 2)
                 joinChat();
         });
-        foundChannels.setOnKeyPressed(e -> {
+        channelsListView.setOnKeyPressed(e -> {
             if (e.getCode() == KeyCode.ENTER)
                 joinChat();
         });
@@ -79,48 +83,12 @@ public class SearchChannelView implements FxmlView<SearchChannelViewModel>, Init
             root.prefWidthProperty().bind(n.layoutBoundsProperty().map(b -> b.getWidth() * 0.5));
             root.prefHeightProperty().bind(n.layoutBoundsProperty().map(b -> b.getHeight() * 0.7));
         });
-
-        initContextMenu();
     }
 
     private void joinChat() {
-        var channel = foundChannels.getSelectionModel().getSelectedItem();
+        var channel = channelsListView.getSelectionModel().getSelectedItem();
         if (channel == null) return;
         channel.joinChatAsync();
-    }
-
-    private void initContextMenu() {
-        var empty = foundChannels.getSelectionModel().selectedItemProperty().isNull();
-
-        var openChat = new MenuItem(Resources.getString("search.open.chat"));
-        openChat.disableProperty().bind(empty);
-        openChat.setOnAction(e -> {
-            var channel = foundChannels.getSelectionModel().getSelectedItem();
-            if (channel == null) return;
-
-            channel.joinChatAsync();
-        });
-
-        var openBrowser = new MenuItem(Resources.getString("search.open.browser"));
-        openBrowser.disableProperty().bind(empty);
-        openBrowser.setOnAction(e -> {
-            var channel = foundChannels.getSelectionModel().getSelectedItem();
-            if (channel == null) return;
-
-            var nest = channel.openChannelPageOnBrowser();
-            nest.setOnSucceeded(e2 -> {
-                if (nest.getValue()) return;
-
-                var alert = new Alert(Alert.AlertType.WARNING);
-                alert.setTitle("Warning");
-                alert.setHeaderText("Failed to open Browser!");
-                alert.setContentText("Failed to Open Browser!");
-                alert.show();
-            });
-        });
-
-        var contextMenu = new ContextMenu(openChat, new SeparatorMenuItem(), openBrowser);
-        foundChannels.setContextMenu(contextMenu);
     }
 
     public CustomTextField getKeywordField() {

@@ -53,21 +53,9 @@ public class ClipFinder {
                 return Optional.empty();
             }
 
-            var helix = client.getHelix();
-            var clipsCommand = helix.getClips(
-                    twitch.getAccessToken(),
-                    null,
-                    null,
-                    List.of(clipId),
-                    null,
-                    null,
-                    1,
-                    null,
-                    null,
-                    null
-            );
+            var api = twitch.getTwitchAPI();
+            var clips = api.getClips(List.of(clipId));
 
-            var clips = clipsCommand.execute().getData();
             if (clips.isEmpty()) {
                 LOGGER.warn("clip not found clip_id={}", clipId);
                 return Optional.empty();

@@ -46,7 +46,6 @@ public class VideoClipListView implements FxmlView<VideoClipListViewModel>, Init
 
         initializeButtons();
 
-        videoClips.getStyleClass().add(Styles.DENSE);
         videoClips.setItems(viewModel.getClips());
         videoClips.setCellFactory(param -> new VideoClipViewCell());
 

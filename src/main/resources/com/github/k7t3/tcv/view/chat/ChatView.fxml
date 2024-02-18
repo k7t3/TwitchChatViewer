@@ -15,7 +15,7 @@
    <top>
       <VBox spacing="1.0" BorderPane.alignment="CENTER">
          <children>
-            <HBox alignment="CENTER_LEFT" spacing="2.0">
+            <HBox alignment="CENTER_LEFT" spacing="10.0">
                <children>
                   <Label fx:id="userNameLabel" text="UserName" />
                   <Pane HBox.hgrow="ALWAYS" />

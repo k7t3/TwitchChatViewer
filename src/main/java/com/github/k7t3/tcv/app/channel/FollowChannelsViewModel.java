@@ -2,9 +2,11 @@ package com.github.k7t3.tcv.app.channel;
 
 import com.github.k7t3.tcv.app.chat.ChatContainerViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
+import com.github.k7t3.tcv.app.main.MainViewModel;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
 import de.saxsys.mvvmfx.ViewModel;
+import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
@@ -26,7 +28,10 @@ public class FollowChannelsViewModel implements ViewModel {
                     .thenComparing(FollowChannelViewModel::getUserLogin);
 
     /** フォローしているすべてのブロードキャスター*/
-    private final ObservableList<FollowChannelViewModel> followBroadcasters = FXCollections.observableArrayList();
+    private final ObservableList<FollowChannelViewModel> followBroadcasters =
+            FXCollections.observableArrayList(vm ->
+                    new Observable[] { vm.liveProperty(), vm.viewerCountProperty() }
+            );
 
     /** 並べ替え、フィルタ*/
     private final SortedList<FollowChannelViewModel> transformedBroadcasters;
@@ -42,6 +47,8 @@ public class FollowChannelsViewModel implements ViewModel {
     private final ObjectProperty<FollowChannelViewModel> selectedBroadcaster = new SimpleObjectProperty<>(null);
 
     private final BooleanProperty visibleFully = new SimpleBooleanProperty(true);
+
+    private MainViewModel mainViewModel;
 
     private ChatContainerViewModel chatContainerViewModel;
 
@@ -102,7 +109,12 @@ public class FollowChannelsViewModel implements ViewModel {
         return task;
     }
 
-    public void setChatContainerViewModel(ChatContainerViewModel chatContainerViewModel) {
+    public void installMainViewModel(MainViewModel mainViewModel) {
+        this.mainViewModel = mainViewModel;
+        mainViewModel.footerProperty().bind(selectedBroadcasterProperty().map(FollowChannelViewModel::getTitle));
+    }
+
+    public void installChatContainerViewModel(ChatContainerViewModel chatContainerViewModel) {
         this.chatContainerViewModel = chatContainerViewModel;
     }
 

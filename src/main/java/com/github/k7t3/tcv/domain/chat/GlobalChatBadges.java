@@ -18,11 +18,8 @@ public class GlobalChatBadges {
     public void load(Twitch twitch) {
         if (loaded) return;
 
-        var client = twitch.getClient();
-        var helix = client.getHelix();
-
-        var commands = helix.getGlobalChatBadges(twitch.getAccessToken());
-        badgeSets = commands.execute().getBadgeSets();
+        var api = twitch.getTwitchAPI();
+        badgeSets = api.getGlobalBadgeSet();
 
         loaded = true;
     }

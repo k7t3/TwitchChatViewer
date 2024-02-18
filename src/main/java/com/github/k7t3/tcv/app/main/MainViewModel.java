@@ -2,10 +2,7 @@ package com.github.k7t3.tcv.app.main;
 
 import com.github.k7t3.tcv.app.core.AppHelper;
 import de.saxsys.mvvmfx.ViewModel;
-import javafx.beans.property.ReadOnlyBooleanProperty;
-import javafx.beans.property.ReadOnlyBooleanWrapper;
-import javafx.beans.property.ReadOnlyStringProperty;
-import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.beans.property.*;
 
 public class MainViewModel implements ViewModel {
 
@@ -13,10 +10,18 @@ public class MainViewModel implements ViewModel {
 
     private final ReadOnlyBooleanWrapper authorized = new ReadOnlyBooleanWrapper(false);
 
+    private final StringProperty footer = new SimpleStringProperty();
+
+    private final ReadOnlyIntegerWrapper clipCount = new ReadOnlyIntegerWrapper();
+
     public MainViewModel() {
         var helper = AppHelper.getInstance();
         userName.bind(helper.userNameProperty());
         authorized.bind(helper.authorizedProperty());
+    }
+
+    public VideoClipPostListener createClipPostListener() {
+        return new VideoClipPostListener(this);
     }
 
     // ******************** PROPERTIES ********************
@@ -29,4 +34,12 @@ public class MainViewModel implements ViewModel {
     public ReadOnlyBooleanProperty authorizedProperty() { return authorized.getReadOnlyProperty(); }
     public boolean isAuthorized() { return authorized.get(); }
 
+    public StringProperty footerProperty() { return footer; }
+    public String getFooter() { return footer.get(); }
+    public void setFooter(String footer) { this.footer.set(footer); }
+
+    ReadOnlyIntegerWrapper clipCountWrapper() { return clipCount; }
+    public ReadOnlyIntegerProperty clipCountProperty() { return clipCount.getReadOnlyProperty(); }
+    public int getClipCount() { return clipCount.get(); }
+    void setClipCount(int clipCount) { this.clipCount.set(clipCount); }
 }

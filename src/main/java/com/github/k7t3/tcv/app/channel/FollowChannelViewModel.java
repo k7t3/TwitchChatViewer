@@ -3,7 +3,6 @@ package com.github.k7t3.tcv.app.channel;
 import com.github.k7t3.tcv.domain.channel.StreamInfo;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
 import com.github.k7t3.tcv.domain.channel.TwitchChannelListener;
-import de.saxsys.mvvmfx.SceneLifecycle;
 import de.saxsys.mvvmfx.ViewModel;
 import javafx.application.Platform;
 import javafx.beans.property.*;
@@ -12,7 +11,7 @@ import javafx.scene.image.Image;
 /**
  * フォローしているチャンネルの情報
  */
-public class FollowChannelViewModel implements ViewModel, TwitchChannelListener, SceneLifecycle {
+public class FollowChannelViewModel implements ViewModel, TwitchChannelListener {
 
     private static final double PROFILE_IMAGE_WIDTH = 32;
     private static final double PROFILE_IMAGE_HEIGHT = 32;
@@ -36,6 +35,7 @@ public class FollowChannelViewModel implements ViewModel, TwitchChannelListener,
         this.channels = channels;
         this.channel = channel;
         update(channel);
+        channel.addListener(this);
     }
 
     public TwitchChannel getChannel() {
@@ -95,16 +95,6 @@ public class FollowChannelViewModel implements ViewModel, TwitchChannelListener,
     @Override
     public void onGameChanged(StreamInfo info) {
         Platform.runLater(() -> setGameName(info.gameName()));
-    }
-
-    @Override
-    public void onViewAdded() {
-        channel.addListener(this);
-    }
-
-    @Override
-    public void onViewRemoved() {
-        channel.removeListener(this);
     }
 
     // ################################################################################

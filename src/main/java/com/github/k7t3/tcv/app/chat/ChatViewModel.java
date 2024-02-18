@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoomListener {
 
@@ -65,11 +66,14 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
 
     private ChatRoom chatRoom;
 
+    private final List<ChatRoomListener> defaultChatRoomListeners;
+
     ChatViewModel(
             TwitchChannel channel,
             GlobalChatBadgeStore globalBadgeStore,
             DefinedChatColors definedChatColors,
-            ChatContainerViewModel containerViewModel
+            ChatContainerViewModel containerViewModel,
+            List<ChatRoomListener> defaultChatRoomListeners
     ) {
         this.channel = channel;
         live = new ReadOnlyBooleanWrapper(channel.isStreaming());
@@ -78,6 +82,7 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
         emoteStore = new ChannelEmoteStore();
         this.containerViewModel = containerViewModel;
         this.definedChatColors = definedChatColors;
+        this.defaultChatRoomListeners = defaultChatRoomListeners;
         update();
     }
 
@@ -105,12 +110,24 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
 
         var task = FXTask.task(() -> {
             channel.loadBadgesIfNotLoaded();
-            return channel.getChatRoom();
+
+            var chatRoom = channel.getChatRoom();
+
+            // チャットルームに関するイベントリスナを追加
+            chatRoom.addListener(this);
+
+            for (var listener : defaultChatRoomListeners)
+                chatRoom.addListener(listener);
+
+            // チャンネルに関するイベントリスナを追加
+            channel.addListener(this);
+
+            return chatRoom;
         });
         FXTask.setOnSucceeded(task, e -> {
             chatRoom = task.getValue();
-            chatRoom.addListener(this);
-            channel.addListener(this);
+
+            // チャットルームへの参加に成功
             setChatJoined(true);
         });
         TaskWorker.getInstance().submit(task);
@@ -127,7 +144,14 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
 
         var task = FXTask.task(() -> {
             channel.leaveChat();
+
+            // チャットルームに関するリスナを削除
             chatRoom.removeListener(this);
+
+            for (var listener : defaultChatRoomListeners)
+                chatRoom.removeListener(listener);
+
+            // チャンネルに関するリスナを削除
             channel.removeListener(this);
         });
         FXTask.setOnSucceeded(task, e -> chatRoom = null);

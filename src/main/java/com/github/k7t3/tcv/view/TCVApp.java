@@ -1,6 +1,7 @@
 package com.github.k7t3.tcv.view;
 
 import atlantafx.base.theme.*;
+import com.github.k7t3.tcv.view.core.ThemeManager;
 import com.github.k7t3.tcv.view.main.MainView;
 import com.github.k7t3.tcv.view.core.Resources;
 import com.github.k7t3.tcv.app.core.AppHelper;
@@ -30,10 +31,7 @@ public class TCVApp extends Application {
     }
 
     @Override
-    public void start(Stage primaryStage) throws Exception {
-        //Application.setUserAgentStylesheet(new CupertinoDark().getUserAgentStylesheet());
-        //Application.setUserAgentStylesheet(new NordLight().getUserAgentStylesheet());
-        Application.setUserAgentStylesheet(new PrimerLight().getUserAgentStylesheet());
+    public void start(Stage primaryStage) {
 
         var loader = FluentViewLoader.fxmlView(MainView.class);
         loader.resourceBundle(Resources.getResourceBundle());
@@ -43,6 +41,10 @@ public class TCVApp extends Application {
         var codeBehind = tuple.getCodeBehind();
 
         var scene = new Scene(view);
+
+        var tm = ThemeManager.getInstance();
+        tm.setScene(scene);
+        tm.setTheme(new NordLight());
 
         // 画面が表示されたら認証画面を表示する(おそらくModalPaneの仕様的に
         // シーングラフが表示されてからじゃないと動作しないため)

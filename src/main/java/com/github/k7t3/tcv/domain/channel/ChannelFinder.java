@@ -12,12 +12,10 @@ public class ChannelFinder {
         this.twitch = twitch;
     }
 
-    private Channels channels;
-
     public List<FoundChannel> search(String startsWith, boolean liveOnly) {
-        if (channels == null) {
-            channels = new Channels(twitch);
-        }
-        return channels.search(startsWith, liveOnly);
+
+        var api = twitch.getTwitchAPI();
+        return api.search(startsWith, liveOnly);
+
     }
 }

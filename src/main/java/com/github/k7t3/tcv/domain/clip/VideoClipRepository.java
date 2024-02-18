@@ -36,4 +36,8 @@ public class VideoClipRepository {
         return clips.asMap().values();
     }
 
+    public int getClipCount() {
+        return (int) clips.estimatedSize();
+    }
+
 }

@@ -20,7 +20,7 @@
       <ModalPane fx:id="modalPane" />
       <BorderPane fx:id="headerPane" stylesheets="@MainView.css">
          <top>
-            <GridPane styleClass="header-pane" BorderPane.alignment="CENTER">
+            <GridPane styleClass="header-pane">
               <columnConstraints>
                 <ColumnConstraints hgrow="SOMETIMES" percentWidth="33.33333333" />
                 <ColumnConstraints hgrow="SOMETIMES" percentWidth="33.33333333" />
@@ -80,6 +80,26 @@
          <center>
             <StackPane fx:id="rightContainer" BorderPane.alignment="CENTER" />
          </center>
+         <bottom>
+            <GridPane styleClass="footer-pane">
+              <columnConstraints>
+                  <ColumnConstraints hgrow="SOMETIMES" percentWidth="33.33333333" />
+                <ColumnConstraints hgrow="SOMETIMES" percentWidth="33.33333333" />
+                <ColumnConstraints halignment="RIGHT" hgrow="SOMETIMES" percentWidth="33.33333333" />
+              </columnConstraints>
+              <rowConstraints>
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+              </rowConstraints>
+               <children>
+                  <Button fx:id="clipButton" mnemonicParsing="false" text="Clips" GridPane.columnIndex="2">
+                     <graphic>
+                        <FontIcon iconLiteral="fth-paperclip" />
+                     </graphic>
+                  </Button>
+                  <Label fx:id="footerLabel" text="FooterLabel" GridPane.columnSpan="2" />
+               </children>
+            </GridPane>
+         </bottom>
       </BorderPane>
    </children>
 </StackPane>

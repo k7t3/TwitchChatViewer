@@ -7,11 +7,11 @@ import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Side;
 
-public class VideoClipViewCallActionHandler implements EventHandler<ActionEvent> {
+public class VideoClipListViewCaller implements EventHandler<ActionEvent> {
 
     private final ModalPane modalPane;
 
-    public VideoClipViewCallActionHandler(ModalPane modalPane) {
+    public VideoClipListViewCaller(ModalPane modalPane) {
         this.modalPane = modalPane;
     }
 

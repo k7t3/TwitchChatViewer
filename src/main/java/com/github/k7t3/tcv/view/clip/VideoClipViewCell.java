@@ -1,19 +1,22 @@
 package com.github.k7t3.tcv.view.clip;
 
+import atlantafx.base.controls.Spacer;
 import atlantafx.base.theme.Styles;
 import com.github.k7t3.tcv.app.clip.VideoClipViewModel;
+import com.github.k7t3.tcv.view.core.Resources;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.ContentDisplay;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
+import javafx.scene.control.*;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 public class VideoClipViewCell extends ListCell<VideoClipViewModel> {
 
-    private BorderPane layout;
+    private HBox layout;
 
     private ImageView thumbnail;
 
@@ -27,26 +30,52 @@ public class VideoClipViewCell extends ListCell<VideoClipViewModel> {
 
     private void initialize() {
         thumbnail = new ImageView();
-        thumbnail.setFitWidth(48);
-        thumbnail.setFitHeight(48);
+        thumbnail.setFitWidth(64);
+        thumbnail.setFitHeight(64);
         thumbnail.setPreserveRatio(true);
         thumbnail.setSmooth(true);
+        thumbnail.setMouseTransparent(true);
 
         title = new Label();
         title.getStyleClass().addAll(Styles.TEXT_BOLD, Styles.TITLE_4);
+        title.setMinWidth(20);
 
         description = new Label();
         description.getStyleClass().addAll(Styles.TEXT_SMALL);
+        description.setMinWidth(20);
 
         var vbox = new VBox(title, description);
         vbox.setSpacing(2);
         vbox.setPadding(new Insets(0, 0, 0, 10));
+        vbox.setMouseTransparent(true);
+        vbox.setMinWidth(20);
+        HBox.setHgrow(vbox, Priority.ALWAYS);
 
-        layout = new BorderPane();
-        layout.setCenter(vbox);
-        BorderPane.setAlignment(thumbnail, Pos.CENTER);
-        layout.setLeft(thumbnail);
-        layout.setMouseTransparent(true);
+        var openBrowser = new Button("", new FontIcon(FontAwesomeSolid.GLOBE));
+        openBrowser.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.ACCENT);
+        openBrowser.setTooltip(new Tooltip(Resources.getString("clip.open.browser")));
+        openBrowser.setOnAction(e -> {
+            var task = getItem().openClipPageOnBrowser();
+            task.setOnSucceeded(e2 -> {
+                if (task.getValue()) return;
+
+                var alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Warning");
+                alert.setHeaderText("Failed to open Browser!");
+                alert.setContentText("Failed to Open Browser!");
+                alert.show();
+            });
+        });
+
+        var clipURLButton = new Button("", new FontIcon(FontAwesomeSolid.COPY));
+        clipURLButton.getStyleClass().addAll(Styles.BUTTON_ICON);
+        clipURLButton.setTooltip(new Tooltip(Resources.getString("clip.copy.link")));
+        clipURLButton.setOnAction(e -> getItem().copyClipURL());
+
+        layout = new HBox(thumbnail, vbox, new Spacer(), openBrowser, clipURLButton);
+        layout.setAlignment(Pos.CENTER_LEFT);
+        layout.setSpacing(4);
+        layout.setPrefWidth(HBox.USE_PREF_SIZE);
     }
 
     @Override

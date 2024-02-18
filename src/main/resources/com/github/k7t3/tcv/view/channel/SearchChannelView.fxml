@@ -34,7 +34,7 @@
    <center>
       <StackPane fx:id="container" BorderPane.alignment="CENTER">
          <children>
-            <ListView fx:id="foundChannels" />
+            <ListView fx:id="channelsListView" />
          </children>
       </StackPane>
    </center>
