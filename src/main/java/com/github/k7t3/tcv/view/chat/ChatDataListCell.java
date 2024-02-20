@@ -177,6 +177,9 @@ public class ChatDataListCell extends ListCell<ChatDataViewModel> {
             emoteStore = viewModel.getEmoteStore();
         }
 
+        visibleName.bind(viewModel.visibleNameProperty());
+        visibleBadges.bind(viewModel.visibleBadgeProperty());
+
         buildMessage(viewModel.getMessage());
 
     }

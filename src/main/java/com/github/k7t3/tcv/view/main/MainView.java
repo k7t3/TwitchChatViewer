@@ -15,6 +15,7 @@ import com.github.k7t3.tcv.view.chat.ChatContainerView;
 import com.github.k7t3.tcv.view.clip.VideoClipListViewCaller;
 import com.github.k7t3.tcv.view.core.Resources;
 import com.github.k7t3.tcv.view.core.ThemeManager;
+import com.github.k7t3.tcv.view.prefs.PreferenceViewCaller;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
@@ -98,15 +99,9 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
             }
         });
 
-        var a = new MenuItem("LIGHT");
-        a.setOnAction(e -> {
-            ThemeManager.getInstance().setTheme(new NordLight());
-        });
-        var b = new MenuItem("DARK");
-        b.setOnAction(e -> {
-            ThemeManager.getInstance().setTheme(new PrimerDark());
-        });
-        userMenuButton.getItems().addAll(a, b);
+        var prefsMenu = new MenuItem("PREFS");
+        prefsMenu.setOnAction(new PreferenceViewCaller(modalPane));
+        userMenuButton.getItems().addAll(prefsMenu);
     }
 
     private void loadFollowersView() {

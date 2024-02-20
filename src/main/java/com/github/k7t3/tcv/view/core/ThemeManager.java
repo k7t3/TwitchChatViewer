@@ -1,11 +1,13 @@
 package com.github.k7t3.tcv.view.core;
 
-import atlantafx.base.theme.Theme;
+import atlantafx.base.theme.*;
 import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.application.Application;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.css.PseudoClass;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
@@ -13,34 +15,59 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.Pane;
 import javafx.util.Duration;
 
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 // AtlantaFX samplerアプリケーションを参照
 public class ThemeManager {
 
     private static final PseudoClass DARK = PseudoClass.getPseudoClass("dark");
 
+    public static final Theme DEFAULT_THEME = new NordLight();
+
     private Scene scene;
 
-    private Theme currentTheme;
+    private final ObjectProperty<Theme> theme = new SimpleObjectProperty<>();
 
     private ThemeManager() {
+        theme.addListener((ob, o, n) -> themeChanged(o, n));
     }
 
     public void setScene(Scene scene) {
         this.scene = scene;
     }
 
-    public void setTheme(Theme theme) {
+    private List<Theme> themes;
 
-        if (currentTheme != null) {
+    public List<Theme> getThemes() {
+        if (themes == null) {
+            themes = List.of(
+                    new NordLight(),
+                    new NordDark(),
+                    new PrimerLight(),
+                    new PrimerDark(),
+                    new CupertinoLight(),
+                    new CupertinoDark(),
+                    new Dracula()
+            );
+        }
+        return themes;
+    }
+
+    public Optional<Theme> findTheme(String name) {
+        return getThemes().stream()
+                .filter(t -> Objects.equals(name, t.getName()))
+                .findFirst();
+    }
+
+    private void themeChanged(Theme older, Theme theme) {
+        if (older != null) {
             animateThemeChange(Duration.millis(750));
         }
 
         Application.setUserAgentStylesheet(Objects.requireNonNull(theme.getUserAgentStylesheet()));
         scene.getRoot().pseudoClassStateChanged(DARK, theme.isDarkMode());
-
-        currentTheme = theme;
     }
 
     private void animateThemeChange(Duration duration) {
@@ -57,6 +84,10 @@ public class ThemeManager {
         transition.setOnFinished(e -> root.getChildren().remove(imageView));
         transition.play();
     }
+
+    public ObjectProperty<Theme> themeProperty() { return theme; }
+    public Theme getTheme() { return theme.get(); }
+    public void setTheme(Theme theme) { this.theme.set(theme); }
 
     public static ThemeManager getInstance() {
         return Holder.INSTANCE;

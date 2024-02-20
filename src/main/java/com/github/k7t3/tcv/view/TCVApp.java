@@ -1,11 +1,12 @@
 package com.github.k7t3.tcv.view;
 
-import atlantafx.base.theme.*;
-import com.github.k7t3.tcv.view.core.ThemeManager;
-import com.github.k7t3.tcv.view.main.MainView;
-import com.github.k7t3.tcv.view.core.Resources;
 import com.github.k7t3.tcv.app.core.AppHelper;
+import com.github.k7t3.tcv.prefs.AppPreferences;
+import com.github.k7t3.tcv.view.core.Resources;
+import com.github.k7t3.tcv.view.core.StageBoundsListener;
+import com.github.k7t3.tcv.view.core.ThemeManager;
 import com.github.k7t3.tcv.view.core.WindowEventHelper;
+import com.github.k7t3.tcv.view.main.MainView;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import javafx.application.Application;
 import javafx.scene.Scene;
@@ -16,10 +17,13 @@ import java.util.logging.LogManager;
 
 public class TCVApp extends Application {
 
+    private AppPreferences preferences;
+
     @Override
     public void init() throws Exception {
         super.init();
         initializeLogger();
+        preferences = AppPreferences.getInstance();
     }
 
     private void initializeLogger() {
@@ -42,9 +46,10 @@ public class TCVApp extends Application {
 
         var scene = new Scene(view);
 
+        // テーマ
         var tm = ThemeManager.getInstance();
         tm.setScene(scene);
-        tm.setTheme(new NordLight());
+        tm.setTheme(preferences.getTheme());
 
         // 画面が表示されたら認証画面を表示する(おそらくModalPaneの仕様的に
         // シーングラフが表示されてからじゃないと動作しないため)
@@ -55,7 +60,20 @@ public class TCVApp extends Application {
         WindowEventHelper.closed(primaryStage, () -> {
             var helper = AppHelper.getInstance();
             helper.close();
+            preferences.save();
         });
+
+        // ウインドウの境界を追跡
+        var boundsListener = new StageBoundsListener();
+        boundsListener.install(primaryStage);
+
+        // ウインドウ境界を復元
+        var bounds = preferences.getStageBounds();
+        bounds.apply(primaryStage);
+
+        // ウインドウを閉じるときに境界を記録
+        primaryStage.setOnCloseRequest(e ->
+                preferences.setStageBounds(boundsListener.getCurrent()));
 
         primaryStage.setScene(scene);
         primaryStage.show();

@@ -25,6 +25,8 @@ public class ChatDataViewModel implements ViewModel {
 
     private final BooleanProperty visibleName = new SimpleBooleanProperty(true);
 
+    private final BooleanProperty visibleBadge = new SimpleBooleanProperty(true);
+
     private final BooleanProperty deleted = new SimpleBooleanProperty(false);
 
     private final ChatData chatData;
@@ -112,6 +114,10 @@ public class ChatDataViewModel implements ViewModel {
     public BooleanProperty visibleNameProperty() { return visibleName; }
     public boolean isVisibleName() { return visibleName.get(); }
     public void setVisibleName(boolean deleted) { this.visibleName.set(deleted); }
+
+    public BooleanProperty visibleBadgeProperty() { return visibleBadge; }
+    public boolean isVisibleBadge() { return visibleBadge.get(); }
+    public void setVisibleBadge(boolean visibleBadge) { this.visibleBadge.set(visibleBadge); }
 
     public BooleanProperty deletedProperty() { return deleted; }
     public boolean isDeleted() { return deleted.get(); }

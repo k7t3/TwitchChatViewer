@@ -5,6 +5,7 @@ import com.github.k7t3.tcv.domain.channel.Broadcaster;
 import com.github.k7t3.tcv.domain.channel.FoundChannel;
 import com.github.k7t3.tcv.domain.channel.StreamInfo;
 import com.github.twitch4j.TwitchClientBuilder;
+import com.github.twitch4j.common.exception.UnauthorizedException;
 import com.github.twitch4j.helix.TwitchHelix;
 import com.github.twitch4j.helix.domain.ChannelSearchResult;
 import com.github.twitch4j.helix.domain.ChatBadgeSet;
@@ -31,7 +32,7 @@ public class TwitchAPI {
 
     private final Twitch twitch;
 
-    private final Lock lock = new ReentrantLock();
+    private final Lock lock = new ReentrantLock(true);
 
     public TwitchAPI(Twitch twitch) {
         this.twitch = twitch;
@@ -183,7 +184,7 @@ public class TwitchAPI {
                 clipIds,
                 null,
                 null,
-                20,
+                null,
                 null,
                 null,
                 null
@@ -203,12 +204,17 @@ public class TwitchAPI {
 
         } catch (HystrixRuntimeException e) {
 
-            LOGGER.warn("Hystrix Command Wrapper", e);
+            if (e.getCause() instanceof UnauthorizedException) {
 
-            // トークンが無効になっていると判断してリフレッシュ
-            refreshClient();
+                // トークンが無効になっていると判断してリフレッシュ
+                refreshClient();
 
-            return hystrixCommandWrapper(function);
+                return hystrixCommandWrapper(function);
+            }
+
+            LOGGER.error("Hystrix Command Wrapper", e);
+
+            throw new RuntimeException(e);
 
         } catch (Exception e) {
 

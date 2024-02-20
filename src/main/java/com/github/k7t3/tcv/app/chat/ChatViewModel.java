@@ -182,6 +182,8 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
                 emoteStore,
                 definedChatColors
         );
+        chatData.visibleNameProperty().bind(visibleName);
+        chatData.visibleBadgeProperty().bind(visibleBadges);
         Platform.runLater(() -> chatDataList.add(chatData));
     }
 

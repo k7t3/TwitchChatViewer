@@ -30,7 +30,7 @@ public class ClipFinder {
             return Optional.empty();
         }
 
-        var link = matcher.group();
+        var link = matcher.group().trim();
 
         try {
             var uri = new URI(link);
