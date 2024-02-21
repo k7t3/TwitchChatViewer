@@ -16,23 +16,48 @@ import com.netflix.hystrix.exception.HystrixRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
-public class TwitchAPI {
+public class TwitchAPI implements Closeable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TwitchAPI.class);
+
+    private static final long SCHEDULED_DELAY_MINUTES = 210;
 
     private final Twitch twitch;
 
     private final Lock lock = new ReentrantLock(true);
+
+    private final AtomicBoolean authorized = new AtomicBoolean(true);
+
+    /**
+     * 指定の遅延時間が経過したときにトークンをリフレッシュするためのExecutor。
+     *
+     * <p>
+     *     {@link TwitchAPI#hystrixCommandWrapper(Function)}メソッドでステータスコードを
+     *     参照して無効化されていればリフレッシュしているが、Twitch4Jの{@link com.github.twitch4j.TwitchClientHelper}が
+     *     正常に機能しなくなる恐れがあるため、経過時間を使って動的にリフレッシュを行うことを目的としている。
+     * </p>
+     */
+    private final ScheduledExecutorService scheduledRefreshExecutor = Executors.newSingleThreadScheduledExecutor(
+            Thread.ofPlatform().name("Token-Refresh-Scheduler").daemon().factory());
+
+    private ScheduledFuture<?> scheduledRefreshFuture = null;
 
     public TwitchAPI(Twitch twitch) {
         this.twitch = twitch;
@@ -200,7 +225,20 @@ public class TwitchAPI {
 
             var helix = twitch.getClient().getHelix();
             var command = function.apply(helix);
-            return command.execute();
+            var result = command.execute();
+
+            // 正常にコマンドを実行できたときはリセットする
+            if (scheduledRefreshFuture != null) {
+                scheduledRefreshFuture.cancel(true);
+            }
+            scheduledRefreshFuture = scheduledRefreshExecutor.scheduleWithFixedDelay(
+                    this::refreshClient,
+                    SCHEDULED_DELAY_MINUTES,
+                    SCHEDULED_DELAY_MINUTES,
+                    TimeUnit.MINUTES
+            );
+
+            return result;
 
         } catch (HystrixRuntimeException e) {
 
@@ -246,7 +284,14 @@ public class TwitchAPI {
      * </p>
      */
     private void refreshClient() {
+
+        // 既に認証が無効化されているときは何もしない
+        if (!authorized.get()) {
+            return;
+        }
+
         LOGGER.info("start refresh");
+        authorized.set(false);
 
         try {
 
@@ -275,7 +320,17 @@ public class TwitchAPI {
             LOGGER.error(e.getMessage(), e);
             throw new RuntimeException(e);
 
+        } finally {
+
+            LOGGER.info("done refresh");
+            authorized.set(true);
+
         }
+    }
+
+    @Override
+    public void close() throws IOException {
+        scheduledRefreshExecutor.close();
     }
 
 }

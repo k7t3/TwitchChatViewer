@@ -111,7 +111,7 @@ public class AppPreferences {
     public ObjectProperty<Font> fontProperty() {
         if (font == null) {
             font = new SimpleObjectProperty<>(Font.font(get(CHAT_FONT_FAMILY)));
-            font.addListener((ob, o, n) -> preferences.put(CHAT_FONT_FAMILY, n.getFamily()));
+            font.addListener((ob, o, n) -> preferences.put(CHAT_FONT_FAMILY, n.getName()));
         }
         return font;
     }

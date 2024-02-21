@@ -7,6 +7,7 @@ import com.github.twitch4j.TwitchClient;
 import com.github.twitch4j.chat.TwitchChat;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -86,6 +87,13 @@ public class Twitch implements Closeable {
     public void close() {
         if (channelRepository != null) {
             channelRepository.close();
+        }
+
+        if (twitchAPI != null) {
+            try {
+                twitchAPI.close();
+            } catch (IOException ignored) {
+            }
         }
 
         var client = getClient();

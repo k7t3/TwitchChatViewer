@@ -7,11 +7,12 @@ import com.github.k7t3.tcv.domain.chat.GlobalChatBadges;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
+import com.github.k7t3.tcv.prefs.AppPreferences;
 import de.saxsys.mvvmfx.ViewModel;
-import javafx.beans.property.ReadOnlyBooleanProperty;
-import javafx.beans.property.ReadOnlyBooleanWrapper;
+import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.scene.text.Font;
 
 import java.util.List;
 
@@ -25,6 +26,12 @@ public class ChatContainerViewModel implements ViewModel {
     private GlobalChatBadgeStore globalBadgeStore;
 
     private final DefinedChatColors definedChatColors = new DefinedChatColors();
+
+    private final BooleanProperty showUserName = new SimpleBooleanProperty(true);
+
+    private final BooleanProperty showBadges = new SimpleBooleanProperty(true);
+
+    private final ObjectProperty<Font> font = new SimpleObjectProperty<>(null);
 
     private MainViewModel mainViewModel;
 
@@ -40,6 +47,12 @@ public class ChatContainerViewModel implements ViewModel {
     public void installMainViewModel(MainViewModel mainViewModel) {
         this.mainViewModel = mainViewModel;
         defaultChatRoomListeners = List.of(mainViewModel.createClipPostListener());
+
+        // Preferencesと同期
+        var prefs = AppPreferences.getInstance();
+        showUserName.bind(prefs.showUserNameProperty());
+        showBadges.bind(prefs.showBadgesProperty());
+        font.bind(prefs.fontProperty());
     }
 
     public FXTask<Void> loadAsync() {
@@ -79,7 +92,13 @@ public class ChatContainerViewModel implements ViewModel {
                 this,
                 defaultChatRoomListeners
         );
+
+        viewModel.visibleNameProperty().bind(showUserName);
+        viewModel.visibleBadgesProperty().bind(showBadges);
+        viewModel.fontProperty().bind(font);
+
         chatList.add(viewModel);
+
         return viewModel;
     }
 

@@ -221,7 +221,7 @@ public class TwitchChannel {
             for (var b : badgeSet.getVersions()) {
                 if (!b.getId().equalsIgnoreCase(badge.version())) continue;
 
-                return Optional.of(b.getSmallImageUrl());
+                return Optional.of(b.getMediumImageUrl());
             }
         }
 

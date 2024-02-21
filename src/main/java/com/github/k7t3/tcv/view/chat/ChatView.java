@@ -9,13 +9,17 @@ import com.github.k7t3.tcv.domain.chat.ChatRoomState;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.collections.ListChangeListener;
+import javafx.collections.SetChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.WindowEvent;
+import org.fxmisc.flowless.VirtualFlow;
+import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
@@ -42,12 +46,12 @@ public class ChatView implements FxmlView<ChatViewModel>, Initializable {
     private ToggleSwitch autoScroll;
 
     @FXML
-    private ListView<ChatDataViewModel> chatDataList;
-
-    private ScrollBar chatDataScrollBar = null;
+    private StackPane chatDataContainer;
 
     @InjectViewModel
     private ChatViewModel viewModel;
+
+    private VirtualFlow<ChatDataViewModel, ChatDataCell> virtualFlow;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -56,24 +60,19 @@ public class ChatView implements FxmlView<ChatViewModel>, Initializable {
         closeButton.getStyleClass().addAll(Styles.DANGER, Styles.BUTTON_OUTLINED, Styles.SMALL);
         closeButton.setOnAction(e -> viewModel.leaveChatAsync());
 
-        chatDataList.setCellFactory(param -> new ChatDataListCell());
-        chatDataList.setItems(viewModel.getChatDataList());
-        chatDataList.getStyleClass().add(Styles.DENSE);
+        virtualFlow = VirtualFlow.createVertical(viewModel.getChatDataList(), ChatDataCell::new);
+        chatDataContainer.getChildren().add(new VirtualizedScrollPane<>(virtualFlow));
 
 
         var roomStateNodes = new ChatRoomStateNodes();
-        viewModel.getRoomStates().addListener((ListChangeListener<? super ChatRoomState>) (c) -> {
-            while (c.next()) {
-                if (c.wasAdded()) {
-                    c.getAddedSubList().stream()
-                            .map(roomStateNodes::getIcon)
-                            .forEach(stateContainer.getChildren()::add);
-                }
-                if (c.wasRemoved()) {
-                    c.getRemoved().stream()
-                            .map(roomStateNodes::getIcon)
-                            .forEach(stateContainer.getChildren()::remove);
-                }
+        viewModel.getRoomStates().addListener((SetChangeListener<? super ChatRoomState>) (c) -> {
+            if (c.wasAdded()) {
+                var node = roomStateNodes.getIcon(c.getElementAdded());
+                stateContainer.getChildren().add(node);
+            }
+            if (c.wasRemoved()) {
+                var node = roomStateNodes.getIcon(c.getElementRemoved());
+                stateContainer.getChildren().remove(node);
             }
         });
         viewModel.getRoomStates().stream()
@@ -82,19 +81,8 @@ public class ChatView implements FxmlView<ChatViewModel>, Initializable {
 
 
         viewModel.getChatDataList().addListener((ListChangeListener<? super ChatDataViewModel>) c -> {
-            if (chatDataScrollBar == null) {
-
-                var node = chatDataList.lookup(".scroll-bar:vertical");
-                if (node instanceof ScrollBar) {
-                    chatDataScrollBar = (ScrollBar) node;
-                }
-                if (chatDataScrollBar == null) {
-                    return;
-                }
-
-            }
             if (viewModel.isScrollToBottom() && c.next() && c.wasAdded()) {
-                chatDataScrollBar.setValue(chatDataScrollBar.getMax());
+                virtualFlow.showAsLast(c.getList().size() - 1);
             }
         });
 

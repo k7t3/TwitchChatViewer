@@ -8,6 +8,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
 
 import java.util.ArrayList;
 
@@ -28,6 +29,8 @@ public class ChatDataViewModel implements ViewModel {
     private final BooleanProperty visibleBadge = new SimpleBooleanProperty(true);
 
     private final BooleanProperty deleted = new SimpleBooleanProperty(false);
+
+    private final ObjectProperty<Font> font = new SimpleObjectProperty<>(null);
 
     private final ChatData chatData;
 
@@ -122,4 +125,8 @@ public class ChatDataViewModel implements ViewModel {
     public BooleanProperty deletedProperty() { return deleted; }
     public boolean isDeleted() { return deleted.get(); }
     public void setDeleted(boolean deleted) { this.deleted.set(deleted); }
+
+    public ObjectProperty<Font> fontProperty() { return font; }
+    public Font getFont() { return font.get(); }
+    public void setFont(Font font) { this.font.set(font); }
 }

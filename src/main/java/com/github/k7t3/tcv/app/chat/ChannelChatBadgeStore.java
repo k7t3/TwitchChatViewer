@@ -21,6 +21,6 @@ public class ChannelChatBadgeStore extends CachedImageStore<ChatBadge> {
     protected @Nullable Image loadImage(ChatBadge key) {
         var url = channel.getBadgeUrl(key).orElse(null);
         if (url == null) return null;
-        return new Image(url, 0, 0, true, true, true);
+        return new Image(url, 24, 24, true, true, true);
     }
 }

@@ -9,7 +9,9 @@ import java.util.concurrent.Executors;
 
 public class TaskWorker implements Closeable {
 
-    private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+    private final ExecutorService executor = Executors.newThreadPerTaskExecutor(r ->
+            Thread.ofVirtual().name("TCV-Worker-Thread").factory().newThread(r)
+    );
 
     private TaskWorker() {
     }

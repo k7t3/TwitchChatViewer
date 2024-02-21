@@ -5,10 +5,10 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Hyperlink?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ListView?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
 <BorderPane stylesheets="@ChatView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.chat.ChatView">
@@ -37,6 +37,6 @@
       </VBox>
    </top>
    <center>
-      <ListView fx:id="chatDataList" styleClass="chat-data-list-view" BorderPane.alignment="CENTER" />
+      <StackPane fx:id="chatDataContainer" BorderPane.alignment="CENTER" />
    </center>
 </BorderPane>

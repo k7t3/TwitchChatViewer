@@ -1,5 +1,7 @@
 package com.github.k7t3.tcv.app.chat;
 
+import com.github.k7t3.tcv.app.service.FXTask;
+import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.domain.channel.StreamInfo;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
 import com.github.k7t3.tcv.domain.channel.TwitchChannelListener;
@@ -8,24 +10,27 @@ import com.github.k7t3.tcv.domain.chat.ChatData;
 import com.github.k7t3.tcv.domain.chat.ChatRoom;
 import com.github.k7t3.tcv.domain.chat.ChatRoomListener;
 import com.github.k7t3.tcv.domain.chat.ChatRoomState;
-import com.github.k7t3.tcv.app.core.LimitedObservableList;
-import com.github.k7t3.tcv.app.service.FXTask;
-import com.github.k7t3.tcv.app.service.TaskWorker;
 import de.saxsys.mvvmfx.ViewModel;
 import javafx.application.Platform;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.ObservableSet;
 import javafx.scene.image.Image;
+import javafx.scene.text.Font;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 
 public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoomListener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ChatViewModel.class);
+
+    private static final int LIMIT_ITEM_COUNT = 256;
 
     private final ReadOnlyStringWrapper title = new ReadOnlyStringWrapper();
 
@@ -39,7 +44,7 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
 
     private final ReadOnlyObjectWrapper<Image> profileImage = new ReadOnlyObjectWrapper<>();
 
-    private final ObservableList<ChatDataViewModel> chatDataList = new LimitedObservableList<>(128);
+    private final ObservableList<ChatDataViewModel> chatDataList = FXCollections.observableArrayList(new LinkedList<>());
 
     private final ReadOnlyBooleanWrapper chatJoined = new ReadOnlyBooleanWrapper(false);
 
@@ -51,7 +56,9 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
 
     private final BooleanProperty visibleName = new SimpleBooleanProperty(true);
 
-    private final ObservableList<ChatRoomState> roomStates = FXCollections.observableArrayList();
+    private final ObjectProperty<Font> font = new SimpleObjectProperty<>(null);
+
+    private final ObservableSet<ChatRoomState> roomStates = FXCollections.observableSet(new HashSet<>());
 
     private final TwitchChannel channel;
 
@@ -169,7 +176,7 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
         return chatDataList;
     }
 
-    public ObservableList<ChatRoomState> getRoomStates() {
+    public ObservableSet<ChatRoomState> getRoomStates() {
         return roomStates;
     }
 
@@ -182,9 +189,18 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
                 emoteStore,
                 definedChatColors
         );
+
         chatData.visibleNameProperty().bind(visibleName);
         chatData.visibleBadgeProperty().bind(visibleBadges);
-        Platform.runLater(() -> chatDataList.add(chatData));
+        chatData.fontProperty().bind(font);
+
+        Platform.runLater(() -> {
+            // 上限制限
+            if (LIMIT_ITEM_COUNT <= chatDataList.size()) {
+                chatDataList.removeFirst();
+            }
+            chatDataList.add(chatData);
+        });
     }
 
     @Override
@@ -311,4 +327,7 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
     public boolean isVisibleName() { return visibleName.get(); }
     public void setVisibleName(boolean visibleName) { this.visibleName.set(visibleName); }
 
+    public ObjectProperty<Font> fontProperty() { return font; }
+    public Font getFont() { return font.get(); }
+    public void setFont(Font font) { this.font.set(font); }
 }
