@@ -9,7 +9,6 @@ import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
@@ -49,7 +48,8 @@ public class VideoClipViewCell extends ListCell<VideoClipViewModel> {
         vbox.setPadding(new Insets(0, 0, 0, 10));
         vbox.setMouseTransparent(true);
         vbox.setMinWidth(20);
-        HBox.setHgrow(vbox, Priority.ALWAYS);
+        vbox.setAlignment(Pos.CENTER_LEFT);
+        vbox.setMinWidth(1);
 
         var openBrowser = new Button("", new FontIcon(FontAwesomeSolid.GLOBE));
         openBrowser.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.ACCENT);
@@ -72,10 +72,19 @@ public class VideoClipViewCell extends ListCell<VideoClipViewModel> {
         clipURLButton.setTooltip(new Tooltip(Resources.getString("clip.copy.link")));
         clipURLButton.setOnAction(e -> getItem().copyClipURL());
 
-        layout = new HBox(thumbnail, vbox, new Spacer(), openBrowser, clipURLButton);
+        var removeButton = new Button("", new FontIcon(FontAwesomeSolid.TRASH));
+        removeButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.DANGER);
+        removeButton.setTooltip(new Tooltip(Resources.getString("clip.remove")));
+        removeButton.setOnAction(e -> {
+            getItem().remove();
+            getListView().getItems().remove(getItem());
+        });
+
+        layout = new HBox(thumbnail, vbox, new Spacer(), openBrowser, clipURLButton, removeButton);
         layout.setAlignment(Pos.CENTER_LEFT);
         layout.setSpacing(4);
-        layout.setPrefWidth(HBox.USE_PREF_SIZE);
+
+        setPrefHeight(64);
     }
 
     @Override

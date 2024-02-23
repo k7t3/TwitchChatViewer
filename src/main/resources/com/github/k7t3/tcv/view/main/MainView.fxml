@@ -6,6 +6,7 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.MenuButton?>
 <?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.SeparatorMenuItem?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
@@ -62,8 +63,19 @@
                         <Label fx:id="userNameLabel" text="Label" />
                         <MenuButton fx:id="userMenuButton" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" text="MenuButton">
                           <items>
-                            <MenuItem mnemonicParsing="false" text="Action 1" />
-                            <MenuItem mnemonicParsing="false" text="Action 2" />
+                              <MenuItem fx:id="prefsMenuItem" mnemonicParsing="false" text="%main.menu.prefs">
+                                 <graphic>
+                                    <FontIcon iconLiteral="fth-settings" />
+                                 </graphic></MenuItem>
+                              <SeparatorMenuItem mnemonicParsing="false" />
+                              <MenuItem fx:id="loginMenuItem" mnemonicParsing="false" text="%main.menu.login">
+                                 <graphic>
+                                    <FontIcon iconLiteral="fth-log-in" />
+                                 </graphic></MenuItem>
+                              <MenuItem fx:id="logoutMenuItem" mnemonicParsing="false" text="%main.menu.logout">
+                                 <graphic>
+                                    <FontIcon iconLiteral="fth-log-out" />
+                                 </graphic></MenuItem>
                           </items>
                            <graphic>
                               <FontIcon iconLiteral="fas-user" />
@@ -75,10 +87,10 @@
             </GridPane>
          </top>
          <left>
-            <StackPane fx:id="leftContainer" BorderPane.alignment="CENTER" />
+            <StackPane fx:id="followersContainer" BorderPane.alignment="CENTER" />
          </left>
          <center>
-            <StackPane fx:id="rightContainer" BorderPane.alignment="CENTER" />
+            <StackPane fx:id="chatContainer" BorderPane.alignment="CENTER" />
          </center>
          <bottom>
             <GridPane styleClass="footer-pane">

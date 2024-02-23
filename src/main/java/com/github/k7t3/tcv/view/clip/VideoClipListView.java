@@ -51,7 +51,7 @@ public class VideoClipListView implements FxmlView<VideoClipListViewModel>, Init
 
         root.parentProperty().addListener((ob, o, n) -> {
             if (n == null) return;
-            root.prefWidthProperty().bind(n.layoutBoundsProperty().map(b -> b.getWidth() * 0.5));
+            root.prefWidthProperty().bind(n.layoutBoundsProperty().map(b -> b.getWidth() * 0.4));
             root.prefHeightProperty().bind(n.layoutBoundsProperty().map(b -> b.getHeight() * 0.7));
         });
     }
@@ -67,9 +67,7 @@ public class VideoClipListView implements FxmlView<VideoClipListViewModel>, Init
     }
 
     private ToggleButton createButton(Broadcaster channelOwner, ToggleGroup group) {
-        var image = channelOwner.getProfileImageUrl()
-                .map(url -> new Image(url, 30, 30, true, true, true))
-                .orElse(null);
+        var image = new Image(channelOwner.getProfileImageUrl(), 30, 30, true, true, true);
         var button = new ToggleButton("", new ImageView(image));
         button.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
         button.setToggleGroup(group);

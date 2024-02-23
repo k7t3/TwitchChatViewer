@@ -104,13 +104,14 @@ public class ChatRoom {
 
     private void onChannelMessageEvent(ChannelMessageEvent event) {
         if (notMyEvent(event)) return;
+
+        var message = event.getMessage();
+
         eventExecutor.submit(() -> {
             var chatData = parseMessageEvent(event.getMessageEvent());
             for (var listener : listeners)
                 listener.onChatDataPosted(chatData);
-        });
-        var message = event.getMessage();
-        eventExecutor.submit(() -> {
+
             var clipOp = clipFinder.findClip(message);
             if (clipOp.isPresent()) {
                 for (var listener : listeners)

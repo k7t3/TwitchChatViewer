@@ -78,11 +78,11 @@ public class SearchChannelView implements FxmlView<SearchChannelViewModel>, Init
                 container.getChildren().remove(loadingMask);
         });
 
-        root.parentProperty().addListener((ob, o, n) -> {
-            if (n == null) return;
-            root.prefWidthProperty().bind(n.layoutBoundsProperty().map(b -> b.getWidth() * 0.5));
-            root.prefHeightProperty().bind(n.layoutBoundsProperty().map(b -> b.getHeight() * 0.7));
-        });
+//        root.parentProperty().addListener((ob, o, n) -> {
+//            if (n == null) return;
+//            root.prefWidthProperty().bind(n.layoutBoundsProperty().map(b -> b.getWidth() * 0.5));
+//            root.prefHeightProperty().bind(n.layoutBoundsProperty().map(b -> b.getHeight() * 0.7));
+//        });
     }
 
     private void joinChat() {

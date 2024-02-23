@@ -1,11 +1,11 @@
 package com.github.k7t3.tcv.view.prefs.font;
 
+import com.github.k7t3.tcv.prefs.ChatFont;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.cell.ComboBoxListCell;
-import javafx.scene.text.Font;
 
-public class FontComboBoxCell extends ComboBoxListCell<Font> {
+public class FontComboBoxCell extends ComboBoxListCell<ChatFont> {
 
     private Label label;
 
@@ -14,7 +14,7 @@ public class FontComboBoxCell extends ComboBoxListCell<Font> {
     }
 
     @Override
-    public void updateItem(Font item, boolean empty) {
+    public void updateItem(ChatFont item, boolean empty) {
         super.updateItem(item, empty);
 
         if (item == null || empty) {
@@ -26,8 +26,10 @@ public class FontComboBoxCell extends ComboBoxListCell<Font> {
             label = new Label();
         }
 
-        label.setText(item.getName());
-        label.setFont(item);
+        var font = item.getFont();
+
+        label.setText(font.getName());
+        label.setFont(font);
         setGraphic(label);
     }
 }

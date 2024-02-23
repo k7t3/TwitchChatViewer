@@ -1,7 +1,6 @@
 package com.github.k7t3.tcv.domain.channel;
 
 import com.github.k7t3.tcv.domain.Twitch;
-import com.github.twitch4j.TwitchClientHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,11 +28,8 @@ public class ChannelRepository implements Closeable {
 
     private final ExecutorService eventExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
-    private TwitchClientHelper clientHelper;
-
     public ChannelRepository(Twitch twitch) {
         this.twitch = twitch;
-        clientHelper = twitch.getClient().getClientHelper();
     }
 
     public Collection<TwitchChannel> getChannels() {
@@ -63,32 +59,16 @@ public class ChannelRepository implements Closeable {
             channels.put(broadcaster, channel);
         }
 
-        var channelsNames = channels.values()
+        // Stream GoLive/GoOffline/GameChange/TitleChange
+        channels.values()
                 .stream()
                 .map(TwitchChannel::getBroadcaster)
-                .map(Broadcaster::getUserLogin)
-                .toList();
-
-        // Stream GoLive/GoOffline/GameChange/TitleChange
-        clientHelper.enableStreamEventListener(channelsNames);
+                .forEach(api::enableStreamEventListener);
 
         loaded = true;
     }
 
     public void updateAllEventListeners() {
-        var channelsNames = channels.values().stream()
-                .map(TwitchChannel::getBroadcaster)
-                .map(Broadcaster::getUserLogin)
-                .toList();
-
-        // 現在のイベントリスナを無効化する
-        clientHelper.disableStreamEventListener(channelsNames);
-
-        // 更新
-        clientHelper = twitch.getClient().getClientHelper();
-
-        clientHelper.enableStreamEventListener(channelsNames);
-
         channels.values().forEach(TwitchChannel::updateEventSubs);
     }
 
@@ -108,8 +88,10 @@ public class ChannelRepository implements Closeable {
 
         channels.put(broadcaster, channel);
 
+        var api = twitch.getTwitchAPI();
+
         // Stream 監視イベントを有効化
-        clientHelper.enableStreamEventListener(channel.getChannelName());
+        api.enableStreamEventListener(channel.getBroadcaster());
 
         return channel;
     }
@@ -136,8 +118,11 @@ public class ChannelRepository implements Closeable {
 
         // フォローしているチャンネルは開放しない
         if (!channel.isFollowing()) {
+
+            var api = twitch.getTwitchAPI();
+
             // Stream 監視イベントを無効化
-            clientHelper.disableStreamEventListener(channel.getChannelName());
+            api.disableStreamEventListener(channel.getBroadcaster());
 
             channels.remove(channel.getBroadcaster());
         }
@@ -145,6 +130,6 @@ public class ChannelRepository implements Closeable {
 
     @Override
     public void close() {
-        eventExecutor.close();
+        eventExecutor.shutdown();
     }
 }

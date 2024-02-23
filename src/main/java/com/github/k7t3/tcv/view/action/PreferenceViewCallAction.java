@@ -1,24 +1,29 @@
-package com.github.k7t3.tcv.view.prefs;
+package com.github.k7t3.tcv.view.action;
 
 import atlantafx.base.controls.ModalPane;
 import atlantafx.base.util.Animations;
 import com.github.k7t3.tcv.view.core.Resources;
+import com.github.k7t3.tcv.view.prefs.PreferencesView;
 import de.saxsys.mvvmfx.FluentViewLoader;
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
 import javafx.geometry.Side;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 import javafx.util.Duration;
 
-public class PreferenceViewCaller implements EventHandler<ActionEvent> {
+public class PreferenceViewCallAction extends AbstractKeyAction {
+
+    private static final KeyCombination DEFAULT = new KeyCodeCombination(KeyCode.COMMA, KeyCombination.SHORTCUT_DOWN);
 
     private final ModalPane modalPane;
 
-    public PreferenceViewCaller(ModalPane modalPane) {
+    public PreferenceViewCallAction(ModalPane modalPane) {
+        super(DEFAULT);
         this.modalPane = modalPane;
     }
 
     @Override
-    public void handle(ActionEvent event) {
+    public void run() {
         var tuple = FluentViewLoader.fxmlView(PreferencesView.class)
                 .resourceBundle(Resources.getResourceBundle())
                 .load();
@@ -28,7 +33,7 @@ public class PreferenceViewCaller implements EventHandler<ActionEvent> {
 
         modalPane.usePredefinedTransitionFactories(Side.RIGHT);
         modalPane.setInTransitionFactory((node) -> Animations.zoomIn(node, Duration.millis(400)));
-        modalPane.setOutTransitionFactory((node) -> Animations.zoomOut(node, Duration.millis(400)));
+        modalPane.setOutTransitionFactory((node) -> Animations.zoomOut(node, Duration.millis(200)));
         modalPane.setPersistent(true);
         modalPane.show(view);
     }

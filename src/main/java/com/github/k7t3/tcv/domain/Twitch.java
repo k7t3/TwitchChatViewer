@@ -2,6 +2,7 @@ package com.github.k7t3.tcv.domain;
 
 import com.github.k7t3.tcv.domain.channel.ChannelRepository;
 import com.github.k7t3.tcv.domain.clip.VideoClipRepository;
+import com.github.philippheuer.credentialmanager.api.IStorageBackend;
 import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
 import com.github.twitch4j.TwitchClient;
 import com.github.twitch4j.chat.TwitchChat;
@@ -9,6 +10,7 @@ import com.github.twitch4j.chat.TwitchChat;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.prefs.Preferences;
 
 /**
  * TwitchのAPIアクセスに必要な情報を管理するクラス。
@@ -21,14 +23,22 @@ public class Twitch implements Closeable {
 
     private final TwitchClient chatClient;
 
+    private final IStorageBackend credentialStorageBackend;
+
     private ChannelRepository channelRepository;
 
     private VideoClipRepository clipRepository;
 
     private TwitchAPI twitchAPI;
 
-    Twitch(OAuth2Credential credential, TwitchClient apiClient, TwitchClient chatClient) {
+    Twitch(
+            OAuth2Credential credential,
+            IStorageBackend credentialStorageBackend,
+            TwitchClient apiClient,
+            TwitchClient chatClient
+    ) {
         this.chatClient = chatClient;
+        this.credentialStorageBackend = credentialStorageBackend;
         setCredential(credential);
         setClient(apiClient);
     }
@@ -54,6 +64,10 @@ public class Twitch implements Closeable {
 
     void setCredential(OAuth2Credential credential) {
         this.credential.set(credential);
+    }
+
+    IStorageBackend getCredentialStorageBackend() {
+        return credentialStorageBackend;
     }
 
     private OAuth2Credential getCredential() {

@@ -7,7 +7,6 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.scene.text.Font;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,15 +35,17 @@ public class AppPreferences {
 
     private final Map<String, Object> defaults = new HashMap<>();
 
-    private ObjectProperty<Font> font;
+    private ObjectProperty<ChatFont> font;
 
     private BooleanProperty showUserName;
 
     private BooleanProperty showBadges;
 
+    private KeyActionPreferences keyActionPreferences;
+
     private AppPreferences() {
         defaults.put(THEME, ThemeManager.DEFAULT_THEME.getName());
-        defaults.put(CHAT_FONT_FAMILY, Font.getDefault().getFamily());
+        defaults.put(CHAT_FONT_FAMILY, ChatFont.DEFAULT.getFamily());
         defaults.put(CHAT_SHOW_USERNAME, Boolean.TRUE);
         defaults.put(CHAT_SHOW_BADGES, Boolean.TRUE);
 
@@ -85,6 +86,11 @@ public class AppPreferences {
         return new StageBounds(x, y, width, height, maximized);
     }
 
+    // FIXME CredentialStorageにどうやって渡すか
+    public Preferences getPreferences() {
+        return preferences;
+    }
+
     public void save() {
         try {
             preferences.flush();
@@ -106,17 +112,26 @@ public class AppPreferences {
         return preferences.getBoolean(key, (Boolean) defaults.get(key));
     }
 
+    public KeyActionPreferences getKeyActionPreferences() {
+        if (keyActionPreferences == null) {
+            keyActionPreferences = new KeyActionPreferences(preferences, defaults);
+        }
+        return keyActionPreferences;
+    }
+
     // ******************** PROPERTIES ********************
 
-    public ObjectProperty<Font> fontProperty() {
+    public ObjectProperty<ChatFont> fontProperty() {
         if (font == null) {
-            font = new SimpleObjectProperty<>(Font.font(get(CHAT_FONT_FAMILY)));
-            font.addListener((ob, o, n) -> preferences.put(CHAT_FONT_FAMILY, n.getName()));
+            var family = get(CHAT_FONT_FAMILY);
+            font = new SimpleObjectProperty<>(new ChatFont(family));
+            LOGGER.info("font initialized {}, {}", family, font.get().getFamily());
+            font.addListener((ob, o, n) -> preferences.put(CHAT_FONT_FAMILY, n.getFamily()));
         }
         return font;
     }
-    public Font getFont() { return fontProperty().get(); }
-    public void setFont(Font font) { this.fontProperty().set(font); }
+    public ChatFont getFont() { return fontProperty().get(); }
+    public void setFont(ChatFont font) { this.fontProperty().set(font); }
 
     public BooleanProperty showUserNameProperty() {
         if (showUserName == null) {

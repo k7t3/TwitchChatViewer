@@ -1,3 +1,6 @@
 .video-clip-list-view {
     -fx-background-color: -color-bg-default;
+    -fx-pref-width: 540;
+    -fx-pref-height: 500;
+    -fx-min-width: 500;
 }

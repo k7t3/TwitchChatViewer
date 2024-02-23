@@ -65,11 +65,10 @@ public class AuthenticatorView implements FxmlView<AuthenticatorViewModel>, Init
 
         progressBar.progressProperty().bind(viewModel.authorizedProperty().map(d -> d ? 1.0 : -1));
 
-        root.parentProperty().addListener((ob, o, n) -> {
-            if (n == null) return;
-            root.prefWidthProperty().bind(n.layoutBoundsProperty().map(b -> b.getWidth() * 0.5));
-            //root.prefHeightProperty().bind(n.layoutBoundsProperty().map(b -> b.getHeight() * 0.4));
-        });
+//        root.parentProperty().addListener((ob, o, n) -> {
+//            if (n == null) return;
+//            root.prefWidthProperty().bind(n.layoutBoundsProperty().map(b -> b.getWidth() * 0.5));
+//        });
     }
 
 }

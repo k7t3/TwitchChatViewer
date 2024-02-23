@@ -1,29 +1,34 @@
-package com.github.k7t3.tcv.view.channel;
+package com.github.k7t3.tcv.view.action;
 
 import atlantafx.base.controls.ModalPane;
 import com.github.k7t3.tcv.app.chat.ChatContainerViewModel;
+import com.github.k7t3.tcv.view.channel.SearchChannelView;
 import de.saxsys.mvvmfx.FluentViewLoader;
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
+import javafx.application.Platform;
 import javafx.geometry.Side;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 
-public class SearchChannelViewCaller implements EventHandler<ActionEvent> {
+public class SearchChannelViewCallAction extends AbstractKeyAction {
+
+    private static final KeyCombination DEFAULT = new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN);
 
     private final ModalPane modalPane;
 
     private final ChatContainerViewModel chatContainerViewModel;
 
-    public SearchChannelViewCaller(
+    public SearchChannelViewCallAction(
             ModalPane modalPane,
             ChatContainerViewModel chatContainerViewModel
     ) {
+        super(DEFAULT);
         this.modalPane = modalPane;
         this.chatContainerViewModel = chatContainerViewModel;
     }
 
     @Override
-    public void handle(ActionEvent event) {
-
+    public void run() {
         var loader = FluentViewLoader.fxmlView(SearchChannelView.class);
         var tuple = loader.load();
         var view = tuple.getView();
@@ -34,6 +39,8 @@ public class SearchChannelViewCaller implements EventHandler<ActionEvent> {
         modalPane.setPersistent(false);
         modalPane.show(view);
 
-        tuple.getCodeBehind().getKeywordField().requestFocus();
+        // フォーカスを遅延させないとIMEが正常に動作しなくなる
+        Platform.runLater(() -> tuple.getCodeBehind().getKeywordField().requestFocus());
     }
+
 }

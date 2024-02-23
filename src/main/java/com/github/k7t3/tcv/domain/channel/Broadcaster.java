@@ -12,17 +12,16 @@ public final class Broadcaster {
     private final String userLogin;
     private final String userName;
 
-    private String profileImageUrl;
+    private final String profileImageUrl;
 
-    /**
-     * @param userId    ブロードキャスターID
-     * @param userLogin ログインID
-     * @param userName  表示ユーザー名
-     */
-    public Broadcaster(String userId, String userLogin, String userName) {
+    private final String offlineImageUrl;
+
+    public Broadcaster(String userId, String userLogin, String userName, String profileImageUrl, String offlineImageUrl) {
         this.userId = userId;
         this.userLogin = userLogin;
         this.userName = userName;
+        this.profileImageUrl = profileImageUrl;
+        this.offlineImageUrl = offlineImageUrl;
     }
 
     public String getUserId() {
@@ -37,12 +36,12 @@ public final class Broadcaster {
         return userName;
     }
 
-    public Optional<String> getProfileImageUrl() {
-        return profileImageUrl == null ? Optional.empty() : Optional.of(profileImageUrl);
+    public String getProfileImageUrl() {
+        return profileImageUrl;
     }
 
-    public void setProfileImageUrl(String profileImageUrl) {
-        this.profileImageUrl = profileImageUrl;
+    public String getOfflineImageUrl() {
+        return offlineImageUrl;
     }
 
     @Override

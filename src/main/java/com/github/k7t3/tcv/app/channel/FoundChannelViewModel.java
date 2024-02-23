@@ -1,11 +1,11 @@
 package com.github.k7t3.tcv.app.channel;
 
-import com.github.k7t3.tcv.domain.channel.Broadcaster;
-import com.github.k7t3.tcv.domain.channel.FoundChannel;
 import com.github.k7t3.tcv.app.chat.ChatContainerViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
+import com.github.k7t3.tcv.domain.channel.Broadcaster;
+import com.github.k7t3.tcv.domain.channel.FoundChannel;
 import de.saxsys.mvvmfx.ViewModel;
 import javafx.beans.property.*;
 import javafx.scene.image.Image;
@@ -45,8 +45,7 @@ public class FoundChannelViewModel implements ViewModel {
 
     public void update(FoundChannel channel) {
         setBroadcaster(channel.getBroadcaster());
-        channel.getBroadcaster().getProfileImageUrl().ifPresent(url ->
-                setProfileImage(new Image(url, PROFILE_IMAGE_WIDTH, PROFILE_IMAGE_HEIGHT, true, true, true)));
+        setProfileImage(new Image(channel.getBroadcaster().getProfileImageUrl(), PROFILE_IMAGE_WIDTH, PROFILE_IMAGE_HEIGHT, true, true, true));
         setGameName(channel.getGameName());
         setLive(channel.isLive());
     }

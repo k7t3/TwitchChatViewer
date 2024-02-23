@@ -7,10 +7,14 @@ import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.image.Image;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.DataFormat;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class ChatDataViewModel implements ViewModel {
 
@@ -90,6 +94,16 @@ public class ChatDataViewModel implements ViewModel {
 
     public ObservableList<Image> getBadges() {
         return badges;
+    }
+
+    public void copyMessage() {
+        var cb = Clipboard.getSystemClipboard();
+
+        var message = getMessage().stream()
+                .map(ChatMessage.MessageFragment::fragment)
+                .collect(Collectors.joining());
+
+        cb.setContent(Map.of(DataFormat.PLAIN_TEXT, message));
     }
 
     // ********** PROPERTIES **********

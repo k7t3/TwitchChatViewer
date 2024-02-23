@@ -8,6 +8,7 @@ import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.prefs.AppPreferences;
+import com.github.k7t3.tcv.prefs.ChatFont;
 import de.saxsys.mvvmfx.ViewModel;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
@@ -52,7 +53,7 @@ public class ChatContainerViewModel implements ViewModel {
         var prefs = AppPreferences.getInstance();
         showUserName.bind(prefs.showUserNameProperty());
         showBadges.bind(prefs.showBadgesProperty());
-        font.bind(prefs.fontProperty());
+        font.bind(prefs.fontProperty().map(ChatFont::getFont));
     }
 
     public FXTask<Void> loadAsync() {

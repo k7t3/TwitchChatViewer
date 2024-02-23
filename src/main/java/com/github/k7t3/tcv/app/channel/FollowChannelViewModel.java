@@ -47,10 +47,13 @@ public class FollowChannelViewModel implements ViewModel, TwitchChannelListener 
         userId.set(broadcaster.getUserId());
         userLogin.set(broadcaster.getUserLogin());
         userName.set(broadcaster.getUserName());
-        broadcaster.getProfileImageUrl().ifPresent(url ->
-                profileImage.set(
-                        new Image(url, PROFILE_IMAGE_WIDTH, PROFILE_IMAGE_HEIGHT, true, true, true)
-                )
+        profileImage.set(new Image(
+                broadcaster.getProfileImageUrl(),
+                PROFILE_IMAGE_WIDTH,
+                PROFILE_IMAGE_HEIGHT,
+                true,
+                true,
+                true)
         );
 
         if (channel.isStreaming()) {

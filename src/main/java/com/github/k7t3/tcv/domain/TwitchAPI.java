@@ -5,14 +5,19 @@ import com.github.k7t3.tcv.domain.channel.Broadcaster;
 import com.github.k7t3.tcv.domain.channel.FoundChannel;
 import com.github.k7t3.tcv.domain.channel.StreamInfo;
 import com.github.twitch4j.TwitchClientBuilder;
+import com.github.twitch4j.common.events.domain.EventChannel;
 import com.github.twitch4j.common.exception.UnauthorizedException;
+import com.github.twitch4j.common.util.CollectionUtils;
+import com.github.twitch4j.common.util.ExponentialBackoffStrategy;
+import com.github.twitch4j.domain.ChannelCache;
+import com.github.twitch4j.events.*;
 import com.github.twitch4j.helix.TwitchHelix;
-import com.github.twitch4j.helix.domain.ChannelSearchResult;
-import com.github.twitch4j.helix.domain.ChatBadgeSet;
-import com.github.twitch4j.helix.domain.Clip;
-import com.github.twitch4j.helix.domain.OutboundFollow;
+import com.github.twitch4j.helix.domain.*;
 import com.netflix.hystrix.HystrixCommand;
 import com.netflix.hystrix.exception.HystrixRuntimeException;
+import io.github.xanthic.cache.api.Cache;
+import io.github.xanthic.cache.api.domain.ExpiryType;
+import io.github.xanthic.cache.core.CacheApi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,24 +25,20 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 public class TwitchAPI implements Closeable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TwitchAPI.class);
-
-    private static final long SCHEDULED_DELAY_MINUTES = 210;
 
     private final Twitch twitch;
 
@@ -45,19 +46,7 @@ public class TwitchAPI implements Closeable {
 
     private final AtomicBoolean authorized = new AtomicBoolean(true);
 
-    /**
-     * 指定の遅延時間が経過したときにトークンをリフレッシュするためのExecutor。
-     *
-     * <p>
-     *     {@link TwitchAPI#hystrixCommandWrapper(Function)}メソッドでステータスコードを
-     *     参照して無効化されていればリフレッシュしているが、Twitch4Jの{@link com.github.twitch4j.TwitchClientHelper}が
-     *     正常に機能しなくなる恐れがあるため、経過時間を使って動的にリフレッシュを行うことを目的としている。
-     * </p>
-     */
-    private final ScheduledExecutorService scheduledRefreshExecutor = Executors.newSingleThreadScheduledExecutor(
-            Thread.ofPlatform().name("Token-Refresh-Scheduler").daemon().factory());
-
-    private ScheduledFuture<?> scheduledRefreshFuture = null;
+    private final ChannelListener channelListener = new ChannelListener();
 
     public TwitchAPI(Twitch twitch) {
         this.twitch = twitch;
@@ -156,11 +145,13 @@ public class TwitchAPI implements Closeable {
         );
 
         var users = set.getUsers();
-        return users.stream().map(user -> {
-            var broadcaster = new Broadcaster(user.getId(), user.getLogin(), user.getDisplayName());
-            broadcaster.setProfileImageUrl(user.getProfileImageUrl());
-            return broadcaster;
-        }).toList();
+        return users.stream().map(user -> new Broadcaster(
+                user.getId(),
+                user.getLogin(),
+                user.getDisplayName(),
+                user.getProfileImageUrl(),
+                user.getOfflineImageUrl())
+        ).toList();
     }
 
     public Optional<StreamInfo> getStream(String userId) {
@@ -201,7 +192,7 @@ public class TwitchAPI implements Closeable {
         return set.getBadgeSets();
     }
 
-    public List<Clip> getClips(List<String> clipIds) {
+    private List<Clip> getClips(List<String> clipIds, boolean retried) {
         var list = hystrixCommandWrapper(helix -> helix.getClips(
                 twitch.getAccessToken(),
                 null,
@@ -209,12 +200,39 @@ public class TwitchAPI implements Closeable {
                 clipIds,
                 null,
                 null,
-                null,
+                clipIds.size(),
                 null,
                 null,
                 null
         ));
-        return list.getData();
+
+        var clips = list.getData();
+        if (clips.isEmpty() && !retried) {
+
+            // 存在するクリップでも取得できないことがあるから
+            // 一度だけリトライするようにしてみる
+
+            LOGGER.info("retry getting clips");
+
+            try { TimeUnit.SECONDS.sleep(1); } catch (Exception ignored) {}
+
+            return getClips(clipIds, true);
+
+        }
+
+        return clips;
+    }
+
+    public List<Clip> getClips(List<String> clipIds) {
+        return getClips(clipIds, false);
+    }
+
+    public boolean enableStreamEventListener(Broadcaster broadcaster) {
+        return channelListener.enableStreamEventListener(broadcaster);
+    }
+
+    public boolean disableStreamEventListener(Broadcaster broadcaster) {
+        return channelListener.disableStreamEventListenerForId(broadcaster);
     }
 
     private <T> T hystrixCommandWrapper(Function<TwitchHelix, HystrixCommand<T>> function) {
@@ -225,29 +243,18 @@ public class TwitchAPI implements Closeable {
 
             var helix = twitch.getClient().getHelix();
             var command = function.apply(helix);
-            var result = command.execute();
-
-            // 正常にコマンドを実行できたときはリセットする
-            if (scheduledRefreshFuture != null) {
-                scheduledRefreshFuture.cancel(true);
-            }
-            scheduledRefreshFuture = scheduledRefreshExecutor.scheduleWithFixedDelay(
-                    this::refreshClient,
-                    SCHEDULED_DELAY_MINUTES,
-                    SCHEDULED_DELAY_MINUTES,
-                    TimeUnit.MINUTES
-            );
-
-            return result;
+            return command.execute();
 
         } catch (HystrixRuntimeException e) {
 
+            // 401が返ってきたらリフレッシュ
             if (e.getCause() instanceof UnauthorizedException) {
 
                 // トークンが無効になっていると判断してリフレッシュ
                 refreshClient();
 
                 return hystrixCommandWrapper(function);
+
             }
 
             LOGGER.error("Hystrix Command Wrapper", e);
@@ -295,7 +302,7 @@ public class TwitchAPI implements Closeable {
 
         try {
 
-            var controller = new CredentialController();
+            var controller = new CredentialController(twitch.getCredentialStorageBackend());
             var credential = controller.refreshToken();
 
             var credentialManager = controller.getCredentialManager();
@@ -330,7 +337,339 @@ public class TwitchAPI implements Closeable {
 
     @Override
     public void close() throws IOException {
-        scheduledRefreshExecutor.close();
+        channelListener.close();
+    }
+
+    // TwitchClientHelperより
+    private class ChannelListener implements Closeable {
+
+        private static final int MAX_LIMIT = 100;
+
+        /**
+         * Holds the channels that are checked for live/offline state changes
+         */
+        private final Set<String> listenForGoLive = ConcurrentHashMap.newKeySet();
+
+        /**
+         * Channel Information Cache
+         */
+        private final Cache<String, ChannelCache> channelInformation = CacheApi.create(spec -> {
+            spec.expiryType(ExpiryType.POST_ACCESS);
+            spec.expiryTime(Duration.ofMinutes(10L));
+            spec.maxSize(1_048_576L);
+        });
+
+        /**
+         * Scheduled Thread Pool Executor
+         */
+        private final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(
+                2, Thread.ofPlatform().name("Stream-Watch-Thread").daemon().factory());
+
+        /**
+         * Holds the {@link ExponentialBackoffStrategy} used for the stream status listener
+         */
+        private final AtomicReference<ExponentialBackoffStrategy> liveBackoff;
+
+        /**
+         * The {@link Future} associated with streamStatusEventTask, in an atomic wrapper
+         */
+        private final AtomicReference<Future<?>> streamStatusEventFuture = new AtomicReference<>();
+
+        /**
+         * Event Task - Stream Status
+         * <p>
+         * Accepts a list of channel ids not exceeding {@link ChannelListener#MAX_LIMIT} in size as the input
+         */
+        private final Consumer<List<String>> streamStatusEventTask;
+
+        public ChannelListener() {
+            var defaultBackoff = ExponentialBackoffStrategy.builder().immediateFirst(false).baseMillis(1000L).jitter(false).build();
+            this.liveBackoff = new AtomicReference<>(defaultBackoff);
+
+            // Tasks
+            this.streamStatusEventTask = channels -> {
+                try {
+                    Map<String, Stream> streams = new HashMap<>();
+                    channels.forEach(id -> streams.put(id, null));
+
+                    // check go live / stream events
+                    var streamList = hystrixCommandWrapper(helix ->
+                            helix.getStreams(null, null, null, channels.size(), null, null, channels, null));
+
+                    streamList.getStreams().forEach(s -> streams.put(s.getUserId(), s));
+                    liveBackoff.get().reset(); // API call was successful
+
+                    streams.forEach((userId, stream) -> {
+                        // Check if the channel's live status is still desired to be tracked
+                        if (!listenForGoLive.contains(userId))
+                            return;
+
+                        ChannelCache currentChannelCache = channelInformation.computeIfAbsent(userId, s -> new ChannelCache());
+                        if (stream != null) {
+                            // gracefully support name changes
+                            currentChannelCache.setUserName(stream.getUserLogin());
+                        }
+                        final EventChannel channel = new EventChannel(userId, currentChannelCache.getUserName());
+
+                        boolean dispatchGoLiveEvent = false;
+                        boolean dispatchGoOfflineEvent = false;
+                        boolean dispatchTitleChangedEvent = false;
+                        boolean dispatchGameChangedEvent = false;
+                        boolean dispatchViewersChangedEvent = false;
+
+                        if (stream != null && stream.getType().equalsIgnoreCase("live")) {
+                            // is live
+                            // - live status
+                            if (currentChannelCache.getIsLive() != null && !currentChannelCache.getIsLive()) {
+                                dispatchGoLiveEvent = true;
+                            }
+                            currentChannelCache.setIsLive(true);
+                            boolean wasAlreadyLive = !dispatchGoLiveEvent && currentChannelCache.getIsLive();
+
+                            // - change stream title event
+                            if (wasAlreadyLive && currentChannelCache.getTitle() != null && !currentChannelCache.getTitle().equalsIgnoreCase(stream.getTitle())) {
+                                dispatchTitleChangedEvent = true;
+                            }
+                            currentChannelCache.setTitle(stream.getTitle());
+
+                            // - change game event
+                            if (wasAlreadyLive && currentChannelCache.getGameId() != null && !currentChannelCache.getGameId().equals(stream.getGameId())) {
+                                dispatchGameChangedEvent = true;
+                            }
+                            currentChannelCache.setGameId(stream.getGameId());
+
+                            // - change viewer count event
+                            if (!stream.getViewerCount().equals(currentChannelCache.getViewerCount().getAndSet(stream.getViewerCount())) && wasAlreadyLive) {
+                                dispatchViewersChangedEvent = true;
+                            }
+                        } else {
+                            // was online previously?
+                            if (currentChannelCache.getIsLive() != null && currentChannelCache.getIsLive()) {
+                                dispatchGoOfflineEvent = true;
+                            }
+
+                            // is offline
+                            currentChannelCache.setIsLive(false);
+                            currentChannelCache.setTitle(null);
+                            currentChannelCache.setGameId(null);
+                            currentChannelCache.getViewerCount().lazySet(null);
+                        }
+
+                        var eventManager = twitch.getClient().getEventManager();
+
+                        // dispatch events
+                        // - go live event
+                        if (dispatchGoLiveEvent) {
+                            eventManager.publish(new ChannelGoLiveEvent(channel, stream));
+                        }
+                        // - go offline event
+                        if (dispatchGoOfflineEvent) {
+                            eventManager.publish(new ChannelGoOfflineEvent(channel));
+                        }
+                        // - title changed event
+                        if (dispatchTitleChangedEvent) {
+                            eventManager.publish(new ChannelChangeTitleEvent(channel, stream));
+                        }
+                        // - game changed event
+                        if (dispatchGameChangedEvent) {
+                            eventManager.publish(new ChannelChangeGameEvent(channel, stream));
+                        }
+                        // - viewer count changed event
+                        if (dispatchViewersChangedEvent) {
+                            eventManager.publish(new ChannelViewerCountUpdateEvent(channel, stream));
+                        }
+                    });
+                } catch (Exception ex) {
+
+                    LOGGER.error("Failed to check for Stream Events (Live/Offline/...): " + ex.getMessage());
+
+                }
+            };
+        }
+
+        @Override
+        public void close() throws IOException {
+            executor.close();
+        }
+
+        public boolean enableStreamEventListener(Broadcaster broadcaster) {
+            var channelId = broadcaster.getUserId();
+            var channelName = broadcaster.getUserLogin();
+
+            // add to set
+            final boolean add = listenForGoLive.add(channelId);
+            if (!add) {
+                LOGGER.info("Channel {} already added for Stream Events", channelName);
+            } else {
+                // initialize cache
+                channelInformation.computeIfAbsent(channelId, s -> new ChannelCache(channelName));
+            }
+            startOrStopEventGenerationThread();
+            return add;
+        }
+
+        public boolean disableStreamEventListenerForId(Broadcaster broadcaster) {
+            var channelId = broadcaster.getUserId();
+
+            // remove from set
+            boolean remove = listenForGoLive.remove(channelId);
+
+            // invalidate cache
+            if (remove) {
+                ChannelCache info = channelInformation.get(channelId);
+                if (info != null) {
+                    info.setIsLive(null);
+                    info.setGameId(null);
+                    info.setTitle(null);
+                }
+            }
+
+            startOrStopEventGenerationThread();
+            return remove;
+        }
+
+        /**
+         * Start or quit the thread, depending on usage
+         */
+        private void startOrStopEventGenerationThread() {
+            // stream status event thread
+            updateListener(listenForGoLive::isEmpty, streamStatusEventFuture, this::runRecursiveStreamStatusCheck, liveBackoff);
+        }
+
+        /**
+         * Performs the "heavy lifting" of starting or stopping a listener
+         *
+         * @param stopCondition   yields whether the listener should be running
+         * @param futureReference the current listener in an atomic wrapper
+         * @param startCommand    the command to start the listener
+         * @param backoff         the {@link ExponentialBackoffStrategy} for the listener
+         */
+        @SuppressWarnings("SynchronizationOnLocalVariableOrMethodParameter") // Acceptable as futureReference is only streamStatusEventFuture or followerEventFuture
+        private void updateListener(BooleanSupplier stopCondition, AtomicReference<Future<?>> futureReference, Runnable startCommand, AtomicReference<ExponentialBackoffStrategy> backoff) {
+            if (stopCondition.getAsBoolean()) {
+                // Optimization to avoid obtaining an unnecessary lock
+                if (futureReference.get() != null) {
+                    Future<?> future = null;
+                    synchronized (futureReference) {
+                        if (stopCondition.getAsBoolean()) // Ensure conditions haven't changed in the time it took to acquire this lock
+                            future = futureReference.getAndSet(null); // Clear out the listener future
+                    }
+
+                    // Cancel the future
+                    if (future != null) {
+                        future.cancel(false);
+                        backoff.get().reset(); // Ideally we would decrement to zero over time rather than instantly resetting
+                    }
+                }
+            } else {
+                // Optimization to avoid obtaining an unnecessary lock
+                if (futureReference.get() == null) {
+                    // Must synchronize to prevent race condition where multiple threads could be created
+                    synchronized (futureReference) {
+                        // Start if not already started
+                        if (!stopCondition.getAsBoolean() && futureReference.get() == null)
+                            futureReference.set(executor.schedule(startCommand, backoff.get().get(), TimeUnit.MILLISECONDS));
+                    }
+                }
+            }
+        }
+
+        /**
+         * Initiates the stream status listener execution
+         */
+        private void runRecursiveStreamStatusCheck() {
+            runRecursiveCheck(streamStatusEventFuture, executor, CollectionUtils.chunked(listenForGoLive, MAX_LIMIT), liveBackoff, this::runRecursiveStreamStatusCheck, chunk -> {
+                streamStatusEventTask.accept(chunk);
+                return false; // treat as always consuming from the api rate-limit
+            });
+        }
+
+    }
+
+    @SuppressWarnings("SynchronizeOnNonFinalField")
+    private static class ListenerRunnable<T> implements Runnable {
+        ScheduledExecutorService executor;
+        List<T> channels;
+        AtomicReference<Future<?>> futureReference;
+        AtomicReference<ExponentialBackoffStrategy> backoff;
+        Runnable startCommand;
+        Function<T, Boolean> executeSingle;
+
+        public ListenerRunnable(
+                ScheduledExecutorService executor,
+                List<T> channels,
+                AtomicReference<Future<?>> futureReference,
+                AtomicReference<ExponentialBackoffStrategy> backoff,
+                Runnable startCommand,
+                Function<T, Boolean> executeSingle
+        ) {
+            this.executor = executor;
+            this.channels = channels;
+            this.futureReference = futureReference;
+            this.backoff = backoff;
+            this.startCommand = startCommand;
+            this.executeSingle = executeSingle;
+        }
+
+        @Override
+        public void run() {
+            if (channels.isEmpty()) {
+                // Try again later if the task wasn't cancelled
+                if (futureReference.get() != null)
+                    synchronized (futureReference) {
+                        if (cancel(futureReference)) {
+                            backoff.get().reset();
+                            futureReference.set(executor.schedule(startCommand, backoff.get().get(), TimeUnit.MILLISECONDS));
+                        }
+                    }
+            } else {
+                // Start execution from the first element
+                run(0);
+            }
+        }
+
+        private void run(final int index) {
+            // If no api call was made by executeSingle, it will return true. Then, we do not need to add any delay before checking the next channel.
+            Boolean skipDelay = executeSingle.apply(channels.get(index));
+
+            // Queue up the next check (if the task hasn't been cancelled)
+            if (futureReference.get() != null)
+                synchronized (futureReference) {
+                    if (cancel(futureReference))
+                        futureReference.set(
+                                executor.schedule(
+                                        index + 1 < channels.size() ? () -> run(index + 1) : startCommand,
+                                        skipDelay ? 0 : backoff.get().get(),
+                                        TimeUnit.MILLISECONDS
+                                )
+                        );
+                }
+        }
+    }
+
+    private static boolean cancel(AtomicReference<Future<?>> futureRef) {
+        Future<?> future = futureRef.get();
+        return future != null && future.cancel(false);
+    }
+
+    @SuppressWarnings("SynchronizationOnLocalVariableOrMethodParameter")
+    private static <T> void runRecursiveCheck(AtomicReference<Future<?>> future, ScheduledExecutorService executor, List<T> units, AtomicReference<ExponentialBackoffStrategy> backoff, Runnable startCommand, Function<T, Boolean> task) {
+        if (future.get() != null)
+            synchronized (future) {
+                if (cancel(future))
+                    future.set(
+                            executor.submit(
+                                    new ListenerRunnable<>(
+                                            executor,
+                                            units,
+                                            future,
+                                            backoff,
+                                            startCommand,
+                                            task
+                                    )
+                            )
+                    );
+            }
     }
 
 }

@@ -3,6 +3,7 @@ package com.github.k7t3.tcv.view.chat;
 import atlantafx.base.controls.Popover;
 import atlantafx.base.controls.ToggleSwitch;
 import atlantafx.base.theme.Styles;
+import atlantafx.base.theme.Tweaks;
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.chat.ChatViewModel;
 import com.github.k7t3.tcv.domain.chat.ChatRoomState;
@@ -37,7 +38,13 @@ public class ChatView implements FxmlView<ChatViewModel>, Initializable {
     private Hyperlink streamInfoLink;
 
     @FXML
-    private Button closeButton;
+    private MenuButton actionsMenuButton;
+
+    @FXML
+    private MenuItem closeMenuItem;
+
+    @FXML
+    private MenuItem popoutMenuItem;
 
     @FXML
     private Pane stateContainer;
@@ -57,8 +64,11 @@ public class ChatView implements FxmlView<ChatViewModel>, Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         userNameLabel.textProperty().bind(viewModel.userNameProperty());
 
-        closeButton.getStyleClass().addAll(Styles.DANGER, Styles.BUTTON_OUTLINED, Styles.SMALL);
-        closeButton.setOnAction(e -> viewModel.leaveChatAsync());
+        actionsMenuButton.getStyleClass().addAll(Styles.FLAT, Tweaks.NO_ARROW);
+        closeMenuItem.setOnAction(e -> viewModel.leaveChatAsync());
+
+        // TODO
+        popoutMenuItem.setDisable(true);
 
         virtualFlow = VirtualFlow.createVertical(viewModel.getChatDataList(), ChatDataCell::new);
         chatDataContainer.getChildren().add(new VirtualizedScrollPane<>(virtualFlow));

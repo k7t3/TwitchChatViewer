@@ -1,28 +1,28 @@
 package com.github.k7t3.tcv.view.prefs.font;
 
-import javafx.scene.text.Font;
+import com.github.k7t3.tcv.prefs.ChatFont;
 import javafx.util.StringConverter;
 
 import java.util.List;
 
-public class FontStringConverter extends StringConverter<Font> {
+public class FontStringConverter extends StringConverter<ChatFont> {
 
-    private final List<Font> fonts;
+    private final List<ChatFont> fonts;
 
-    public FontStringConverter(List<Font> fonts) {
+    public FontStringConverter(List<ChatFont> fonts) {
         this.fonts = fonts;
     }
 
     @Override
-    public String toString(Font font) {
-        return font == null ? "" : font.getName();
+    public String toString(ChatFont font) {
+        return font == null ? "" : font.getFont().getName();
     }
 
     @Override
-    public Font fromString(String name) {
+    public ChatFont fromString(String name) {
         return fonts.stream()
                 .filter(f -> f.getFamily().equals(name))
                 .findFirst()
-                .orElse(Font.getDefault());
+                .orElse(ChatFont.DEFAULT);
     }
 }

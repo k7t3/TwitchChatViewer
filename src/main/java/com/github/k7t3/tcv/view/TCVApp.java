@@ -54,7 +54,7 @@ public class TCVApp extends Application {
         // 画面が表示されたら認証画面を表示する(おそらくModalPaneの仕様的に
         // シーングラフが表示されてからじゃないと動作しないため)
         WindowEventHelper.shownOnce(primaryStage, e ->
-                codeBehind.loadAuthorizationView());
+                codeBehind.startMainView());
 
         // ウインドウを閉じたときの処理
         WindowEventHelper.closed(primaryStage, () -> {

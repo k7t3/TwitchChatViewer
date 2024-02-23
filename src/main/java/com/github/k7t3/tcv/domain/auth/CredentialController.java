@@ -1,6 +1,7 @@
 package com.github.k7t3.tcv.domain.auth;
 
 import com.github.philippheuer.credentialmanager.CredentialManager;
+import com.github.philippheuer.credentialmanager.api.IStorageBackend;
 import com.github.philippheuer.credentialmanager.authcontroller.DeviceFlowController;
 import com.github.philippheuer.credentialmanager.domain.DeviceTokenResponse;
 import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
@@ -9,7 +10,6 @@ import com.github.twitch4j.auth.providers.TwitchIdentityProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -31,10 +31,10 @@ public class CredentialController {
 
     private OAuth2Credential credential;
 
-    public CredentialController() {
+    public CredentialController(IStorageBackend backend) {
         var flowExecutor = Executors.newSingleThreadScheduledExecutor(Thread.ofVirtual().factory());
         authController = new DeviceFlowController(flowExecutor, 0);
-        credentialManager = new CredentialManager(new CredentialFileStorage(Path.of("userinfo")), authController);
+        credentialManager = new CredentialManager(backend, authController);
         credentialManager.registerIdentityProvider(identityProvider);
         authorized = !credentialManager.getCredentials().isEmpty();
 

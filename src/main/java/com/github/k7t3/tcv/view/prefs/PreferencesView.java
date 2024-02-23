@@ -7,6 +7,7 @@ import com.github.k7t3.tcv.app.prefs.PreferencesViewModel;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.prefs.AppPreferences;
+import com.github.k7t3.tcv.prefs.ChatFont;
 import com.github.k7t3.tcv.view.core.ThemeManager;
 import com.github.k7t3.tcv.view.prefs.font.FontComboBoxCell;
 import com.github.k7t3.tcv.view.prefs.font.FontStringConverter;
@@ -32,7 +33,7 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
     private ChoiceBox<Theme> themeChoiceBox;
 
     @FXML
-    private ComboBox<Font> fontComboBox;
+    private ComboBox<ChatFont> fontComboBox;
 
     @FXML
     private Label defaultPreviewLabel;
@@ -104,7 +105,7 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
 
         var fontLoader = FXTask.task(() -> {
             TimeUnit.MILLISECONDS.sleep(400);
-            return Font.getFamilies().stream().map(Font::font).toList();
+            return Font.getFamilies().stream().map(ChatFont::new).toList();
         });
         fontLoader.setOnSucceeded(e -> {
             fontComboBox.getItems().addAll(fontLoader.getValue());
@@ -145,8 +146,8 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         showNameSwitch.setSelected(prefs.isShowUserName());
         showBadgeSwitch.setSelected(prefs.isShowBadges());
 
-        defaultPreviewLabel.fontProperty().bind(fontComboBox.valueProperty());
-        previewLabel.fontProperty().bind(fontComboBox.valueProperty());
+        defaultPreviewLabel.fontProperty().bind(fontComboBox.valueProperty().map(ChatFont::getFont));
+        previewLabel.fontProperty().bind(fontComboBox.valueProperty().map(ChatFont::getFont));
     }
 
 }

@@ -1,5 +1,7 @@
 .search-channel-view {
   -fx-background-color: -color-bg-default;
+  -fx-pref-width: 500;
+  -fx-pref-height: 450;
 }
 
 .user-name-label {

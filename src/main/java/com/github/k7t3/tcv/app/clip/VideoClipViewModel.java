@@ -1,5 +1,6 @@
 package com.github.k7t3.tcv.app.clip;
 
+import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.domain.clip.PostedClip;
@@ -61,6 +62,16 @@ public class VideoClipViewModel implements ViewModel {
 
         var clipBoard = Clipboard.getSystemClipboard();
         clipBoard.setContent(Map.of(DataFormat.PLAIN_TEXT, clip.url()));
+    }
+
+    public void remove() {
+        var helper = AppHelper.getInstance();
+        var twitch = helper.getTwitch();
+
+        var repo = twitch.getClipRepository();
+
+        var task = FXTask.task(() -> repo.remove(getPosted()));
+        TaskWorker.getInstance().submit(task);
     }
 
     // ******************** PROPERTIES ********************

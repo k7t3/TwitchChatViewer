@@ -100,9 +100,7 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
             updateStreamInfo(channel.getStream());
         }
         userName.set(channel.getBroadcaster().getUserName());
-        channel.getBroadcaster().getProfileImageUrl().ifPresent(
-                url -> profileImage.set(new Image(url, true))
-        );
+        profileImage.set(new Image(channel.getBroadcaster().getProfileImageUrl(), true));
     }
 
     private void updateStreamInfo(StreamInfo info) {

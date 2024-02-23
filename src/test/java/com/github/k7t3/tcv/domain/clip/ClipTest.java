@@ -1,6 +1,7 @@
 package com.github.k7t3.tcv.domain.clip;
 
 import com.github.k7t3.tcv.domain.TwitchLoader;
+import com.github.k7t3.tcv.prefs.AppPreferences;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -9,12 +10,11 @@ public class ClipTest {
 
     public static void main(String...args) {
         var clipIds = List.of(
-                "RepleteBillowingCakeCurseLit-lZ_Rxlj4hB6GI2uv",
-                "StylishDullDaikonAMPEnergy-pTmLJ5dazGRB32rq",
-                "SecretiveSpunkyFlyCmonBruh-7Zz3Psy23ZeN2O7V"
+                "TolerantClumsyGazelleHassaanChop-aEM747vTXUf6HN_D"
         );
 
-        var loader = new TwitchLoader();
+        var prefs = AppPreferences.getInstance();
+        var loader = new TwitchLoader(prefs.getPreferences());
         var twitch = loader.load().orElse(null);
 
         if (twitch == null)
@@ -22,32 +22,14 @@ public class ClipTest {
 
         try {
 
-            for (var clipId : clipIds) {
+            var api = twitch.getTwitchAPI();
 
-                TimeUnit.SECONDS.sleep(2);
+            var list = api.getClips(clipIds);
 
-                var helix = twitch.getClient().getHelix();
+            list.forEach(System.out::println);
 
-                var command = helix.getClips(
-                        twitch.getAccessToken(),
-                        null,
-                        null,
-                        List.of(clipId),
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null
-                );
+            System.out.println("done");
 
-                var list = command.execute();
-                System.out.println(list.getData());
-
-            }
-
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
         } finally {
             twitch.close();
         }

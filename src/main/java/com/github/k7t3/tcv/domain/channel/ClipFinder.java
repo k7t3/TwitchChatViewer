@@ -47,17 +47,11 @@ public class ClipFinder {
 
             var clipId = paths[paths.length - 1];
 
-            var client = twitch.getClient();
-            if (client == null) {
-                LOGGER.warn("client is null");
-                return Optional.empty();
-            }
-
             var api = twitch.getTwitchAPI();
             var clips = api.getClips(List.of(clipId));
 
             if (clips.isEmpty()) {
-                LOGGER.warn("clip not found clip_id={}", clipId);
+                LOGGER.warn("clip not found clip_id={} ({})", clipId, link);
                 return Optional.empty();
             }
 

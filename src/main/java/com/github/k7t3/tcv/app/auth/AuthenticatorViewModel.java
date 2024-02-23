@@ -5,7 +5,9 @@ import com.github.k7t3.tcv.domain.TwitchLoader;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
+import com.github.k7t3.tcv.prefs.AppPreferences;
 import de.saxsys.mvvmfx.ViewModel;
+import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanWrapper;
 import javafx.beans.property.ReadOnlyStringProperty;
@@ -21,6 +23,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
+import java.util.Optional;
 
 public class AuthenticatorViewModel implements ViewModel {
 
@@ -41,8 +44,10 @@ public class AuthenticatorViewModel implements ViewModel {
     public AuthenticatorViewModel() {
     }
 
-    public FXTask<?> loadClientAsync() {
-        twitchLoader = new TwitchLoader();
+    public FXTask<Optional<Twitch>> loadClientAsync() {
+        var preferences = AppPreferences.getInstance();
+
+        twitchLoader = new TwitchLoader(preferences.getPreferences());
         var task = FXTask.task(() -> twitchLoader.load());
         task.addEventHandler(WorkerStateEvent.WORKER_STATE_SUCCEEDED, e -> {
             initialized.set(true);
@@ -60,7 +65,11 @@ public class AuthenticatorViewModel implements ViewModel {
 
         LOGGER.info("start authenticate");
 
-        var task = FXTask.task(() -> twitchLoader.startAuthenticate(twitch -> twitch.ifPresent(this::done)));
+        var task = FXTask.task(
+                () -> twitchLoader.startAuthenticate(
+                        twitch -> twitch.ifPresent(value -> Platform.runLater(() -> done(value)))
+                )
+        );
         task.addEventHandler(WorkerStateEvent.WORKER_STATE_SUCCEEDED, e -> {
             var deviceFlow = task.getValue();
             // 認証URI

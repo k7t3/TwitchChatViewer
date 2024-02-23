@@ -8,14 +8,14 @@ import com.github.k7t3.tcv.app.chat.ChatContainerViewModel;
 import com.github.k7t3.tcv.app.core.ExceptionHandler;
 import com.github.k7t3.tcv.app.main.MainViewModel;
 import com.github.k7t3.tcv.app.service.FXTask;
+import com.github.k7t3.tcv.prefs.KeyActionRepository;
 import com.github.k7t3.tcv.view.auth.AuthenticatorView;
 import com.github.k7t3.tcv.view.channel.FollowChannelsView;
-import com.github.k7t3.tcv.view.channel.SearchChannelViewCaller;
+import com.github.k7t3.tcv.view.action.SearchChannelViewCallAction;
 import com.github.k7t3.tcv.view.chat.ChatContainerView;
-import com.github.k7t3.tcv.view.clip.VideoClipListViewCaller;
+import com.github.k7t3.tcv.view.action.VideoClipListViewCallAction;
 import com.github.k7t3.tcv.view.core.Resources;
-import com.github.k7t3.tcv.view.core.ThemeManager;
-import com.github.k7t3.tcv.view.prefs.PreferenceViewCaller;
+import com.github.k7t3.tcv.view.action.PreferenceViewCallAction;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
@@ -57,13 +57,22 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
     private MenuButton userMenuButton;
 
     @FXML
+    private MenuItem prefsMenuItem;
+
+    @FXML
+    private MenuItem loginMenuItem;
+
+    @FXML
+    private MenuItem logoutMenuItem;
+
+    @FXML
     private Pane headerPane;
 
     @FXML
-    private StackPane leftContainer;
+    private StackPane followersContainer;
 
     @FXML
-    private StackPane rightContainer;
+    private StackPane chatContainer;
 
     @InjectViewModel
     private MainViewModel viewModel;
@@ -72,13 +81,16 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
     private ChatContainerViewModel chatContainerViewModel;
 
+    private KeyActionRepository keyActionRepository;
+
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        keyActionRepository = new KeyActionRepository();
         loadChatContainerView();
         loadFollowersView();
 
-        leftContainer.disableProperty().bind(viewModel.authorizedProperty().not());
-        rightContainer.disableProperty().bind(viewModel.authorizedProperty().not());
+        followersContainer.disableProperty().bind(viewModel.authorizedProperty().not());
+        chatContainer.disableProperty().bind(viewModel.authorizedProperty().not());
 
         userNameLabel.textProperty().bind(viewModel.userNameProperty());
 
@@ -86,9 +98,10 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         footerLabel.getStyleClass().addAll(Styles.TEXT_SMALL);
 
         searchChannelButton.disableProperty().bind(viewModel.authorizedProperty().not());
-        searchChannelButton.setOnAction(e -> new SearchChannelViewCaller(modalPane, chatContainerViewModel).handle(e));
 
-        clipButton.setOnAction(new VideoClipListViewCaller(modalPane));
+        loginMenuItem.visibleProperty().bind(viewModel.authorizedProperty().not());
+        logoutMenuItem.visibleProperty().bind(viewModel.authorizedProperty());
+
         clipButton.getStyleClass().addAll(Styles.SMALL, Styles.ROUNDED, Styles.SUCCESS);
         clipButton.visibleProperty().bind(viewModel.clipCountProperty().greaterThan(0));
         // クリップが投稿されたらアニメーションを実行するリスナ
@@ -99,9 +112,23 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
             }
         });
 
-        var prefsMenu = new MenuItem("PREFS");
-        prefsMenu.setOnAction(new PreferenceViewCaller(modalPane));
-        userMenuButton.getItems().addAll(prefsMenu);
+        initKeyActions();
+    }
+
+    private void initKeyActions() {
+        var searchViewCallAction = new SearchChannelViewCallAction(modalPane, chatContainerViewModel);
+        searchChannelButton.setOnAction(searchViewCallAction);
+        keyActionRepository.addAction(searchViewCallAction);
+
+        var prefViewCallAction = new PreferenceViewCallAction(modalPane);
+        prefsMenuItem.setOnAction(prefViewCallAction);
+        prefsMenuItem.acceleratorProperty().bind(prefViewCallAction.combinationProperty());
+        keyActionRepository.addAction(prefViewCallAction);
+
+        var clipViewCallAction = new VideoClipListViewCallAction(modalPane);
+        clipViewCallAction.disableProperty().bind(viewModel.clipCountProperty().lessThan(1));
+        clipButton.setOnAction(clipViewCallAction);
+        keyActionRepository.addAction(clipViewCallAction);
     }
 
     private void loadFollowersView() {
@@ -113,7 +140,7 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         channelsViewModel.installMainViewModel(viewModel);
         channelsViewModel.installChatContainerViewModel(chatContainerViewModel);
 
-        leftContainer.getChildren().add(tuple.getView());
+        followersContainer.getChildren().add(tuple.getView());
     }
 
     private void loadChatContainerView() {
@@ -124,10 +151,10 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         chatContainerViewModel = tuple.getViewModel();
         chatContainerViewModel.installMainViewModel(viewModel);
 
-        rightContainer.getChildren().add(tuple.getView());
+        chatContainer.getChildren().add(tuple.getView());
     }
 
-    public void loadAuthorizationView() {
+    public void startMainView() {
         var loader = FluentViewLoader.fxmlView(AuthenticatorView.class);
         loader.resourceBundle(Resources.getResourceBundle());
         var tuple = loader.load();
@@ -148,6 +175,9 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
             // チャットコンテナを初期化
             chatContainerViewModel.loadAsync();
+
+            // キーアクションをインストール
+            keyActionRepository.install(rootPane.getScene());
         };
 
         // 既存の資格情報を読み込む
@@ -155,7 +185,7 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         FXTask.setOnSucceeded(loadAsync, e -> {
 
             // 資格情報の取得に成功
-            if (loadAsync.getValue() != null) {
+            if (loadAsync.getValue().isPresent()) {
                 callback.run();
                 return;
             }

@@ -6,6 +6,7 @@ import javafx.beans.value.ObservableValue;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -34,6 +35,8 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
     private final ObservableValue<Font> font;
 
     private final ChatDataViewModel viewModel;
+
+    private ContextMenu contextMenu;
 
     public ChatDataCell(ChatDataViewModel viewModel) {
         this.viewModel = viewModel;
@@ -93,6 +96,17 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
                 }
             }
         }
+
+        setOnContextMenuRequested(e -> {
+            if (contextMenu == null) {
+                contextMenu = new ChatDataContextMenu(viewModel);
+            }
+
+            if (contextMenu.isShowing())
+                contextMenu.hide();
+            else
+                contextMenu.show(this, e.getScreenX(), e.getScreenY());
+        });
 
     }
 

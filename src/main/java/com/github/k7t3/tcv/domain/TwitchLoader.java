@@ -1,6 +1,8 @@
 package com.github.k7t3.tcv.domain;
 
 import com.github.k7t3.tcv.domain.auth.CredentialController;
+import com.github.k7t3.tcv.domain.auth.PreferencesCredentialStorage;
+import com.github.philippheuer.credentialmanager.api.IStorageBackend;
 import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
 import com.github.twitch4j.TwitchClientBuilder;
 import org.slf4j.Logger;
@@ -8,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.prefs.Preferences;
 
 public class TwitchLoader {
 
@@ -15,9 +18,13 @@ public class TwitchLoader {
 
     public record DeviceFlow(String userCode, String verificationURL) {}
 
-    private final CredentialController controller = new CredentialController();
+    private final IStorageBackend backend;
 
-    public TwitchLoader() {
+    private final CredentialController controller;
+
+    public TwitchLoader(Preferences preferences) {
+        backend = new PreferencesCredentialStorage(preferences);
+        controller = new CredentialController(backend);
     }
 
     public DeviceFlow startAuthenticate(Consumer<Optional<Twitch>> consumer) {
@@ -75,7 +82,7 @@ public class TwitchLoader {
         var chatClient = TwitchClientBuilder.builder()
                 .withEnableChat(true)
                 .build();
-        return new Twitch(credential, client, chatClient);
+        return new Twitch(credential, backend, client, chatClient);
     }
 
 }
