@@ -1,7 +1,6 @@
 package com.github.k7t3.tcv.domain.auth;
 
 import com.github.philippheuer.credentialmanager.CredentialManager;
-import com.github.philippheuer.credentialmanager.api.IStorageBackend;
 import com.github.philippheuer.credentialmanager.authcontroller.DeviceFlowController;
 import com.github.philippheuer.credentialmanager.domain.DeviceTokenResponse;
 import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
@@ -31,10 +30,10 @@ public class CredentialController {
 
     private OAuth2Credential credential;
 
-    public CredentialController(IStorageBackend backend) {
+    public CredentialController(CredentialStore credentialStore) {
         var flowExecutor = Executors.newSingleThreadScheduledExecutor(Thread.ofVirtual().factory());
         authController = new DeviceFlowController(flowExecutor, 0);
-        credentialManager = new CredentialManager(backend, authController);
+        credentialManager = new CredentialManager(credentialStore, authController);
         credentialManager.registerIdentityProvider(identityProvider);
         authorized = !credentialManager.getCredentials().isEmpty();
 
@@ -76,6 +75,11 @@ public class CredentialController {
             LOGGER.warn("failed to refresh", e);
             return null;
         }
+    }
+
+    public void revokeToken() {
+        if (!authorized) return;
+        identityProvider.revokeCredential(credential);
     }
 
     public OAuth2Credential getCredential() {

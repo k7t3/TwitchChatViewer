@@ -4,6 +4,7 @@ import com.github.k7t3.tcv.domain.Twitch;
 import com.github.k7t3.tcv.domain.chat.ChatBadge;
 import com.github.k7t3.tcv.domain.chat.ChatRoom;
 import com.github.k7t3.tcv.domain.clip.VideoClipListener;
+import com.github.k7t3.tcv.domain.core.EventExecutorWrapper;
 import com.github.philippheuer.events4j.api.domain.IDisposable;
 import com.github.twitch4j.events.*;
 import com.github.twitch4j.helix.domain.ChatBadgeSet;
@@ -14,7 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -32,7 +32,7 @@ public class TwitchChannel {
 
     private final Twitch twitch;
 
-    private final ExecutorService eventExecutor;
+    private final EventExecutorWrapper eventExecutor;
 
     private final CopyOnWriteArraySet<TwitchChannelListener> listeners = new CopyOnWriteArraySet<>();
 
@@ -40,7 +40,7 @@ public class TwitchChannel {
 
     public TwitchChannel(
             Twitch twitch,
-            ExecutorService eventExecutor,
+            EventExecutorWrapper eventExecutor,
             Broadcaster broadcaster,
             StreamInfo stream
     ) {
@@ -182,6 +182,16 @@ public class TwitchChannel {
         }
 
         chatRoom = null;
+    }
+
+    void clear() {
+        // チャットを使用している場合は閉じる
+        leaveChat();
+
+        // チャンネル監視イベントをクリア
+        clearEventSubs();
+
+        listeners.clear();
     }
 
     public Broadcaster getBroadcaster() {

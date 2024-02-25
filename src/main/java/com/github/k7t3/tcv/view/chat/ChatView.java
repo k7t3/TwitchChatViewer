@@ -14,10 +14,11 @@ import javafx.collections.SetChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
-import javafx.scene.control.*;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.control.Hyperlink;
+import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
+import javafx.scene.layout.*;
 import javafx.stage.WindowEvent;
 import org.fxmisc.flowless.VirtualFlow;
 import org.fxmisc.flowless.VirtualizedScrollPane;
@@ -55,6 +56,9 @@ public class ChatView implements FxmlView<ChatViewModel>, Initializable {
     @FXML
     private StackPane chatDataContainer;
 
+    @FXML
+    private Pane backgroundImageLayer;
+
     @InjectViewModel
     private ChatViewModel viewModel;
 
@@ -72,6 +76,10 @@ public class ChatView implements FxmlView<ChatViewModel>, Initializable {
 
         virtualFlow = VirtualFlow.createVertical(viewModel.getChatDataList(), ChatDataCell::new);
         chatDataContainer.getChildren().add(new VirtualizedScrollPane<>(virtualFlow));
+
+        // 配信していないときののイメージを更新する
+        updateBackgroundImage();
+        viewModel.liveProperty().addListener((ob, o, n) -> updateBackgroundImage());
 
 
         var roomStateNodes = new ChatRoomStateNodes();
@@ -102,6 +110,19 @@ public class ChatView implements FxmlView<ChatViewModel>, Initializable {
         streamInfoLink.visibleProperty().bind(viewModel.liveProperty());
     }
 
+    private void updateBackgroundImage() {
+        if (!viewModel.isLive()) {
+            var backgroundImage = viewModel.getBackgroundImage();
+            if (backgroundImage != null) {
+                var bgSize = new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, true, true, true, false);
+                var bgImage = new BackgroundImage(backgroundImage, BackgroundRepeat.REPEAT, BackgroundRepeat.REPEAT, BackgroundPosition.DEFAULT, bgSize);
+                var bg = new Background(bgImage);
+                backgroundImageLayer.setBackground(bg);
+            }
+        }
+        backgroundImageLayer.setVisible(!viewModel.isLive());
+    }
+
     private void installPopover() {
         var gameNameLabel = new Label();
         gameNameLabel.textProperty().bind(viewModel.gameNameProperty());
@@ -129,7 +150,7 @@ public class ChatView implements FxmlView<ChatViewModel>, Initializable {
         pop.titleProperty().bind(viewModel.userNameProperty());
         pop.setHeaderAlwaysVisible(true);
         pop.setDetachable(true);
-        pop.setArrowLocation(Popover.ArrowLocation.RIGHT_TOP);
+        pop.setArrowLocation(Popover.ArrowLocation.TOP_LEFT);
 
         pop.addEventHandler(WindowEvent.WINDOW_SHOWING, e -> {
             var now = LocalDateTime.now();

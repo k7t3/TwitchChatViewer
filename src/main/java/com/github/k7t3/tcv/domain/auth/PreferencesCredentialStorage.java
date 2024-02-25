@@ -1,6 +1,5 @@
 package com.github.k7t3.tcv.domain.auth;
 
-import com.github.philippheuer.credentialmanager.api.IStorageBackend;
 import com.github.philippheuer.credentialmanager.domain.Credential;
 import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
 import org.slf4j.Logger;
@@ -14,7 +13,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.prefs.Preferences;
 
-public class PreferencesCredentialStorage implements IStorageBackend {
+public class PreferencesCredentialStorage implements CredentialStore {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PreferencesCredentialStorage.class);
 
@@ -31,7 +30,7 @@ public class PreferencesCredentialStorage implements IStorageBackend {
     }
 
     private void loadOAuthCredentials() {
-        this.credentials.clear();
+        if (!credentials.isEmpty()) return;
 
         var bytes = preferences.getByteArray(PREFERENCES_KEY, null);
         if (bytes == null)
@@ -152,4 +151,11 @@ public class PreferencesCredentialStorage implements IStorageBackend {
         }
         return Optional.empty();
     }
+
+    @Override
+    public void clearCredentials() {
+        preferences.remove(PREFERENCES_KEY);
+        this.credentials.clear();
+    }
+
 }

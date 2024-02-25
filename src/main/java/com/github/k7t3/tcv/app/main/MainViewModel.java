@@ -8,8 +8,6 @@ public class MainViewModel implements ViewModel {
 
     private final ReadOnlyStringWrapper userName = new ReadOnlyStringWrapper();
 
-    private final ReadOnlyBooleanWrapper authorized = new ReadOnlyBooleanWrapper(false);
-
     private final StringProperty footer = new SimpleStringProperty();
 
     private final ReadOnlyIntegerWrapper clipCount = new ReadOnlyIntegerWrapper();
@@ -17,7 +15,19 @@ public class MainViewModel implements ViewModel {
     public MainViewModel() {
         var helper = AppHelper.getInstance();
         userName.bind(helper.userNameProperty());
-        authorized.bind(helper.authorizedProperty());
+
+        // 認証解除されたらクリップ非表示
+        helper.authorizedProperty().addListener((ob, o, n) -> {
+            if (!n) {
+                setClipCount(0);
+            }
+        });
+    }
+
+    public void updateClipCount() {
+        var helper = AppHelper.getInstance();
+        var repo = helper.getTwitch().getClipRepository();
+        setClipCount(repo.getClipCount());
     }
 
     public VideoClipPostListener createClipPostListener() {
@@ -30,10 +40,6 @@ public class MainViewModel implements ViewModel {
     public ReadOnlyStringProperty userNameProperty() { return userName.getReadOnlyProperty(); }
     public String getUserName() { return userName.get(); }
 
-    private ReadOnlyBooleanWrapper authorizedWrapper() { return authorized; }
-    public ReadOnlyBooleanProperty authorizedProperty() { return authorized.getReadOnlyProperty(); }
-    public boolean isAuthorized() { return authorized.get(); }
-
     public StringProperty footerProperty() { return footer; }
     public String getFooter() { return footer.get(); }
     public void setFooter(String footer) { this.footer.set(footer); }
@@ -41,5 +47,5 @@ public class MainViewModel implements ViewModel {
     ReadOnlyIntegerWrapper clipCountWrapper() { return clipCount; }
     public ReadOnlyIntegerProperty clipCountProperty() { return clipCount.getReadOnlyProperty(); }
     public int getClipCount() { return clipCount.get(); }
-    void setClipCount(int clipCount) { this.clipCount.set(clipCount); }
+    private void setClipCount(int clipCount) { this.clipCount.set(clipCount); }
 }

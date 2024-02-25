@@ -3,6 +3,7 @@ package com.github.k7t3.tcv.view.channel;
 import atlantafx.base.controls.CustomTextField;
 import com.github.k7t3.tcv.app.channel.FollowChannelViewModel;
 import com.github.k7t3.tcv.app.channel.FollowChannelsViewModel;
+import com.github.k7t3.tcv.app.core.AppHelper;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.beans.property.ObjectProperty;
@@ -48,6 +49,11 @@ public class FollowChannelsView implements FxmlView<FollowChannelsViewModel>, In
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         state = new SimpleObjectProperty<>(ViewState.OPEN);
+
+        var helper = AppHelper.getInstance();
+
+        // 認証されていないときはrootから無効化
+        root.disableProperty().bind(helper.authorizedProperty().not());
 
         //channels.setCellFactory(CachedViewModelCellFactory.createForJavaView(FollowChannelView.class));
         channels.setCellFactory(param -> new FollowChannelListCell());

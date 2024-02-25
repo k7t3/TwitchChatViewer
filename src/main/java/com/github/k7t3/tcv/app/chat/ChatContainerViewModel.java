@@ -1,12 +1,12 @@
 package com.github.k7t3.tcv.app.chat;
 
+import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.main.MainViewModel;
+import com.github.k7t3.tcv.app.service.FXTask;
+import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
 import com.github.k7t3.tcv.domain.chat.ChatRoomListener;
 import com.github.k7t3.tcv.domain.chat.GlobalChatBadges;
-import com.github.k7t3.tcv.app.core.AppHelper;
-import com.github.k7t3.tcv.app.service.FXTask;
-import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.prefs.ChatFont;
 import de.saxsys.mvvmfx.ViewModel;
@@ -39,6 +39,17 @@ public class ChatContainerViewModel implements ViewModel {
     private List<ChatRoomListener> defaultChatRoomListeners;
 
     public ChatContainerViewModel() {
+        initialize();
+    }
+
+    private void initialize() {
+        var helper = AppHelper.getInstance();
+
+        helper.authorizedProperty().addListener((ob, o, n) -> {
+            if (!n) {
+                chatList.clear();
+            }
+        });
     }
 
     public ObservableList<ChatViewModel> getChatList() {
@@ -57,7 +68,7 @@ public class ChatContainerViewModel implements ViewModel {
     }
 
     public FXTask<Void> loadAsync() {
-        if (loaded.get()) throw new IllegalStateException("already loaded");
+        if (loaded.get()) return FXTask.empty();
 
         var helper = AppHelper.getInstance();
         var twitch = helper.getTwitch();

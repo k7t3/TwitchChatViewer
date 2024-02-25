@@ -1,11 +1,9 @@
 package com.github.k7t3.tcv.prefs;
 
 import atlantafx.base.theme.Theme;
-import com.github.k7t3.tcv.view.core.StageBounds;
 import com.github.k7t3.tcv.view.core.ThemeManager;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,16 +13,34 @@ import java.util.Map;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 
-public class AppPreferences {
+public class AppPreferences extends PreferencesBase {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AppPreferences.class);
 
+    /**
+     * このアプリケーションに適用されるAtlantaFXのテーマの名称
+     */
     private static final String THEME = "theme";
 
+    /**
+     * このアプリケーションで使用する実験的な機能の有効化
+     */
+    private static final String EXPERIMENTAL = "experimental";
+
+    /**
+     * チャットビューで適用されるフォントファミリ
+     */
     private static final String CHAT_FONT_FAMILY = "chat.font.family";
+    /**
+     * チャットビューでユーザー名を表示するか
+     */
     private static final String CHAT_SHOW_USERNAME = "chat.show.username";
+    /**
+     * チャットビューでユーザーのバッジを表示するか
+     */
     private static final String CHAT_SHOW_BADGES = "chat.show.badges";
 
+    // ウインドウの矩形情報
     private static final String WINDOW_X = "window.x";
     private static final String WINDOW_Y = "window.y";
     private static final String WINDOW_WIDTH = "window.width";
@@ -33,7 +49,9 @@ public class AppPreferences {
 
     private final Preferences preferences;
 
-    private final Map<String, Object> defaults = new HashMap<>();
+    private final Map<String, WindowPreferences> windowPrefs = new HashMap<>();
+
+    private BooleanProperty experimental;
 
     private ObjectProperty<ChatFont> font;
 
@@ -43,8 +61,12 @@ public class AppPreferences {
 
     private KeyActionPreferences keyActionPreferences;
 
+    private PlayerPreferences playerPreferences;
+
     private AppPreferences() {
+        super(Preferences.userNodeForPackage(AppPreferences.class), new HashMap<>());
         defaults.put(THEME, ThemeManager.DEFAULT_THEME.getName());
+        defaults.put(EXPERIMENTAL, Boolean.FALSE);
         defaults.put(CHAT_FONT_FAMILY, ChatFont.DEFAULT.getFamily());
         defaults.put(CHAT_SHOW_USERNAME, Boolean.TRUE);
         defaults.put(CHAT_SHOW_BADGES, Boolean.TRUE);
@@ -69,21 +91,8 @@ public class AppPreferences {
         return ThemeManager.getInstance().findTheme(name).orElseThrow();
     }
 
-    public void setStageBounds(StageBounds bounds) {
-        preferences.putDouble(WINDOW_X, bounds.x());
-        preferences.putDouble(WINDOW_Y, bounds.y());
-        preferences.putDouble(WINDOW_WIDTH, bounds.width());
-        preferences.putDouble(WINDOW_HEIGHT, bounds.height());
-        preferences.putBoolean(WINDOW_MAXIMIZED, bounds.maximized());
-    }
-
-    public StageBounds getStageBounds() {
-        var x = getDouble(WINDOW_X);
-        var y = getDouble(WINDOW_Y);
-        var width = getDouble(WINDOW_WIDTH);
-        var height = getDouble(WINDOW_HEIGHT);
-        var maximized = getBoolean(WINDOW_MAXIMIZED);
-        return new StageBounds(x, y, width, height, maximized);
+    public WindowPreferences getWindowPreferences(String windowName) {
+        return windowPrefs.computeIfAbsent(windowName, k -> new WindowPreferences(preferences, defaults, k));
     }
 
     // FIXME CredentialStorageにどうやって渡すか
@@ -100,18 +109,6 @@ public class AppPreferences {
         }
     }
 
-    private String get(String key) {
-        return preferences.get(key, (String) defaults.get(key));
-    }
-
-    private double getDouble(String key) {
-        return preferences.getDouble(key, (Double) defaults.get(key));
-    }
-
-    private boolean getBoolean(String key) {
-        return preferences.getBoolean(key, (Boolean) defaults.get(key));
-    }
-
     public KeyActionPreferences getKeyActionPreferences() {
         if (keyActionPreferences == null) {
             keyActionPreferences = new KeyActionPreferences(preferences, defaults);
@@ -119,13 +116,25 @@ public class AppPreferences {
         return keyActionPreferences;
     }
 
-    // ******************** PROPERTIES ********************
+    public PlayerPreferences getPlayerPreferences() {
+        if (playerPreferences == null) {
+            playerPreferences = new PlayerPreferences(preferences, defaults);
+        }
+        return playerPreferences;
+    }
+// ******************** PROPERTIES ********************
+
+    public BooleanProperty experimentalProperty() {
+        if (experimental == null) experimental = createBooleanProperty(EXPERIMENTAL);
+        return experimental;
+    }
+    public boolean isExperimental() { return experimentalProperty().get(); }
+    public void setExperimental(boolean experimental) { experimentalProperty().set(experimental); }
 
     public ObjectProperty<ChatFont> fontProperty() {
         if (font == null) {
             var family = get(CHAT_FONT_FAMILY);
             font = new SimpleObjectProperty<>(new ChatFont(family));
-            LOGGER.info("font initialized {}, {}", family, font.get().getFamily());
             font.addListener((ob, o, n) -> preferences.put(CHAT_FONT_FAMILY, n.getFamily()));
         }
         return font;
@@ -134,20 +143,14 @@ public class AppPreferences {
     public void setFont(ChatFont font) { this.fontProperty().set(font); }
 
     public BooleanProperty showUserNameProperty() {
-        if (showUserName == null) {
-            showUserName = new SimpleBooleanProperty(getBoolean(CHAT_SHOW_USERNAME));
-            showUserName.addListener((ob, o, n) -> preferences.putBoolean(CHAT_SHOW_USERNAME, n));
-        }
+        if (showUserName == null) showUserName = createBooleanProperty(CHAT_SHOW_USERNAME);
         return showUserName;
     }
     public boolean isShowUserName() { return showUserNameProperty().get(); }
     public void setShowUserName(boolean showUserName) { this.showUserNameProperty().set(showUserName); }
 
     public BooleanProperty showBadgesProperty() {
-        if (showBadges == null) {
-            showBadges = new SimpleBooleanProperty(getBoolean(CHAT_SHOW_BADGES));
-            showBadges.addListener((ob, o, n) -> preferences.putBoolean(CHAT_SHOW_BADGES, n));
-        }
+        if (showBadges == null) showBadges = createBooleanProperty(CHAT_SHOW_BADGES);
         return showBadges;
     }
     public boolean isShowBadges() { return showBadgesProperty().get(); }

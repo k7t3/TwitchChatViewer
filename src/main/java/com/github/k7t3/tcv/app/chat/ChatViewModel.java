@@ -44,6 +44,8 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
 
     private final ReadOnlyObjectWrapper<Image> profileImage = new ReadOnlyObjectWrapper<>();
 
+    private ReadOnlyObjectWrapper<Image> backgroundImage;
+
     private final ObservableList<ChatDataViewModel> chatDataList = FXCollections.observableArrayList(new LinkedList<>());
 
     private final ReadOnlyBooleanWrapper chatJoined = new ReadOnlyBooleanWrapper(false);
@@ -302,6 +304,16 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
     public ReadOnlyObjectProperty<Image> profileImageProperty() { return profileImage.getReadOnlyProperty(); }
     public Image getProfileImage() { return profileImage.get(); }
     private void setProfileImage(Image profileImage) { this.profileImage.set(profileImage); }
+
+    private ReadOnlyObjectWrapper<Image> backgroundImageWrapper() {
+        if (backgroundImage == null) {
+            backgroundImage = new ReadOnlyObjectWrapper<>();
+            channel.getBroadcaster().getOfflineImageUrl().ifPresent(url -> backgroundImage.set(new Image(url, true)));
+        }
+        return backgroundImage;
+    }
+    public ReadOnlyObjectProperty<Image> backgroundImageProperty() { return backgroundImageWrapper().getReadOnlyProperty(); }
+    public Image getBackgroundImage() { return backgroundImageWrapper().get(); }
 
     private ReadOnlyBooleanWrapper chatJoinedWrapper() { return chatJoined; }
     public ReadOnlyBooleanProperty chatJoinedProperty() { return chatJoined.getReadOnlyProperty(); }

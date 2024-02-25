@@ -16,6 +16,7 @@
 <?import javafx.scene.layout.StackPane?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
+
 <StackPane fx:id="rootPane" prefHeight="768.0" prefWidth="1024.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.main.MainView">
    <children>
       <ModalPane fx:id="modalPane" />
@@ -66,16 +67,19 @@
                               <MenuItem fx:id="prefsMenuItem" mnemonicParsing="false" text="%main.menu.prefs">
                                  <graphic>
                                     <FontIcon iconLiteral="fth-settings" />
-                                 </graphic></MenuItem>
+                                 </graphic>
+                              </MenuItem>
                               <SeparatorMenuItem mnemonicParsing="false" />
                               <MenuItem fx:id="loginMenuItem" mnemonicParsing="false" text="%main.menu.login">
                                  <graphic>
                                     <FontIcon iconLiteral="fth-log-in" />
-                                 </graphic></MenuItem>
+                                 </graphic>
+                              </MenuItem>
                               <MenuItem fx:id="logoutMenuItem" mnemonicParsing="false" text="%main.menu.logout">
                                  <graphic>
                                     <FontIcon iconLiteral="fth-log-out" />
-                                 </graphic></MenuItem>
+                                 </graphic>
+                              </MenuItem>
                           </items>
                            <graphic>
                               <FontIcon iconLiteral="fas-user" />

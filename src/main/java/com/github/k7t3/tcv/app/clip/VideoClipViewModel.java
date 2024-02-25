@@ -31,12 +31,18 @@ public class VideoClipViewModel implements ViewModel {
 
     private final ReadOnlyStringWrapper creator;
 
+    private final ReadOnlyStringWrapper thumbnailUrl;
+
     private ReadOnlyObjectWrapper<Image> thumbnail;
 
-    public VideoClipViewModel(PostedClip posted) {
+    private final VideoClipListViewModel listViewModel;
+
+    public VideoClipViewModel(VideoClipListViewModel listViewModel, PostedClip posted) {
+        this.listViewModel = listViewModel;
         this.posted = new ReadOnlyObjectWrapper<>(posted);
         this.title = new ReadOnlyStringWrapper(posted.getClip().title());
         this.creator = new ReadOnlyStringWrapper(posted.getClip().creatorName());
+        this.thumbnailUrl = new ReadOnlyStringWrapper(posted.getClip().thumbnailUrl());
     }
 
     public FXTask<Boolean> openClipPageOnBrowser() {
@@ -64,13 +70,14 @@ public class VideoClipViewModel implements ViewModel {
         clipBoard.setContent(Map.of(DataFormat.PLAIN_TEXT, clip.url()));
     }
 
-    public void remove() {
+    public void removeAsync() {
         var helper = AppHelper.getInstance();
         var twitch = helper.getTwitch();
 
         var repo = twitch.getClipRepository();
 
         var task = FXTask.task(() -> repo.remove(getPosted()));
+        task.setOnSucceeded(e -> listViewModel.onRemoved(this));
         TaskWorker.getInstance().submit(task);
     }
 
@@ -84,6 +91,9 @@ public class VideoClipViewModel implements ViewModel {
 
     public ReadOnlyStringProperty creatorProperty() { return creator.getReadOnlyProperty(); }
     public String getCreator() { return creator.get(); }
+
+    public ReadOnlyStringProperty thumbnailUrlProperty() { return thumbnailUrl.getReadOnlyProperty(); }
+    public String getThumbnailUrl() { return thumbnailUrl.get(); }
 
     private ReadOnlyObjectWrapper<Image> thumbnailWrapper() {
         if (thumbnail == null) {

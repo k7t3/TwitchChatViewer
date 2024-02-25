@@ -3,6 +3,7 @@ package com.github.k7t3.tcv.domain.chat;
 import com.github.k7t3.tcv.domain.Twitch;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
 import com.github.k7t3.tcv.domain.channel.ClipFinder;
+import com.github.k7t3.tcv.domain.core.EventExecutorWrapper;
 import com.github.philippheuer.events4j.api.domain.IDisposable;
 import com.github.twitch4j.chat.events.AbstractChannelEvent;
 import com.github.twitch4j.chat.events.channel.*;
@@ -18,7 +19,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.concurrent.ExecutorService;
 
 public class ChatRoom {
 
@@ -38,9 +38,9 @@ public class ChatRoom {
 
     private final Twitch twitch;
 
-    private final ExecutorService eventExecutor;
+    private final EventExecutorWrapper eventExecutor;
 
-    public ChatRoom(Twitch twitch, ExecutorService eventExecutor, Broadcaster broadcaster) {
+    public ChatRoom(Twitch twitch, EventExecutorWrapper eventExecutor, Broadcaster broadcaster) {
         this.twitch = twitch;
         this.eventExecutor = eventExecutor;
         this.broadcaster = broadcaster;

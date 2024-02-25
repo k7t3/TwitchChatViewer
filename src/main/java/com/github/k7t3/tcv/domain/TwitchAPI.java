@@ -257,7 +257,15 @@ public class TwitchAPI implements Closeable {
 
             }
 
-            LOGGER.error("Hystrix Command Wrapper", e);
+            if (e.getCause() instanceof InterruptedException) {
+
+                LOGGER.info("interrupted current command");
+
+            } else {
+
+                LOGGER.error("Hystrix Command Wrapper", e);
+
+            }
 
             throw new RuntimeException(e);
 
@@ -302,7 +310,7 @@ public class TwitchAPI implements Closeable {
 
         try {
 
-            var controller = new CredentialController(twitch.getCredentialStorageBackend());
+            var controller = new CredentialController(twitch.getCredentialStore());
             var credential = controller.refreshToken();
 
             var credentialManager = controller.getCredentialManager();
@@ -489,6 +497,7 @@ public class TwitchAPI implements Closeable {
 
         @Override
         public void close() throws IOException {
+            cancel(streamStatusEventFuture);
             executor.close();
         }
 

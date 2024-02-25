@@ -1,6 +1,5 @@
 package com.github.k7t3.tcv.app.main;
 
-import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.domain.channel.VideoClip;
 import com.github.k7t3.tcv.domain.chat.ChatData;
 import com.github.k7t3.tcv.domain.chat.ChatRoomListener;
@@ -21,10 +20,7 @@ public class VideoClipPostListener implements ChatRoomListener {
 
     @Override
     public void onClipPosted(VideoClip clip) {
-        var helper = AppHelper.getInstance();
-        var twitch = helper.getTwitch();
-        var repository = twitch.getClipRepository();
-        Platform.runLater(() -> viewModel.setClipCount(repository.getClipCount()));
+        Platform.runLater(viewModel::updateClipCount);
     }
 
     @Override

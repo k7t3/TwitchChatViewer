@@ -1,0 +1,21 @@
+.play-pause-toggle {
+}
+
+.play-pause-toggle > .ikonli-font-icon {
+    -fx-icon-code: fth-play;
+}
+
+.play-pause-toggle: selected > .ikonli-font-icon {
+    -fx-icon-code: fth-pause;
+}
+
+.mute-toggle {
+}
+
+.mute-toggle > .ikonli-font-icon {
+    -fx-icon-code: fth-volume-2;
+}
+
+.mute-toggle: selected > .ikonli-font-icon {
+    -fx-icon-code: fth-volume-x;
+}

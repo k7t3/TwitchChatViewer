@@ -1,6 +1,7 @@
 package com.github.k7t3.tcv.view.action;
 
 import atlantafx.base.controls.ModalPane;
+import com.github.k7t3.tcv.app.main.MainViewModel;
 import com.github.k7t3.tcv.view.clip.VideoClipListView;
 import com.github.k7t3.tcv.view.core.Resources;
 import de.saxsys.mvvmfx.FluentViewLoader;
@@ -15,9 +16,12 @@ public class VideoClipListViewCallAction extends AbstractKeyAction {
 
     private final ModalPane modalPane;
 
-    public VideoClipListViewCallAction(ModalPane modalPane) {
+    private final MainViewModel mainViewModel;
+
+    public VideoClipListViewCallAction(ModalPane modalPane, MainViewModel mainViewModel) {
         super(DEFAULT);
         this.modalPane = modalPane;
+        this.mainViewModel = mainViewModel;
     }
 
     @Override
@@ -26,8 +30,13 @@ public class VideoClipListViewCallAction extends AbstractKeyAction {
         loader.resourceBundle(Resources.getResourceBundle());
 
         var tuple = loader.load();
+        var view = tuple.getView();
+        var viewModel = tuple.getViewModel();
+
+        viewModel.installMainViewModel(mainViewModel);
+
         modalPane.usePredefinedTransitionFactories(Side.BOTTOM);
         modalPane.setPersistent(false);
-        modalPane.show(tuple.getView());
+        modalPane.show(view);
     }
 }

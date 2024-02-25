@@ -58,6 +58,20 @@ public class FollowChannelsViewModel implements ViewModel {
 
         transformedBroadcasters = new SortedList<>(filtered);
         transformedBroadcasters.setComparator(DEFAULT_COMPARATOR);
+
+        initialize();
+    }
+
+    private void initialize() {
+        var helper = AppHelper.getInstance();
+
+        // 認証が解除されたらクリア
+        helper.authorizedProperty().addListener((ob, o, n) -> {
+            if (!n) {
+                followBroadcasters.clear();
+                loaded.set(false);
+            }
+        });
     }
 
     private boolean test(FollowChannelViewModel channel) {
@@ -84,11 +98,8 @@ public class FollowChannelsViewModel implements ViewModel {
         LOGGER.info("start loadAsync");
 
         var helper = AppHelper.getInstance();
-        var repository = helper.getTwitch().getChannelRepository();
-
-        if (repository == null) {
-            throw new RuntimeException("channel repository is null");
-        }
+        var twitch = helper.getTwitch();
+        var repository = twitch.getChannelRepository();
 
         var task = FXTask.task(() -> {
             repository.loadAllFollowBroadcasters();

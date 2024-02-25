@@ -33,6 +33,9 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
     private ChoiceBox<Theme> themeChoiceBox;
 
     @FXML
+    private ToggleSwitch experimentalSwitch;
+
+    @FXML
     private ComboBox<ChatFont> fontComboBox;
 
     @FXML
@@ -125,15 +128,18 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
             ThemeManager.getInstance().setTheme(initialTheme);
             modalPane.hide();
         });
-        enterButton.setOnAction(e -> {
-            var prefs = AppPreferences.getInstance();
-            prefs.setTheme(themeChoiceBox.getValue());
-            prefs.setFont(fontComboBox.getValue());
-            prefs.setShowUserName(showNameSwitch.isSelected());
-            prefs.setShowBadges(showBadgeSwitch.isSelected());
-            viewModel.saveAsync();
-            modalPane.hide();
-        });
+        enterButton.setOnAction(e -> onSaved());
+    }
+
+    private void onSaved() {
+        var prefs = AppPreferences.getInstance();
+        prefs.setTheme(themeChoiceBox.getValue());
+        prefs.setExperimental(experimentalSwitch.isSelected());
+        prefs.setFont(fontComboBox.getValue());
+        prefs.setShowUserName(showNameSwitch.isSelected());
+        prefs.setShowBadges(showBadgeSwitch.isSelected());
+        viewModel.saveAsync();
+        modalPane.hide();
     }
 
     private Theme initialTheme;
@@ -142,6 +148,7 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         var prefs = AppPreferences.getInstance();
         initialTheme = prefs.getTheme();
         themeChoiceBox.getSelectionModel().select(initialTheme);
+        experimentalSwitch.setSelected(prefs.isExperimental());
         fontComboBox.getSelectionModel().select(prefs.getFont());
         showNameSwitch.setSelected(prefs.isShowUserName());
         showBadgeSwitch.setSelected(prefs.isShowBadges());

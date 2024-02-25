@@ -51,4 +51,9 @@ public class VideoClipRepository {
         return clips.size();
     }
 
+    public void clear() {
+        clips.clear();
+        channelOwners.clear();
+    }
+
 }

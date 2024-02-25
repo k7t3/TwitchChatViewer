@@ -1,16 +1,16 @@
 package com.github.k7t3.tcv.domain.channel;
 
 import com.github.k7t3.tcv.domain.Twitch;
+import com.github.k7t3.tcv.domain.core.EventExecutorWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 
 /**
@@ -26,7 +26,7 @@ public class ChannelRepository implements Closeable {
 
     private final Twitch twitch;
 
-    private final ExecutorService eventExecutor = Executors.newVirtualThreadPerTaskExecutor();
+    private final EventExecutorWrapper eventExecutor = new EventExecutorWrapper();
 
     public ChannelRepository(Twitch twitch) {
         this.twitch = twitch;
@@ -128,8 +128,21 @@ public class ChannelRepository implements Closeable {
         }
     }
 
+    public void clear() {
+        var api = twitch.getTwitchAPI();
+
+        for (var channel : channels.values()) {
+
+            channel.clear();
+            api.disableStreamEventListener(channel.getBroadcaster());
+
+        }
+
+        channels.clear();
+    }
+
     @Override
-    public void close() {
-        eventExecutor.shutdown();
+    public void close() throws IOException {
+        eventExecutor.close();
     }
 }

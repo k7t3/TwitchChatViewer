@@ -55,6 +55,9 @@
       </VBox>
    </top>
    <center>
-      <StackPane fx:id="chatDataContainer" BorderPane.alignment="CENTER" />
+      <StackPane fx:id="chatDataContainer" BorderPane.alignment="CENTER">
+         <children>
+            <Pane fx:id="backgroundImageLayer" opacity="0.2" />
+         </children></StackPane>
    </center>
 </BorderPane>

@@ -1,8 +1,8 @@
 package com.github.k7t3.tcv.domain;
 
 import com.github.k7t3.tcv.domain.auth.CredentialController;
+import com.github.k7t3.tcv.domain.auth.CredentialStore;
 import com.github.k7t3.tcv.domain.auth.PreferencesCredentialStorage;
-import com.github.philippheuer.credentialmanager.api.IStorageBackend;
 import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
 import com.github.twitch4j.TwitchClientBuilder;
 import org.slf4j.Logger;
@@ -18,13 +18,13 @@ public class TwitchLoader {
 
     public record DeviceFlow(String userCode, String verificationURL) {}
 
-    private final IStorageBackend backend;
+    private final CredentialStore credentialStore;
 
     private final CredentialController controller;
 
     public TwitchLoader(Preferences preferences) {
-        backend = new PreferencesCredentialStorage(preferences);
-        controller = new CredentialController(backend);
+        credentialStore = new PreferencesCredentialStorage(preferences);
+        controller = new CredentialController(credentialStore);
     }
 
     public DeviceFlow startAuthenticate(Consumer<Optional<Twitch>> consumer) {
@@ -82,7 +82,7 @@ public class TwitchLoader {
         var chatClient = TwitchClientBuilder.builder()
                 .withEnableChat(true)
                 .build();
-        return new Twitch(credential, backend, client, chatClient);
+        return new Twitch(credential, credentialStore, client, chatClient);
     }
 
 }

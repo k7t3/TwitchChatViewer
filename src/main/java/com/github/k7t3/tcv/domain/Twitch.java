@@ -1,8 +1,9 @@
 package com.github.k7t3.tcv.domain;
 
+import com.github.k7t3.tcv.domain.auth.CredentialController;
+import com.github.k7t3.tcv.domain.auth.CredentialStore;
 import com.github.k7t3.tcv.domain.channel.ChannelRepository;
 import com.github.k7t3.tcv.domain.clip.VideoClipRepository;
-import com.github.philippheuer.credentialmanager.api.IStorageBackend;
 import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
 import com.github.twitch4j.TwitchClient;
 import com.github.twitch4j.chat.TwitchChat;
@@ -10,11 +11,7 @@ import com.github.twitch4j.chat.TwitchChat;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.prefs.Preferences;
 
-/**
- * TwitchのAPIアクセスに必要な情報を管理するクラス。
- */
 public class Twitch implements Closeable {
 
     private final AtomicReference<OAuth2Credential> credential = new AtomicReference<>();
@@ -23,7 +20,7 @@ public class Twitch implements Closeable {
 
     private final TwitchClient chatClient;
 
-    private final IStorageBackend credentialStorageBackend;
+    private final CredentialStore credentialStore;
 
     private ChannelRepository channelRepository;
 
@@ -33,12 +30,12 @@ public class Twitch implements Closeable {
 
     Twitch(
             OAuth2Credential credential,
-            IStorageBackend credentialStorageBackend,
+            CredentialStore credentialStore,
             TwitchClient apiClient,
             TwitchClient chatClient
     ) {
         this.chatClient = chatClient;
-        this.credentialStorageBackend = credentialStorageBackend;
+        this.credentialStore = credentialStore;
         setCredential(credential);
         setClient(apiClient);
     }
@@ -66,8 +63,8 @@ public class Twitch implements Closeable {
         this.credential.set(credential);
     }
 
-    IStorageBackend getCredentialStorageBackend() {
-        return credentialStorageBackend;
+    CredentialStore getCredentialStore() {
+        return credentialStore;
     }
 
     private OAuth2Credential getCredential() {
@@ -97,10 +94,48 @@ public class Twitch implements Closeable {
         return chatClient.getChat();
     }
 
+    public void logout() {
+        if (clipRepository != null) {
+            clipRepository.clear();
+            clipRepository = null;
+        }
+
+        if (channelRepository != null) {
+            channelRepository.clear();
+            try {
+                channelRepository.close();
+            } catch (IOException ignored) {
+            }
+            channelRepository = null;
+        }
+
+        if (twitchAPI != null) {
+            try {
+                twitchAPI.close();
+            } catch (IOException ignored) {
+            }
+            twitchAPI = null;
+        }
+
+        var credentialController = new CredentialController(credentialStore);
+        try {
+            credentialController.revokeToken();
+        } finally {
+            credentialController.disposeAuthenticate();
+        }
+
+        credentialStore.clearCredentials();
+        setClient(null);
+        setCredential(null);
+    }
+
     @Override
     public void close() {
         if (channelRepository != null) {
-            channelRepository.close();
+            try {
+                channelRepository.close();
+            } catch (IOException ignored) {
+            }
         }
 
         if (twitchAPI != null) {
@@ -116,4 +151,5 @@ public class Twitch implements Closeable {
         }
         chatClient.close();
     }
+
 }

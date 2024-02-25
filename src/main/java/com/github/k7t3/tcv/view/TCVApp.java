@@ -68,12 +68,13 @@ public class TCVApp extends Application {
         boundsListener.install(primaryStage);
 
         // ウインドウ境界を復元
-        var bounds = preferences.getStageBounds();
+        var windowPrefs = preferences.getWindowPreferences("main");
+        var bounds = windowPrefs.getStageBounds();
         bounds.apply(primaryStage);
 
         // ウインドウを閉じるときに境界を記録
         primaryStage.setOnCloseRequest(e ->
-                preferences.setStageBounds(boundsListener.getCurrent()));
+                windowPrefs.setStageBounds(boundsListener.getCurrent()));
 
         primaryStage.setScene(scene);
         primaryStage.show();

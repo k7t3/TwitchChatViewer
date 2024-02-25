@@ -1,5 +1,6 @@
 package com.github.k7t3.tcv.app.clip;
 
+import com.github.k7t3.tcv.app.main.MainViewModel;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
 import com.github.k7t3.tcv.domain.clip.VideoClipRepository;
 import de.saxsys.mvvmfx.ViewModel;
@@ -9,6 +10,8 @@ import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 
 public class VideoClipListViewModel implements ViewModel {
+
+    private final ObservableList<ClipPlayerViewModel> players = FXCollections.observableArrayList();
 
     private final ObservableList<VideoClipViewModel> clips = FXCollections.observableArrayList();
 
@@ -20,6 +23,8 @@ public class VideoClipListViewModel implements ViewModel {
 
     private VideoClipRepository repository;
 
+    private MainViewModel mainViewModel;
+
     public VideoClipListViewModel() {
         sorted.setComparator((a, b) ->
                 b.getPosted().getLatestTime().compareTo(a.getPosted().getLatestTime()));
@@ -29,11 +34,20 @@ public class VideoClipListViewModel implements ViewModel {
         this.repository = repository;
 
         clips.addAll(
-                repository.getClips().stream().map(VideoClipViewModel::new).toList()
+                repository.getClips().stream().map(c -> new VideoClipViewModel(this, c)).toList()
         );
 
         channelOwners = FXCollections.observableArrayList();
         channelOwners.addAll(repository.getChannelOwners());
+    }
+
+    public void installMainViewModel(MainViewModel mainViewModel) {
+        this.mainViewModel = mainViewModel;
+    }
+
+    void onRemoved(VideoClipViewModel clip) {
+        clips.remove(clip);
+        mainViewModel.updateClipCount();
     }
 
     public void filter(Broadcaster channelOwner) {
@@ -50,6 +64,10 @@ public class VideoClipListViewModel implements ViewModel {
 
     public ObservableList<VideoClipViewModel> getClips() {
         return sorted;
+    }
+
+    public ObservableList<ClipPlayerViewModel> getPlayers() {
+        return players;
     }
 
     // ******************** PROPERTIES ********************

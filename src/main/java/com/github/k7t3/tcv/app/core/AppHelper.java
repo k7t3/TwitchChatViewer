@@ -1,5 +1,6 @@
 package com.github.k7t3.tcv.app.core;
 
+import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.domain.Twitch;
 import javafx.beans.property.*;
@@ -18,6 +19,15 @@ public class AppHelper implements Closeable {
         userId.bind(twitch.map(Twitch::getUserId));
         userName.bind(twitch.map(Twitch::getUserName));
         authorized.bind(twitch.isNotNull());
+    }
+
+    public FXTask<Void> logout() {
+        if (!isAuthorized()) return FXTask.empty();
+
+        var task = FXTask.task(() -> getTwitch().logout());
+        FXTask.setOnSucceeded(task, e -> setTwitch(null));
+        TaskWorker.getInstance().submit(task);
+        return task;
     }
 
     @Override

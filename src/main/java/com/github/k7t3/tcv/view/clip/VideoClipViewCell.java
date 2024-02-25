@@ -75,10 +75,7 @@ public class VideoClipViewCell extends ListCell<VideoClipViewModel> {
         var removeButton = new Button("", new FontIcon(FontAwesomeSolid.TRASH));
         removeButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.DANGER);
         removeButton.setTooltip(new Tooltip(Resources.getString("clip.remove")));
-        removeButton.setOnAction(e -> {
-            getItem().remove();
-            getListView().getItems().remove(getItem());
-        });
+        removeButton.setOnAction(e -> getItem().removeAsync());
 
         layout = new HBox(thumbnail, vbox, new Spacer(), openBrowser, clipURLButton, removeButton);
         layout.setAlignment(Pos.CENTER_LEFT);

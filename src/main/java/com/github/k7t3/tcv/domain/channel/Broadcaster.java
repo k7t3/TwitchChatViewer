@@ -21,7 +21,7 @@ public final class Broadcaster {
         this.userLogin = userLogin;
         this.userName = userName;
         this.profileImageUrl = profileImageUrl;
-        this.offlineImageUrl = offlineImageUrl;
+        this.offlineImageUrl = offlineImageUrl == null || offlineImageUrl.trim().isEmpty() ? null : offlineImageUrl.trim();
     }
 
     public String getUserId() {
@@ -40,8 +40,8 @@ public final class Broadcaster {
         return profileImageUrl;
     }
 
-    public String getOfflineImageUrl() {
-        return offlineImageUrl;
+    public Optional<String> getOfflineImageUrl() {
+        return Optional.ofNullable(offlineImageUrl);
     }
 
     @Override
