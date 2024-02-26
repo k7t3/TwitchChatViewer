@@ -43,8 +43,6 @@ public class VideoClipListView implements FxmlView<VideoClipListViewModel>, Init
     @InjectViewModel
     private VideoClipListViewModel viewModel;
 
-    private ClipPlayerStage playerStage;
-
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         var helper = AppHelper.getInstance();
@@ -85,9 +83,8 @@ public class VideoClipListView implements FxmlView<VideoClipListViewModel>, Init
         var selected = videoClips.getSelectionModel().getSelectedItem();
         if (selected == null) return;
 
-        viewModel.getPlayers().add(new ClipPlayerViewModel(selected));
-
-        var player = getPlayerStage();
+        var player = new ClipPlayerStage(root.getScene().getWindow(), new ClipPlayerViewModel(selected));
+        player.setTitle(selected.getPosted().getClip().broadcasterName());
         player.show();
     }
 
@@ -114,13 +111,6 @@ public class VideoClipListView implements FxmlView<VideoClipListViewModel>, Init
             }
         });
         return button;
-    }
-
-    private ClipPlayerStage getPlayerStage() {
-        if (playerStage == null) {
-            playerStage = new ClipPlayerStage(root.getScene().getWindow(), viewModel.getPlayers());
-        }
-        return playerStage;
     }
 
 }

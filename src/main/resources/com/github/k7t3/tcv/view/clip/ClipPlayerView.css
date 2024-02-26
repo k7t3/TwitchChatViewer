@@ -1,3 +1,9 @@
+.clip-player-view .label {
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-effect: dropshadow( three-pass-box, black, 10, 0, 0, 0);
+}
+
 .play-pause-toggle {
 }
 

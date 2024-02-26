@@ -16,6 +16,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Slider;
 import javafx.scene.control.ToggleButton;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.media.MediaView;
@@ -88,6 +89,7 @@ public class ClipPlayerView implements FxmlView<ClipPlayerViewModel>, Initializa
 
         mediaView.fitWidthProperty().bind(root.widthProperty());
         mediaView.fitHeightProperty().bind(root.heightProperty());
+        mediaView.setOnMouseClicked(e -> togglePlayPause());
 
         loadingMask.prefWidthProperty().bind(root.widthProperty().multiply(0.5));
         loadingMask.prefHeightProperty().bind(root.heightProperty().multiply(0.5));
@@ -105,6 +107,21 @@ public class ClipPlayerView implements FxmlView<ClipPlayerViewModel>, Initializa
         initFooter();
 
         bindViewModels();
+
+        root.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+            switch (e.getCode()) {
+                case SPACE, K -> togglePlayPause();
+                case M -> volumeToggleButton.setSelected(!volumeToggleButton.isSelected());
+            }
+        });
+    }
+
+    private void togglePlayPause() {
+        if (playPauseToggleButton.isSelected())
+            viewModel.pause();
+        else
+            viewModel.play();
+        playPauseToggleButton.setSelected(!playPauseToggleButton.isSelected());
     }
 
     private void initHeader() {

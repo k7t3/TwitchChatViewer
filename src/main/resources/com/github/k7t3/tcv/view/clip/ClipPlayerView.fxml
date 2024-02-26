@@ -15,7 +15,7 @@
 <?import javafx.scene.media.MediaView?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
-<AnchorPane fx:id="root" prefHeight="768.0" prefWidth="1024.0" stylesheets="@ClipPlayerView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.clip.ClipPlayerView">
+<AnchorPane fx:id="root" prefHeight="768.0" prefWidth="1024.0" styleClass="clip-player-view" stylesheets="@ClipPlayerView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.clip.ClipPlayerView">
    <children>
       <StackPane fx:id="content" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
          <children>
@@ -45,7 +45,7 @@
                   <Label fx:id="endLabel" layoutX="10.0" layoutY="10.0" text="End time" />
                </children>
             </HBox>
-            <HBox alignment="CENTER_LEFT">
+            <HBox alignment="CENTER_LEFT" spacing="2.0">
                <children>
                   <ToggleButton fx:id="playPauseToggleButton" contentDisplay="GRAPHIC_ONLY" focusTraversable="false" mnemonicParsing="false" styleClass="play-pause-toggle" text="P">
                      <graphic>

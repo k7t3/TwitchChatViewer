@@ -11,8 +11,6 @@ import javafx.collections.transformation.SortedList;
 
 public class VideoClipListViewModel implements ViewModel {
 
-    private final ObservableList<ClipPlayerViewModel> players = FXCollections.observableArrayList();
-
     private final ObservableList<VideoClipViewModel> clips = FXCollections.observableArrayList();
 
     private final FilteredList<VideoClipViewModel> filtered = new FilteredList<>(clips);
@@ -64,10 +62,6 @@ public class VideoClipListViewModel implements ViewModel {
 
     public ObservableList<VideoClipViewModel> getClips() {
         return sorted;
-    }
-
-    public ObservableList<ClipPlayerViewModel> getPlayers() {
-        return players;
     }
 
     // ******************** PROPERTIES ********************
