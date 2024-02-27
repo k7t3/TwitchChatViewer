@@ -2,7 +2,7 @@ package com.github.k7t3.tcv.view.chat;
 
 import atlantafx.base.util.Animations;
 import com.github.k7t3.tcv.app.chat.ChatContainerViewModel;
-import com.github.k7t3.tcv.app.chat.ChatViewModel;
+import com.github.k7t3.tcv.app.chat.ChatRoomViewModel;
 import com.github.k7t3.tcv.view.core.Resources;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
@@ -21,7 +21,6 @@ import javafx.scene.layout.Priority;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.ResourceBundle;
 
 public class ChatContainerView implements FxmlView<ChatContainerViewModel>, Initializable {
@@ -34,7 +33,7 @@ public class ChatContainerView implements FxmlView<ChatContainerViewModel>, Init
     @InjectViewModel
     private ChatContainerViewModel viewModel;
 
-    private Map<ChatViewModel, Node> items;
+    private Map<ChatRoomViewModel, Node> items;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -45,7 +44,7 @@ public class ChatContainerView implements FxmlView<ChatContainerViewModel>, Init
         container.setCenter(chatContainer);
     }
 
-    private void chatChanged(ListChangeListener.Change<? extends ChatViewModel> c) {
+    private void chatChanged(ListChangeListener.Change<? extends ChatRoomViewModel> c) {
         while (c.next()) {
             if (c.wasAdded()) {
                 for (var chat : c.getAddedSubList())
@@ -58,14 +57,14 @@ public class ChatContainerView implements FxmlView<ChatContainerViewModel>, Init
         }
     }
 
-    private void onRemoved(ChatViewModel chat) {
+    private void onRemoved(ChatRoomViewModel chat) {
         var node = items.get(chat);
         if (node == null) return;
 
         chatContainer.getChildren().remove(node);
     }
 
-    private void onAdded(ChatViewModel chat) {
+    private void onAdded(ChatRoomViewModel chat) {
         var tuple = FluentViewLoader.fxmlView(ChatView.class)
                 .viewModel(chat)
                 .resourceBundle(Resources.getResourceBundle())

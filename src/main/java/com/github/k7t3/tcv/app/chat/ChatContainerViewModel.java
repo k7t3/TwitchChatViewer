@@ -20,7 +20,7 @@ import java.util.List;
 public class ChatContainerViewModel implements ViewModel {
 
     /** 開かれているチャット(チャンネル)のリスト*/
-    private final ObservableList<ChatViewModel> chatList = FXCollections.observableArrayList();
+    private final ObservableList<ChatRoomViewModel> chatList = FXCollections.observableArrayList();
 
     private final ReadOnlyBooleanWrapper loaded = new ReadOnlyBooleanWrapper(false);
 
@@ -33,6 +33,8 @@ public class ChatContainerViewModel implements ViewModel {
     private final BooleanProperty showBadges = new SimpleBooleanProperty(true);
 
     private final ObjectProperty<Font> font = new SimpleObjectProperty<>(null);
+
+    private final ObjectProperty<ChatIgnoreFilter> chatFilter = new SimpleObjectProperty<>(ChatIgnoreFilter.DEFAULT);
 
     private MainViewModel mainViewModel;
 
@@ -52,7 +54,7 @@ public class ChatContainerViewModel implements ViewModel {
         });
     }
 
-    public ObservableList<ChatViewModel> getChatList() {
+    public ObservableList<ChatRoomViewModel> getChatList() {
         return chatList;
     }
 
@@ -65,6 +67,7 @@ public class ChatContainerViewModel implements ViewModel {
         showUserName.bind(prefs.showUserNameProperty());
         showBadges.bind(prefs.showBadgesProperty());
         font.bind(prefs.fontProperty().map(ChatFont::getFont));
+        chatFilter.bind(prefs.getIgnoreFilterPreferences().chatFilterProperty());
     }
 
     public FXTask<Void> loadAsync() {
@@ -85,7 +88,7 @@ public class ChatContainerViewModel implements ViewModel {
         return task;
     }
 
-    public ChatViewModel register(TwitchChannel channel) {
+    public ChatRoomViewModel register(TwitchChannel channel) {
         if (!loaded.get()) throw new IllegalStateException("not loaded yet");
 
         var exist = chatList.stream().filter(vm ->
@@ -97,7 +100,7 @@ public class ChatContainerViewModel implements ViewModel {
             return exist.get();
         }
 
-        var viewModel = new ChatViewModel(
+        var viewModel = new ChatRoomViewModel(
                 channel,
                 globalBadgeStore,
                 definedChatColors,
@@ -108,6 +111,7 @@ public class ChatContainerViewModel implements ViewModel {
         viewModel.visibleNameProperty().bind(showUserName);
         viewModel.visibleBadgesProperty().bind(showBadges);
         viewModel.fontProperty().bind(font);
+        viewModel.ignoreFilterProperty().bind(chatFilter);
 
         chatList.add(viewModel);
 
@@ -119,7 +123,7 @@ public class ChatContainerViewModel implements ViewModel {
      * チャットから切断することはしない。切断済みのものを渡すこと。
      * @param chat チャット
      */
-    void onLeft(ChatViewModel chat) {
+    void onLeft(ChatRoomViewModel chat) {
         chatList.removeIf(vm -> vm.equals(chat));
     }
 

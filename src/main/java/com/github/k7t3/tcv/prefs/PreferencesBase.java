@@ -46,4 +46,8 @@ public abstract class PreferencesBase {
         return preferences.getBoolean(key, (Boolean) defaults.get(key));
     }
 
+    protected byte[] getByteArray(String key) {
+        return preferences.getByteArray(key, (byte[]) defaults.get(key));
+    }
+
 }

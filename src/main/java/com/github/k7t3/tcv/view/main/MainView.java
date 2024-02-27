@@ -124,17 +124,20 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
             }
         });
 
-        initKeyActions();
+        initKeyActions(helper);
     }
 
-    private void initKeyActions() {
+    private void initKeyActions(AppHelper helper) {
         var searchViewCallAction = new SearchChannelViewCallAction(modalPane, chatContainerViewModel);
+        searchViewCallAction.disableProperty().bind(helper.authorizedProperty());
         searchChannelButton.setOnAction(searchViewCallAction);
         keyActionRepository.addAction(searchViewCallAction);
 
         var prefViewCallAction = new PreferenceViewCallAction(modalPane);
+        prefViewCallAction.disableProperty().bind(modalPane.displayProperty());
         prefsMenuItem.setOnAction(prefViewCallAction);
         prefsMenuItem.acceleratorProperty().bind(prefViewCallAction.combinationProperty());
+        prefsMenuItem.disableProperty().bind(prefViewCallAction.disableProperty());
         keyActionRepository.addAction(prefViewCallAction);
 
         var clipViewCallAction = new VideoClipListViewCallAction(modalPane, viewModel);

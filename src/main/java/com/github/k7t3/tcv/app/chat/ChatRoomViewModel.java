@@ -26,9 +26,9 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 
-public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoomListener {
+public class ChatRoomViewModel implements ViewModel, TwitchChannelListener, ChatRoomListener {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ChatViewModel.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ChatRoomViewModel.class);
 
     private static final int LIMIT_ITEM_COUNT = 256;
 
@@ -62,6 +62,8 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
 
     private final ObservableSet<ChatRoomState> roomStates = FXCollections.observableSet(new HashSet<>());
 
+    private final ObjectProperty<ChatIgnoreFilter> ignoreFilter = new SimpleObjectProperty<>(ChatIgnoreFilter.DEFAULT);
+
     private final TwitchChannel channel;
 
     private final GlobalChatBadgeStore globalBadgeStore;
@@ -78,7 +80,7 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
 
     private final List<ChatRoomListener> defaultChatRoomListeners;
 
-    ChatViewModel(
+    ChatRoomViewModel(
             TwitchChannel channel,
             GlobalChatBadgeStore globalBadgeStore,
             DefinedChatColors definedChatColors,
@@ -182,6 +184,11 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
 
     @Override
     public void onChatDataPosted(ChatData item) {
+        var filter = getIgnoreFilter();
+        if (filter.test(item)) {
+            return;
+        }
+
         var chatData = new ChatDataViewModel(
                 item,
                 globalBadgeStore,
@@ -340,4 +347,8 @@ public class ChatViewModel implements ViewModel, TwitchChannelListener, ChatRoom
     public ObjectProperty<Font> fontProperty() { return font; }
     public Font getFont() { return font.get(); }
     public void setFont(Font font) { this.font.set(font); }
+
+    public ObjectProperty<ChatIgnoreFilter> ignoreFilterProperty() { return ignoreFilter; }
+    public ChatIgnoreFilter getIgnoreFilter() { return ignoreFilter.get(); }
+    public void setIgnoreFilter(ChatIgnoreFilter ignoreFilter) { this.ignoreFilter.set(ignoreFilter); }
 }

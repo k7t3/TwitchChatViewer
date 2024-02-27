@@ -16,10 +16,11 @@
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.RowConstraints?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
 
 <BorderPane fx:id="root" maxHeight="-Infinity" maxWidth="-Infinity" prefHeight="400.0" prefWidth="540.0" styleClass="preference-view" stylesheets="@PreferencesView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.prefs.PreferencesView">
    <center>
-      <TabPane tabClosingPolicy="UNAVAILABLE">
+      <TabPane fx:id="tabPane" tabClosingPolicy="UNAVAILABLE">
         <tabs>
           <Tab closable="false" text="%prefs.tab.general">
             <content>
@@ -49,6 +50,9 @@
                      </padding>
                   </GridPane>
             </content>
+               <graphic>
+                  <FontIcon iconLiteral="fth-settings" />
+               </graphic>
           </Tab>
           <Tab closable="false" text="%prefs.tab.chat">
             <content>
@@ -95,6 +99,9 @@
                      </padding>
                   </GridPane>
             </content>
+               <graphic>
+                  <FontIcon iconLiteral="fth-message-circle" />
+               </graphic>
           </Tab>
         </tabs>
       </TabPane>
@@ -102,7 +109,7 @@
    <bottom>
       <ButtonBar fx:id="buttonBar" BorderPane.alignment="CENTER">
          <buttons>
-            <Button fx:id="enterButton" defaultButton="true" mnemonicParsing="false" text="OK" />
+            <Button fx:id="enterButton" mnemonicParsing="false" text="OK" />
             <Button fx:id="cancelButton" cancelButton="true" mnemonicParsing="false" text="Cancel" />
          </buttons>
          <padding>

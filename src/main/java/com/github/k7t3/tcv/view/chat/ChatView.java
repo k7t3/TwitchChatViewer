@@ -5,7 +5,7 @@ import atlantafx.base.controls.ToggleSwitch;
 import atlantafx.base.theme.Styles;
 import atlantafx.base.theme.Tweaks;
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
-import com.github.k7t3.tcv.app.chat.ChatViewModel;
+import com.github.k7t3.tcv.app.chat.ChatRoomViewModel;
 import com.github.k7t3.tcv.domain.chat.ChatRoomState;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
@@ -30,7 +30,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ResourceBundle;
 
-public class ChatView implements FxmlView<ChatViewModel>, Initializable {
+public class ChatView implements FxmlView<ChatRoomViewModel>, Initializable {
 
     @FXML
     private Label userNameLabel;
@@ -60,7 +60,7 @@ public class ChatView implements FxmlView<ChatViewModel>, Initializable {
     private Pane backgroundImageLayer;
 
     @InjectViewModel
-    private ChatViewModel viewModel;
+    private ChatRoomViewModel viewModel;
 
     private VirtualFlow<ChatDataViewModel, ChatDataCell> virtualFlow;
 

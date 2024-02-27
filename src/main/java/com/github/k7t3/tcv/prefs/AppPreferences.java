@@ -63,6 +63,8 @@ public class AppPreferences extends PreferencesBase {
 
     private PlayerPreferences playerPreferences;
 
+    private ChatIgnoreFilterPreferences ignoreFilterPreferences;
+
     private AppPreferences() {
         super(Preferences.userNodeForPackage(AppPreferences.class), new HashMap<>());
         defaults.put(THEME, ThemeManager.DEFAULT_THEME.getName());
@@ -122,6 +124,14 @@ public class AppPreferences extends PreferencesBase {
         }
         return playerPreferences;
     }
+
+    public ChatIgnoreFilterPreferences getIgnoreFilterPreferences() {
+        if (ignoreFilterPreferences == null) {
+            ignoreFilterPreferences = new ChatIgnoreFilterPreferences(preferences, defaults);
+        }
+        return ignoreFilterPreferences;
+    }
+
 // ******************** PROPERTIES ********************
 
     public BooleanProperty experimentalProperty() {

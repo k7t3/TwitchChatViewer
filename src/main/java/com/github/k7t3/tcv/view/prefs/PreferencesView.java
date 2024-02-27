@@ -3,14 +3,17 @@ package com.github.k7t3.tcv.view.prefs;
 import atlantafx.base.controls.ModalPane;
 import atlantafx.base.controls.ToggleSwitch;
 import atlantafx.base.theme.Theme;
+import com.github.k7t3.tcv.app.prefs.ChatIgnoreFilterViewModel;
 import com.github.k7t3.tcv.app.prefs.PreferencesViewModel;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.prefs.ChatFont;
+import com.github.k7t3.tcv.view.core.Resources;
 import com.github.k7t3.tcv.view.core.ThemeManager;
 import com.github.k7t3.tcv.view.prefs.font.FontComboBoxCell;
 import com.github.k7t3.tcv.view.prefs.font.FontStringConverter;
+import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.fxml.FXML;
@@ -28,6 +31,9 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
 
     @FXML
     private Pane root;
+
+    @FXML
+    private TabPane tabPane;
 
     @FXML
     private ChoiceBox<Theme> themeChoiceBox;
@@ -62,10 +68,13 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
     @InjectViewModel
     private PreferencesViewModel viewModel;
 
+    private ChatIgnoreFilterViewModel filterViewModel;
+
     private ModalPane modalPane;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        loadFilterViewModel();
         initThemeComboBox();
         initFontComboBox();
         initButtons();
@@ -74,6 +83,23 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
 
     public void setModalPane(ModalPane modalPane) {
         this.modalPane = modalPane;
+    }
+
+    private void loadFilterViewModel() {
+        filterViewModel = new ChatIgnoreFilterViewModel();
+
+        var tuple = FluentViewLoader.fxmlView(ChatIgnoreFilterView.class)
+                .viewModel(filterViewModel)
+                .resourceBundle(Resources.getResourceBundle())
+                .load();
+
+        var view = tuple.getView();
+        var codeBehind = tuple.getCodeBehind();
+
+        var tab = new Tab(codeBehind.getName(), view);
+        tab.setGraphic(codeBehind.getGraphic());
+        tab.setClosable(false);
+        tabPane.getTabs().add(tab);
     }
 
     private void initThemeComboBox() {
@@ -128,16 +154,19 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
             ThemeManager.getInstance().setTheme(initialTheme);
             modalPane.hide();
         });
-        enterButton.setOnAction(e -> onSaved());
+        enterButton.setOnAction(e -> save());
     }
 
-    private void onSaved() {
+    private void save() {
         var prefs = AppPreferences.getInstance();
         prefs.setTheme(themeChoiceBox.getValue());
         prefs.setExperimental(experimentalSwitch.isSelected());
         prefs.setFont(fontComboBox.getValue());
         prefs.setShowUserName(showNameSwitch.isSelected());
         prefs.setShowBadges(showBadgeSwitch.isSelected());
+
+        filterViewModel.sync();
+
         viewModel.saveAsync();
         modalPane.hide();
     }
