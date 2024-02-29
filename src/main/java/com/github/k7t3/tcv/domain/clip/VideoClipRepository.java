@@ -1,46 +1,35 @@
 package com.github.k7t3.tcv.domain.clip;
 
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
-import com.github.k7t3.tcv.domain.channel.VideoClip;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 public class VideoClipRepository {
 
     private final ConcurrentHashMap<VideoClip, PostedClip> clips = new ConcurrentHashMap<>();
-    private final Set<Broadcaster> channelOwners = new HashSet<>();
 
     public VideoClipRepository() {
     }
 
     public void posted(Broadcaster channelOwner, VideoClip clip) {
-        channelOwners.add(channelOwner);
         var posted = clips.computeIfAbsent(clip, PostedClip::new);
-        posted.posted(channelOwner);
+        posted.count++;
+        posted.postedAt = LocalDateTime.now();
+        posted.channelOwners.add(channelOwner);
     }
 
     public void remove(PostedClip clip) {
-
         clips.remove(clip.getClip());
-
-        var broadcasters = clip.getBroadcasters();
-
-        // 削除したクリップにだけ紐づいていたBroadcasterを削除する
-        for (var broadcaster : broadcasters) {
-
-            var none = clips.values().stream().noneMatch(c -> c.isPosted(broadcaster));
-            if (none) {
-                channelOwners.remove(broadcaster);
-            }
-        }
     }
 
     public Set<Broadcaster> getChannelOwners() {
-        //return clips.values().stream().map(PostedClip::getBroadcasters).flatMap(Collection::stream).collect(Collectors.toSet());
-        return Set.copyOf(channelOwners);
+        return clips.values().stream()
+                .flatMap(c -> c.channelOwners.stream())
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     public Collection<PostedClip> getClips() {
@@ -53,7 +42,6 @@ public class VideoClipRepository {
 
     public void clear() {
         clips.clear();
-        channelOwners.clear();
     }
 
 }

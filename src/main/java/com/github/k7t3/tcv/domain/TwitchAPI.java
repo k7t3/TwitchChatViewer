@@ -4,7 +4,6 @@ import com.github.k7t3.tcv.domain.auth.CredentialController;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
 import com.github.k7t3.tcv.domain.channel.FoundChannel;
 import com.github.k7t3.tcv.domain.channel.StreamInfo;
-import com.github.twitch4j.TwitchClientBuilder;
 import com.github.twitch4j.common.events.domain.EventChannel;
 import com.github.twitch4j.common.exception.UnauthorizedException;
 import com.github.twitch4j.common.util.CollectionUtils;
@@ -251,7 +250,7 @@ public class TwitchAPI implements Closeable {
             if (e.getCause() instanceof UnauthorizedException) {
 
                 // トークンが無効になっていると判断してリフレッシュ
-                refreshClient();
+                refreshAccessToken();
 
                 return hystrixCommandWrapper(function);
 
@@ -280,25 +279,7 @@ public class TwitchAPI implements Closeable {
         }
     }
 
-    /**
-     * 有効期限付きのアクセストークンを更新するメソッド。
-     *
-     * <p>
-     *     このアプリケーションは認証方法としてDevice Code Flowを採用しているため
-     *     定期的にトークンのリフレッシュが必要になるが、Twitch4Jがリフレッシュを
-     *     サポートしていないため(Roadmapには登録されている)、使用するトークンを定期的に
-     *     更新する必要がある。
-     * </p>
-     * <p>
-     *     {@link com.github.twitch4j.TwitchClient}はトークンを差し替えることができないようなので
-     *     リフレッシュ時にインスタンスそのものを入れ替えることで対応する。
-     *     この弊害として{@code TwitchClient}を使ってイベントをリッスンしている場合は
-     *     すべて付け替えてあげる必要があったり、クラスのプライベートフィールドで
-     *     使用している場合はトークンの更新が反映できないため、使用の際はスコープを
-     *     細かくしたメソッド引数などで受け取るべきである。
-     * </p>
-     */
-    private void refreshClient() {
+    private void refreshAccessToken() {
 
         // 既に認証が無効化されているときは何もしない
         if (!authorized.get()) {
@@ -313,22 +294,7 @@ public class TwitchAPI implements Closeable {
             var controller = new CredentialController(twitch.getCredentialStore());
             var credential = controller.refreshToken();
 
-            var credentialManager = controller.getCredentialManager();
-            var client = TwitchClientBuilder.builder()
-                    .withCredentialManager(credentialManager)
-                    .withDefaultAuthToken(credential)
-                    .withEnableHelix(true)
-                    .build();
-
-            var olderClient = twitch.getClient();
-
-            twitch.setCredential(credential);
-            twitch.setClient(client);
-
-            var repository = twitch.getChannelRepository();
-            repository.updateAllEventListeners();
-
-            olderClient.close();
+            twitch.updateCredential(credential);
 
         } catch (Exception e) {
 
@@ -490,6 +456,8 @@ public class TwitchAPI implements Closeable {
                 } catch (Exception ex) {
 
                     LOGGER.error("Failed to check for Stream Events (Live/Offline/...): " + ex.getMessage());
+
+                    executor.shutdown();
 
                 }
             };

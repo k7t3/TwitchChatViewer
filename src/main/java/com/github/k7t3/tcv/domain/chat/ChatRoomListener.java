@@ -1,6 +1,6 @@
 package com.github.k7t3.tcv.domain.chat;
 
-import com.github.k7t3.tcv.domain.channel.VideoClip;
+import com.github.k7t3.tcv.domain.clip.VideoClip;
 
 public interface ChatRoomListener {
 

@@ -1,0 +1,7 @@
+.chat-room-view {
+    -fx-border-color: transparent -color-border-default transparent transparent;
+}
+
+.chat-room-header {
+    -fx-border-color: transparent transparent -color-border-default transparent;
+}

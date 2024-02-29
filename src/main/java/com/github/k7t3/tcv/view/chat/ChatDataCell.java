@@ -71,6 +71,7 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
         colon.getStyleClass().add(NAME_STYLE_CLASS);
         colon.visibleProperty().bind(visibleName);
         colon.managedProperty().bind(visibleName);
+        colon.fillProperty().bind(viewModel.colorProperty());
         colon.fontProperty().bind(font);
 
         // ユーザー名と表示名が異なるとき

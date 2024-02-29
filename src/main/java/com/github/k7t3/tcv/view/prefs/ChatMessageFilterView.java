@@ -2,7 +2,7 @@ package com.github.k7t3.tcv.view.prefs;
 
 import atlantafx.base.theme.Styles;
 import atlantafx.base.theme.Tweaks;
-import com.github.k7t3.tcv.app.prefs.ChatIgnoreFilterViewModel;
+import com.github.k7t3.tcv.app.prefs.ChatMessageFilterViewModel;
 import com.github.k7t3.tcv.view.core.Resources;
 import com.github.k7t3.tcv.view.core.cell.TextListCell;
 import de.saxsys.mvvmfx.InjectViewModel;
@@ -17,7 +17,7 @@ import org.kordamp.ikonli.javafx.FontIcon;
 import java.net.URL;
 import java.util.ResourceBundle;
 
-public class ChatIgnoreFilterView implements PreferencesTabView<ChatIgnoreFilterViewModel> {
+public class ChatMessageFilterView implements PreferencesTabView<ChatMessageFilterViewModel> {
 
     @FXML
     private Label headerLabel;
@@ -35,7 +35,7 @@ public class ChatIgnoreFilterView implements PreferencesTabView<ChatIgnoreFilter
     private Button minusButton;
 
     @InjectViewModel
-    private ChatIgnoreFilterViewModel viewModel;
+    private ChatMessageFilterViewModel viewModel;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {

@@ -14,11 +14,10 @@ import javafx.collections.SetChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
-import javafx.scene.control.Hyperlink;
-import javafx.scene.control.Label;
-import javafx.scene.control.MenuButton;
-import javafx.scene.control.MenuItem;
+import javafx.scene.control.*;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
+import javafx.scene.shape.Rectangle;
 import javafx.stage.WindowEvent;
 import org.fxmisc.flowless.VirtualFlow;
 import org.fxmisc.flowless.VirtualizedScrollPane;
@@ -30,7 +29,15 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ResourceBundle;
 
-public class ChatView implements FxmlView<ChatRoomViewModel>, Initializable {
+public class ChatRoomView implements FxmlView<ChatRoomViewModel>, Initializable {
+
+    private static final double PROFILE_IMAGE_SIZE = 48;
+
+    @FXML
+    private Pane headerPane;
+
+    @FXML
+    private ImageView profileImageView;
 
     @FXML
     private Label userNameLabel;
@@ -51,7 +58,7 @@ public class ChatView implements FxmlView<ChatRoomViewModel>, Initializable {
     private Pane stateContainer;
 
     @FXML
-    private ToggleSwitch autoScroll;
+    private ToggleButton scrollToEnd;
 
     @FXML
     private StackPane chatDataContainer;
@@ -66,6 +73,16 @@ public class ChatView implements FxmlView<ChatRoomViewModel>, Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        profileImageView.imageProperty().bind(viewModel.profileImageProperty());
+        profileImageView.setFitWidth(PROFILE_IMAGE_SIZE);
+        profileImageView.setFitHeight(PROFILE_IMAGE_SIZE);
+        var clip = new Rectangle();
+        clip.widthProperty().bind(profileImageView.fitWidthProperty());
+        clip.heightProperty().bind(profileImageView.fitHeightProperty());
+        clip.arcWidthProperty().bind(profileImageView.fitWidthProperty());
+        clip.arcHeightProperty().bind(profileImageView.fitHeightProperty());
+        profileImageView.setClip(clip);
+
         userNameLabel.textProperty().bind(viewModel.userNameProperty());
 
         actionsMenuButton.getStyleClass().addAll(Styles.FLAT, Tweaks.NO_ARROW);
@@ -104,7 +121,7 @@ public class ChatView implements FxmlView<ChatRoomViewModel>, Initializable {
             }
         });
 
-        autoScroll.selectedProperty().bindBidirectional(viewModel.scrollToBottomProperty());
+        scrollToEnd.selectedProperty().bindBidirectional(viewModel.scrollToBottomProperty());
 
         installPopover();
         streamInfoLink.visibleProperty().bind(viewModel.liveProperty());
@@ -149,7 +166,7 @@ public class ChatView implements FxmlView<ChatRoomViewModel>, Initializable {
         var pop = new Popover(vbox);
         pop.titleProperty().bind(viewModel.userNameProperty());
         pop.setHeaderAlwaysVisible(true);
-        pop.setDetachable(true);
+        pop.setDetachable(false);
         pop.setArrowLocation(Popover.ArrowLocation.TOP_LEFT);
 
         pop.addEventHandler(WindowEvent.WINDOW_SHOWING, e -> {

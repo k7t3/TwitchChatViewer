@@ -63,7 +63,7 @@ public class AppPreferences extends PreferencesBase {
 
     private PlayerPreferences playerPreferences;
 
-    private ChatIgnoreFilterPreferences ignoreFilterPreferences;
+    private ChatMessageFilterPreferences messageFilterPreferences;
 
     private AppPreferences() {
         super(Preferences.userNodeForPackage(AppPreferences.class), new HashMap<>());
@@ -125,11 +125,11 @@ public class AppPreferences extends PreferencesBase {
         return playerPreferences;
     }
 
-    public ChatIgnoreFilterPreferences getIgnoreFilterPreferences() {
-        if (ignoreFilterPreferences == null) {
-            ignoreFilterPreferences = new ChatIgnoreFilterPreferences(preferences, defaults);
+    public ChatMessageFilterPreferences getMessageFilterPreferences() {
+        if (messageFilterPreferences == null) {
+            messageFilterPreferences = new ChatMessageFilterPreferences(preferences, defaults);
         }
-        return ignoreFilterPreferences;
+        return messageFilterPreferences;
     }
 
 // ******************** PROPERTIES ********************

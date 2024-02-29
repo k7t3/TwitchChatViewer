@@ -8,13 +8,13 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
-public class RegexChatIgnoreFilter implements ChatIgnoreFilter {
+public class RegexChatMessageFilter implements ChatMessageFilter {
 
-    public static final RegexChatIgnoreFilter DEFAULT = new RegexChatIgnoreFilter(List.of());
+    public static final RegexChatMessageFilter DEFAULT = new RegexChatMessageFilter(List.of());
 
     private final CopyOnWriteArraySet<String> regexes;
 
-    public RegexChatIgnoreFilter(List<String> regexes) {
+    public RegexChatMessageFilter(List<String> regexes) {
         this.regexes = new CopyOnWriteArraySet<>(regexes);
     }
 
@@ -25,12 +25,12 @@ public class RegexChatIgnoreFilter implements ChatIgnoreFilter {
     @Override
     public boolean test(ChatData chatData) {
         if (regexes.isEmpty())
-            return false;
+            return true;
 
         return regexes.stream()
                 .filter(r -> !r.isEmpty())
                 .map(this::regex)
-                .anyMatch(r -> chatData.message().getPlain().matches(r));
+                .noneMatch(r -> chatData.message().getPlain().matches(r));
     }
 
     private String regex(String r) {
@@ -60,7 +60,7 @@ public class RegexChatIgnoreFilter implements ChatIgnoreFilter {
         }
     }
 
-    public static RegexChatIgnoreFilter deserialize(byte[] bytes) {
+    public static RegexChatMessageFilter deserialize(byte[] bytes) {
         try (var bais = new ByteArrayInputStream(bytes);
              var dis = new DataInputStream(bais)) {
 
@@ -70,7 +70,7 @@ public class RegexChatIgnoreFilter implements ChatIgnoreFilter {
                 regexes.add(dis.readUTF());
             }
 
-            return new RegexChatIgnoreFilter(regexes);
+            return new RegexChatMessageFilter(regexes);
 
         } catch (IOException e) {
             throw new RuntimeException(e);

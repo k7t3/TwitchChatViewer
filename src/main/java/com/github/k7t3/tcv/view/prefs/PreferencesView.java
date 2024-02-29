@@ -3,7 +3,7 @@ package com.github.k7t3.tcv.view.prefs;
 import atlantafx.base.controls.ModalPane;
 import atlantafx.base.controls.ToggleSwitch;
 import atlantafx.base.theme.Theme;
-import com.github.k7t3.tcv.app.prefs.ChatIgnoreFilterViewModel;
+import com.github.k7t3.tcv.app.prefs.ChatMessageFilterViewModel;
 import com.github.k7t3.tcv.app.prefs.PreferencesViewModel;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
@@ -68,7 +68,7 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
     @InjectViewModel
     private PreferencesViewModel viewModel;
 
-    private ChatIgnoreFilterViewModel filterViewModel;
+    private ChatMessageFilterViewModel filterViewModel;
 
     private ModalPane modalPane;
 
@@ -86,9 +86,9 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
     }
 
     private void loadFilterViewModel() {
-        filterViewModel = new ChatIgnoreFilterViewModel();
+        filterViewModel = new ChatMessageFilterViewModel();
 
-        var tuple = FluentViewLoader.fxmlView(ChatIgnoreFilterView.class)
+        var tuple = FluentViewLoader.fxmlView(ChatMessageFilterView.class)
                 .viewModel(filterViewModel)
                 .resourceBundle(Resources.getResourceBundle())
                 .load();

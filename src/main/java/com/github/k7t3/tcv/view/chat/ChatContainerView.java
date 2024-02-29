@@ -65,7 +65,7 @@ public class ChatContainerView implements FxmlView<ChatContainerViewModel>, Init
     }
 
     private void onAdded(ChatRoomViewModel chat) {
-        var tuple = FluentViewLoader.fxmlView(ChatView.class)
+        var tuple = FluentViewLoader.fxmlView(ChatRoomView.class)
                 .viewModel(chat)
                 .resourceBundle(Resources.getResourceBundle())
                 .load();

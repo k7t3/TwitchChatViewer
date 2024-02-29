@@ -4,7 +4,6 @@ import com.github.k7t3.tcv.domain.TwitchLoader;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 public class ClipTest {
 

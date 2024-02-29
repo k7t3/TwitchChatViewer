@@ -1,6 +1,7 @@
-package com.github.k7t3.tcv.domain.channel;
+package com.github.k7t3.tcv.domain.chat;
 
 import com.github.k7t3.tcv.domain.Twitch;
+import com.github.k7t3.tcv.domain.clip.VideoClip;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

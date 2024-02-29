@@ -34,7 +34,7 @@ public class ChatContainerViewModel implements ViewModel {
 
     private final ObjectProperty<Font> font = new SimpleObjectProperty<>(null);
 
-    private final ObjectProperty<ChatIgnoreFilter> chatFilter = new SimpleObjectProperty<>(ChatIgnoreFilter.DEFAULT);
+    private final ObjectProperty<ChatMessageFilter> chatMessageFilter = new SimpleObjectProperty<>(ChatMessageFilter.DEFAULT);
 
     private MainViewModel mainViewModel;
 
@@ -67,7 +67,7 @@ public class ChatContainerViewModel implements ViewModel {
         showUserName.bind(prefs.showUserNameProperty());
         showBadges.bind(prefs.showBadgesProperty());
         font.bind(prefs.fontProperty().map(ChatFont::getFont));
-        chatFilter.bind(prefs.getIgnoreFilterPreferences().chatFilterProperty());
+        chatMessageFilter.bind(prefs.getMessageFilterPreferences().messageFilterProperty());
     }
 
     public FXTask<Void> loadAsync() {
@@ -111,7 +111,7 @@ public class ChatContainerViewModel implements ViewModel {
         viewModel.visibleNameProperty().bind(showUserName);
         viewModel.visibleBadgesProperty().bind(showBadges);
         viewModel.fontProperty().bind(font);
-        viewModel.ignoreFilterProperty().bind(chatFilter);
+        viewModel.chatMessageFilterProperty().bind(chatMessageFilter);
 
         chatList.add(viewModel);
 

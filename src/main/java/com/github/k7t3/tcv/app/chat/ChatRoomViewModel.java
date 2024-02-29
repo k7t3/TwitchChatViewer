@@ -5,7 +5,7 @@ import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.domain.channel.StreamInfo;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
 import com.github.k7t3.tcv.domain.channel.TwitchChannelListener;
-import com.github.k7t3.tcv.domain.channel.VideoClip;
+import com.github.k7t3.tcv.domain.clip.VideoClip;
 import com.github.k7t3.tcv.domain.chat.ChatData;
 import com.github.k7t3.tcv.domain.chat.ChatRoom;
 import com.github.k7t3.tcv.domain.chat.ChatRoomListener;
@@ -62,7 +62,7 @@ public class ChatRoomViewModel implements ViewModel, TwitchChannelListener, Chat
 
     private final ObservableSet<ChatRoomState> roomStates = FXCollections.observableSet(new HashSet<>());
 
-    private final ObjectProperty<ChatIgnoreFilter> ignoreFilter = new SimpleObjectProperty<>(ChatIgnoreFilter.DEFAULT);
+    private final ObjectProperty<ChatMessageFilter> chatMessageFilter = new SimpleObjectProperty<>(ChatMessageFilter.DEFAULT);
 
     private final TwitchChannel channel;
 
@@ -104,7 +104,7 @@ public class ChatRoomViewModel implements ViewModel, TwitchChannelListener, Chat
             updateStreamInfo(channel.getStream());
         }
         userName.set(channel.getBroadcaster().getUserName());
-        profileImage.set(new Image(channel.getBroadcaster().getProfileImageUrl(), true));
+        profileImage.set(new Image(channel.getBroadcaster().getProfileImageUrl(), 64, 64, true, true, true));
     }
 
     private void updateStreamInfo(StreamInfo info) {
@@ -184,8 +184,8 @@ public class ChatRoomViewModel implements ViewModel, TwitchChannelListener, Chat
 
     @Override
     public void onChatDataPosted(ChatData item) {
-        var filter = getIgnoreFilter();
-        if (filter.test(item)) {
+        var filter = getChatMessageFilter();
+        if (!filter.test(item)) {
             return;
         }
 
@@ -348,7 +348,7 @@ public class ChatRoomViewModel implements ViewModel, TwitchChannelListener, Chat
     public Font getFont() { return font.get(); }
     public void setFont(Font font) { this.font.set(font); }
 
-    public ObjectProperty<ChatIgnoreFilter> ignoreFilterProperty() { return ignoreFilter; }
-    public ChatIgnoreFilter getIgnoreFilter() { return ignoreFilter.get(); }
-    public void setIgnoreFilter(ChatIgnoreFilter ignoreFilter) { this.ignoreFilter.set(ignoreFilter); }
+    public ObjectProperty<ChatMessageFilter> chatMessageFilterProperty() { return chatMessageFilter; }
+    public ChatMessageFilter getChatMessageFilter() { return chatMessageFilter.get(); }
+    public void setChatMessageFilter(ChatMessageFilter chatMessageFilter) { this.chatMessageFilter.set(chatMessageFilter); }
 }

@@ -10,15 +10,12 @@ import com.github.twitch4j.chat.TwitchChat;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class Twitch implements Closeable {
 
-    private final AtomicReference<OAuth2Credential> credential = new AtomicReference<>();
+    private final OAuth2Credential credential;
 
-    private final AtomicReference<TwitchClient> client = new AtomicReference<>();
-
-    private final TwitchClient chatClient;
+    private final TwitchClient client;
 
     private final CredentialStore credentialStore;
 
@@ -31,13 +28,11 @@ public class Twitch implements Closeable {
     Twitch(
             OAuth2Credential credential,
             CredentialStore credentialStore,
-            TwitchClient apiClient,
-            TwitchClient chatClient
+            TwitchClient client
     ) {
-        this.chatClient = chatClient;
         this.credentialStore = credentialStore;
-        setCredential(credential);
-        setClient(apiClient);
+        this.credential = credential;
+        this.client = client;
     }
 
     public ChannelRepository getChannelRepository() {
@@ -55,12 +50,8 @@ public class Twitch implements Closeable {
         return twitchAPI;
     }
 
-    void setClient(TwitchClient client) {
-        this.client.set(client);
-    }
-
-    void setCredential(OAuth2Credential credential) {
-        this.credential.set(credential);
+    void updateCredential(OAuth2Credential newOne) {
+        getCredential().updateCredential(newOne);
     }
 
     CredentialStore getCredentialStore() {
@@ -68,7 +59,7 @@ public class Twitch implements Closeable {
     }
 
     private OAuth2Credential getCredential() {
-        return credential.get();
+        return credential;
     }
 
     public String getAccessToken() {
@@ -87,11 +78,11 @@ public class Twitch implements Closeable {
      * ドメインパッケージでの使用に限りたい。
      */
     public TwitchClient getClient() {
-        return client.get();
+        return client;
     }
 
     public TwitchChat getChat() {
-        return chatClient.getChat();
+        return client.getChat();
     }
 
     public void logout() {
@@ -125,8 +116,6 @@ public class Twitch implements Closeable {
         }
 
         credentialStore.clearCredentials();
-        setClient(null);
-        setCredential(null);
     }
 
     @Override
@@ -145,11 +134,7 @@ public class Twitch implements Closeable {
             }
         }
 
-        var client = getClient();
-        if (client != null) {
-            client.close();
-        }
-        chatClient.close();
+        client.close();
     }
 
 }

@@ -1,5 +1,6 @@
 package com.github.k7t3.tcv.domain.chat;
 
+import java.text.BreakIterator;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -12,14 +13,14 @@ public class ChatMessageParser {
 
     public ChatMessage parse(String message, String emoteInfo) {
         if (message == null || message.isEmpty() || emoteInfo == null || emoteInfo.isEmpty()) {
-            return new ChatMessage(List.of(new ChatMessage.MessageFragment(ChatMessage.Type.MESSAGE, message)));
+            return new ChatMessage(message == null ? "" : message, List.of(new ChatMessage.MessageFragment(ChatMessage.Type.MESSAGE, message)));
         }
 
         var emotes = parseEmotes(emoteInfo);
 
         // サロゲートペアを考慮して書記素クラスタを使って文字列を分割
-        var chars = message.split("\\b{g}");
-        var length = chars.length;
+        var chars = parseCharacters(message);
+        var length = chars.size();
 
         var list = new ArrayList<ChatMessage.MessageFragment>();
 
@@ -36,7 +37,7 @@ public class ChatMessageParser {
             if (0 < remain) {
                 var builder = new StringBuilder();
                 for (var c = cursor; c < begin; c++) {
-                    builder.append(chars[c]);
+                    builder.append(chars.get(c));
                 }
                 list.add(new ChatMessage.MessageFragment(ChatMessage.Type.MESSAGE, builder.toString()));
             }
@@ -49,12 +50,26 @@ public class ChatMessageParser {
         if (cursor < length) {
             var builder = new StringBuilder();
             for (var c = cursor; c < length; c++) {
-                builder.append(chars[c]);
+                builder.append(chars.get(c));
             }
             list.add(new ChatMessage.MessageFragment(ChatMessage.Type.MESSAGE, builder.toString()));
         }
 
-        return new ChatMessage(list);
+        return new ChatMessage(message, list);
+    }
+
+    private List<String> parseCharacters(String message) {
+        var boundary = BreakIterator.getCharacterInstance();
+        boundary.setText(message);
+
+        var list = new ArrayList<String>();
+
+        int start = boundary.first();
+        for (int end = boundary.next(); end != BreakIterator.DONE; start = end, end = boundary.next()) {
+            list.add(message.substring(start, end));
+        }
+
+        return list;
     }
 
     private List<Emote> parseEmotes(String emoteValue) {

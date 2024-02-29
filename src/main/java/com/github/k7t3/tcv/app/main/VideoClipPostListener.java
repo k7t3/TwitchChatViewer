@@ -1,6 +1,6 @@
 package com.github.k7t3.tcv.app.main;
 
-import com.github.k7t3.tcv.domain.channel.VideoClip;
+import com.github.k7t3.tcv.domain.clip.VideoClip;
 import com.github.k7t3.tcv.domain.chat.ChatData;
 import com.github.k7t3.tcv.domain.chat.ChatRoomListener;
 import com.github.k7t3.tcv.domain.chat.ChatRoomState;

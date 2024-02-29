@@ -92,7 +92,8 @@ public class CredentialController {
 
     public DeviceFlow startAuthenticate(Consumer<Boolean> callback) {
         List<Object> scopes = List.of(
-                TwitchScopes.HELIX_USER_FOLLOWS_READ
+                TwitchScopes.HELIX_USER_FOLLOWS_READ,
+                TwitchScopes.CHAT_READ
         );
         if (credentialManager.getCredentials() != null) {
             credentialManager.getCredentials().clear();

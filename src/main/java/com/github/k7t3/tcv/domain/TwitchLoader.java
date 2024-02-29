@@ -78,11 +78,10 @@ public class TwitchLoader {
                 .withCredentialManager(credentialManager)
                 .withDefaultAuthToken(credential)
                 .withEnableHelix(true)
-                .build();
-        var chatClient = TwitchClientBuilder.builder()
+                .withChatAccount(credential)
                 .withEnableChat(true)
                 .build();
-        return new Twitch(credential, credentialStore, client, chatClient);
+        return new Twitch(credential, credentialStore, client);
     }
 
 }

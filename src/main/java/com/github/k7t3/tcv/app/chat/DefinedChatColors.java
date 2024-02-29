@@ -1,11 +1,18 @@
 package com.github.k7t3.tcv.app.chat;
 
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import javafx.scene.paint.Color;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
 class DefinedChatColors {
+
+    private final LoadingCache<String, Color> userColors = Caffeine.newBuilder()
+            .expireAfterAccess(Duration.ofMinutes(30))
+            .build(s -> getRandomColor());
 
     private final List<Color> colors = new ArrayList<>();
 
@@ -27,8 +34,11 @@ class DefinedChatColors {
         colors.add(Color.web("#00FF7F"));
     }
 
-    // TODO ユーザーごとに色をキャッシュする
-    Color getRandom() {
+    Color getRandom(String userId) {
+        return userColors.get(userId);
+    }
+
+    private Color getRandomColor() {
         var i = (int) (Math.random() * Math.max(0, colors.size() - 1));
         return colors.get(i);
     }

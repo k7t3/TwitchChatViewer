@@ -2,7 +2,6 @@ package com.github.k7t3.tcv.domain.chat;
 
 import java.util.AbstractList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class ChatMessage extends AbstractList<ChatMessage.MessageFragment> {
 
@@ -14,9 +13,9 @@ public class ChatMessage extends AbstractList<ChatMessage.MessageFragment> {
 
     private final String plain;
 
-    public ChatMessage(List<MessageFragment> fragments) {
+    public ChatMessage(String plain, List<MessageFragment> fragments) {
+        this.plain = plain;
         this.fragments = fragments;
-        plain = fragments.stream().map(MessageFragment::fragment).collect(Collectors.joining());
     }
 
     public String getPlain() {

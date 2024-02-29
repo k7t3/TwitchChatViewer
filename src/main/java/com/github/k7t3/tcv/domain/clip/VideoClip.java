@@ -1,4 +1,4 @@
-package com.github.k7t3.tcv.domain.channel;
+package com.github.k7t3.tcv.domain.clip;
 
 import com.github.twitch4j.helix.domain.Clip;
 
@@ -21,7 +21,7 @@ public record VideoClip(
         double duration
 ) {
 
-    static VideoClip of(Clip clip) {
+    public static VideoClip of(Clip clip) {
         var createdAt = LocalDateTime.ofInstant(clip.getCreatedAtInstant(), ZoneId.systemDefault());
         return new VideoClip(
                 clip.getId(),

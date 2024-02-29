@@ -1,28 +1,28 @@
 package com.github.k7t3.tcv.app.prefs;
 
 import com.github.k7t3.tcv.prefs.AppPreferences;
-import com.github.k7t3.tcv.prefs.ChatIgnoreFilterPreferences;
+import com.github.k7t3.tcv.prefs.ChatMessageFilterPreferences;
 import de.saxsys.mvvmfx.ViewModel;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
 import java.util.ArrayList;
 
-public class ChatIgnoreFilterViewModel implements ViewModel {
+public class ChatMessageFilterViewModel implements ViewModel {
 
     private final ObservableList<String> filters;
 
-    private final ChatIgnoreFilterPreferences filterPrefs;
+    private final ChatMessageFilterPreferences filterPrefs;
 
-    public ChatIgnoreFilterViewModel() {
+    public ChatMessageFilterViewModel() {
         var prefs = AppPreferences.getInstance();
-        filterPrefs = prefs.getIgnoreFilterPreferences();
-        filters = FXCollections.observableList(new ArrayList<>(filterPrefs.getChatFilter().getRegexes()));
+        filterPrefs = prefs.getMessageFilterPreferences();
+        filters = FXCollections.observableList(new ArrayList<>(filterPrefs.getMessageFilter().getRegexes()));
     }
 
     public void sync() {
         var items = filters.stream().filter(f -> !f.trim().isEmpty()).toList();
-        var set = filterPrefs.getChatFilter().getRegexes();
+        var set = filterPrefs.getMessageFilter().getRegexes();
         set.clear();
         set.addAll(items);
         filterPrefs.sync();

@@ -72,7 +72,7 @@ public class ChatDataViewModel implements ViewModel {
 
         // カラーがnullのときはランダム
         var color = (chatData.colorCode() == null)
-                ? definedChatColors.getRandom()
+                ? definedChatColors.getRandom(chatData.userId())
                 : Color.web(chatData.colorCode());
         this.color.set(color);
 
