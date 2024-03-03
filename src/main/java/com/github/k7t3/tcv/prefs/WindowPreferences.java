@@ -29,6 +29,11 @@ public class WindowPreferences extends PreferencesBase {
         defaults.put(maxName, Boolean.FALSE);
     }
 
+    @Override
+    protected void onImported() {
+        // no-op
+    }
+
     public void setStageBounds(StageBounds bounds) {
         preferences.putDouble(xName, bounds.x());
         preferences.putDouble(yName, bounds.y());

@@ -1,28 +1,36 @@
+.root {
+    -twitch-accent-color: #7c21ff;
+}
+
+.twitch-icon {
+    -fx-icon-color: -twitch-accent-color;
+}
+
 .title-label > .ikonli-font-icon {
-  -fx-icon-color: #7c21ff;
-  -fx-icon-size: 24;
+    -fx-icon-color: -twitch-accent-color;
+    -fx-icon-size: 24;
 }
 
 .header-pane {
-  -fx-padding: 10 10 8 10;
-  -fx-border-color: transparent transparent -color-border-default transparent;
+    -fx-padding: 10 10 8 10;
+    -fx-border-color: transparent transparent -color-border-default transparent;
 }
 
 .search-button {
-  -color-button-bg: -color-bg-default;
-  -color-button-border: -color-border-default;
-  -color-button-border-hover: -color-border-default;
-  -color-button-border-focused: -color-border-default;
-  -color-button-border-pressed: -color-border-default;
-  -color-button-shadow: transparent;
+    -color-button-bg: -color-bg-default;
+    -color-button-border: -color-border-default;
+    -color-button-border-hover: -color-border-default;
+    -color-button-border-focused: -color-border-default;
+    -color-button-border-pressed: -color-border-default;
+    -color-button-shadow: transparent;
 }
 
 .chat-room-state {
-  -fx-icon-color: -color-accent-fg;
-  -fx-icon-size: 18;
+    -fx-icon-color: -color-accent-fg;
+    -fx-icon-size: 18;
 }
 
 .footer-pane {
-  -fx-padding: 1 10 2 10;
-  -fx-border-color: -color-border-default transparent transparent transparent;
+    -fx-padding: 1 10 2 10;
+    -fx-border-color: -color-border-default transparent transparent transparent;
 }

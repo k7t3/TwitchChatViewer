@@ -82,9 +82,10 @@ public class ChatRoomContainerViewModel implements ViewModel {
 
         // Preferencesと同期
         var prefs = AppPreferences.getInstance();
-        showUserName.bind(prefs.showUserNameProperty());
-        showBadges.bind(prefs.showBadgesProperty());
-        font.bind(prefs.fontProperty().map(ChatFont::getFont));
+        var chatPrefs = prefs.getChatPreferences();
+        showUserName.bind(chatPrefs.showUserNameProperty());
+        showBadges.bind(chatPrefs.showBadgesProperty());
+        font.bind(chatPrefs.fontProperty().map(ChatFont::getFont));
         chatMessageFilter.bind(prefs.getMessageFilterPreferences().messageFilterProperty());
     }
 

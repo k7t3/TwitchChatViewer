@@ -29,6 +29,21 @@ public class PlayerPreferences extends PreferencesBase {
         defaults.put(AUTO, Boolean.TRUE);
     }
 
+    @Override
+    protected void onImported() {
+        if (isMuted() != getBoolean(MUTED)) {
+            setMuted(getBoolean(MUTED));
+        }
+
+        if (getVolume() != getDouble(VOLUME)) {
+            setVolume(getDouble(VOLUME));
+        }
+
+        if (isAuto() != getBoolean(AUTO)) {
+            setAuto(getBoolean(AUTO));
+        }
+    }
+
     // ******************** PROPERTIES ********************
 
     public BooleanProperty mutedProperty() {

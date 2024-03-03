@@ -21,6 +21,15 @@ public class ChatMessageFilterPreferences extends PreferencesBase {
         defaults.put(FILTER, DEFAULT_VALUE);
     }
 
+    @Override
+    protected void onImported() {
+        var bytes = getByteArray(FILTER);
+        var filter = Arrays.equals(DEFAULT_VALUE, bytes)
+                ? RegexChatMessageFilter.DEFAULT
+                : RegexChatMessageFilter.deserialize(bytes);
+        setMessageFilter(filter);
+    }
+
     public void sync() {
         var filter = getMessageFilter();
 

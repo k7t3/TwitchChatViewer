@@ -140,7 +140,7 @@ public class ChatRoomView implements FxmlView<ChatRoomViewModel>, Initializable 
         installPopover();
         streamTitleLabel.visibleProperty().bind(channel.liveProperty());
         streamTitleLabel.textProperty().bind(channel.observableTitle());
-        streamTitleLabel.getStyleClass().add(Styles.TEXT_MUTED);
+        streamTitleLabel.getStyleClass().addAll(Styles.TEXT_MUTED, Styles.TEXT_SMALL);
 
         selectedMenuItem.selectedProperty().bindBidirectional(viewModel.selectedProperty());
         selectedCheckBox.selectedProperty().bindBidirectional(viewModel.selectedProperty());
@@ -210,10 +210,11 @@ public class ChatRoomView implements FxmlView<ChatRoomViewModel>, Initializable 
                 uptimeLabel.setText("%d h %d m".formatted(hours, minutes));
             }
         });
-
-        streamTitleLabel.setOnMouseEntered(e -> pop.show(streamTitleLabel));
-        streamTitleLabel.setOnMouseExited(e -> pop.hide());
-        profileImageView.setOnMouseEntered(e -> pop.show(profileImageView));
+        profileImageView.setOnMouseEntered(e -> {
+            if (channel.isLive()) {
+                pop.show(profileImageView);
+            }
+        });
         profileImageView.setOnMouseExited(e -> pop.hide());
     }
 

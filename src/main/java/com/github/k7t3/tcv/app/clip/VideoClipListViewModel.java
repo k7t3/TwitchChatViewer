@@ -3,7 +3,10 @@ package com.github.k7t3.tcv.app.clip;
 import com.github.k7t3.tcv.app.main.MainViewModel;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
 import com.github.k7t3.tcv.domain.clip.VideoClipRepository;
+import com.github.k7t3.tcv.view.web.BrowserController;
 import de.saxsys.mvvmfx.ViewModel;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -16,6 +19,10 @@ public class VideoClipListViewModel implements ViewModel {
     private final FilteredList<VideoClipViewModel> filtered = new FilteredList<>(clips);
 
     private final SortedList<VideoClipViewModel> sorted = new SortedList<>(filtered);
+
+    private final ObjectProperty<VideoClipViewModel> selected = new SimpleObjectProperty<>();
+
+    private final ObjectProperty<BrowserController> browserController = new SimpleObjectProperty<>();
 
     private ObservableList<Broadcaster> channelOwners;
 
@@ -66,4 +73,12 @@ public class VideoClipListViewModel implements ViewModel {
 
     // ******************** PROPERTIES ********************
 
+
+    public ObjectProperty<VideoClipViewModel> selectedProperty() { return selected; }
+
+    public void setSelected(VideoClipViewModel selected) { this.selected.set(selected); }
+
+    public ObjectProperty<BrowserController> browserControllerProperty() { return browserController; }
+
+    public void setBrowserController(BrowserController browserController) { this.browserController.set(browserController); }
 }

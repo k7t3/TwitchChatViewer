@@ -111,6 +111,8 @@
          <buttons>
             <Button fx:id="enterButton" mnemonicParsing="false" text="OK" />
             <Button fx:id="cancelButton" cancelButton="true" mnemonicParsing="false" text="Cancel" />
+            <Button fx:id="resetButton" mnemonicParsing="false" text="%prefs.button.reset" />
+            <Button fx:id="exportButton" mnemonicParsing="false" text="%prefs.button.export" />
          </buttons>
          <padding>
             <Insets bottom="10.0" left="10.0" right="10.0" top="2.0" />

@@ -7,6 +7,7 @@ import com.github.k7t3.tcv.app.clip.VideoClipViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
 import com.github.k7t3.tcv.prefs.AppPreferences;
+import com.github.k7t3.tcv.view.web.BrowserController;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.fxml.FXML;
@@ -43,6 +44,8 @@ public class VideoClipListView implements FxmlView<VideoClipListViewModel>, Init
     @InjectViewModel
     private VideoClipListViewModel viewModel;
 
+    private BrowserController browserController;
+
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         var helper = AppHelper.getInstance();
@@ -58,12 +61,16 @@ public class VideoClipListView implements FxmlView<VideoClipListViewModel>, Init
         videoClips.setCellFactory(param -> new VideoClipViewCell());
 
         videoClips.setOnKeyPressed(e -> {
-            if (e.getCode() == KeyCode.ENTER)
-                openPlayerIfEnabled();
+            if (e.getCode() == KeyCode.ENTER) {
+                //openPlayerIfEnabled();
+                openBrowser();
+            }
         });
         videoClips.setOnMouseClicked(e -> {
-            if (e.getButton() == MouseButton.PRIMARY && e.getClickCount() == 2)
-                openPlayerIfEnabled();
+            if (e.getButton() == MouseButton.PRIMARY && e.getClickCount() == 2) {
+                //openPlayerIfEnabled();
+                openBrowser();
+            }
         });
 
         root.parentProperty().addListener((ob, o, n) -> {
@@ -71,6 +78,19 @@ public class VideoClipListView implements FxmlView<VideoClipListViewModel>, Init
             root.prefWidthProperty().bind(n.layoutBoundsProperty().map(b -> b.getWidth() * 0.4));
             root.prefHeightProperty().bind(n.layoutBoundsProperty().map(b -> b.getHeight() * 0.7));
         });
+    }
+
+    public void setBrowserController(BrowserController browserController) {
+        this.browserController = browserController;
+    }
+
+    private void openBrowser() {
+        var selected = videoClips.getSelectionModel().getSelectedItem();
+        if (selected == null) return;
+
+        var url = selected.getPosted().getClip().url();
+        browserController.load(url);
+        browserController.show();
     }
 
     private void openPlayerIfEnabled() {

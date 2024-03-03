@@ -25,7 +25,7 @@ compileTestJava {
 
 javafx {
     version = '21'
-    modules = [ 'javafx.controls', 'javafx.fxml', 'javafx.media' ]
+    modules = [ 'javafx.controls', 'javafx.fxml', 'javafx.web' ]
 }
 
 application {
@@ -34,18 +34,28 @@ application {
 
 dependencies {
 
+    // Logger
     implementation 'org.slf4j:slf4j-jdk14:2.0.11'
 
+    // Twitchクライアント
     implementation 'com.github.twitch4j:twitch4j:1.19.0'
+
+    // キャッシュ
     implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
 
-    // AtlantaFX同梱のアイコンパックを使用する
+    // AtlantaFXと同じアイコンパックを使用する
+    implementation 'io.github.mkpaz:atlantafx-base:2.0.1'
     implementation 'org.kordamp.ikonli:ikonli-javafx:12.3.1'
     implementation 'org.kordamp.ikonli:ikonli-feather-pack:12.3.1'
     implementation 'org.kordamp.ikonli:ikonli-material2-pack:12.3.1'
+
+    // アイコンパック
     implementation 'org.kordamp.ikonli:ikonli-fontawesome5-pack:12.3.1'
+
+    // MVVM
     implementation 'de.saxsys:mvvmfx:1.8.0'
-    implementation 'io.github.mkpaz:atlantafx-base:2.0.1'
+
+    // チャットビュー用のVirtualFlow
     implementation 'org.fxmisc.flowless:flowless:0.7.2'
 
     testImplementation platform('org.junit:junit-bom:5.9.1')

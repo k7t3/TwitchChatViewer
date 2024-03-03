@@ -21,6 +21,11 @@ public class KeyActionPreferences extends PreferencesBase {
         loadKeyActions();
     }
 
+    @Override
+    protected void onImported() {
+        // TODO
+    }
+
     private void loadKeyActions() {
         var bytes = preferences.getByteArray(KEY_COMBINATIONS, null);
         if (bytes == null)

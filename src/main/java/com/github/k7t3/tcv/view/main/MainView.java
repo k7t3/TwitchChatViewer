@@ -12,15 +12,15 @@ import com.github.k7t3.tcv.view.action.*;
 import com.github.k7t3.tcv.view.channel.FollowChannelsView;
 import com.github.k7t3.tcv.view.chat.ChatContainerView;
 import com.github.k7t3.tcv.view.core.Resources;
+import com.github.k7t3.tcv.view.web.BrowserController;
+import com.github.k7t3.tcv.view.web.OpenCommunityGuidelineAction;
+import com.github.k7t3.tcv.view.web.OpenTermsAction;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.MenuButton;
-import javafx.scene.control.MenuItem;
+import javafx.scene.control.*;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 
@@ -60,16 +60,27 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
     private MenuItem logoutMenuItem;
 
     @FXML
+    private MenuItem termsMenuItem;
+
+    @FXML
+    private MenuItem guidelineMenuItem;
+
+    @FXML
     private Pane headerPane;
 
     @FXML
     private StackPane followersContainer;
 
     @FXML
+    private SplitPane mainContainer;
+
+    @FXML
     private StackPane chatContainer;
 
     @InjectViewModel
     private MainViewModel viewModel;
+
+    private BrowserController browserController;
 
     private FollowChannelsViewModel channelsViewModel;
 
@@ -125,6 +136,7 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         });
 
         initKeyActions(helper);
+        initMenuItems();
     }
 
     private void initKeyActions(AppHelper helper) {
@@ -140,10 +152,22 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         prefsMenuItem.disableProperty().bind(prefViewCallAction.disableProperty());
         keyActionRepository.addAction(prefViewCallAction);
 
-        var clipViewCallAction = new VideoClipListViewCallAction(modalPane, viewModel);
+        var clipViewCallAction = new VideoClipListViewCallAction(modalPane, viewModel, getBrowserController());
         clipViewCallAction.disableProperty().bind(viewModel.clipCountProperty().lessThan(1));
         clipButton.setOnAction(clipViewCallAction);
         keyActionRepository.addAction(clipViewCallAction);
+    }
+
+    private BrowserController getBrowserController() {
+        if (browserController == null) {
+            browserController = new BrowserController(mainContainer);
+        }
+        return browserController;
+    }
+
+    private void initMenuItems() {
+        guidelineMenuItem.setOnAction(new OpenCommunityGuidelineAction(getBrowserController()));
+        termsMenuItem.setOnAction(new OpenTermsAction(getBrowserController()));
     }
 
     private void loadFollowersView() {

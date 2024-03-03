@@ -7,6 +7,7 @@
 <?import javafx.scene.control.MenuButton?>
 <?import javafx.scene.control.MenuItem?>
 <?import javafx.scene.control.SeparatorMenuItem?>
+<?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
@@ -16,11 +17,10 @@
 <?import javafx.scene.layout.StackPane?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
-
-<StackPane fx:id="rootPane" prefHeight="768.0" prefWidth="1024.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.main.MainView">
+<StackPane fx:id="rootPane" prefHeight="768.0" prefWidth="1024.0" stylesheets="@MainView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.main.MainView">
    <children>
       <ModalPane fx:id="modalPane" />
-      <BorderPane fx:id="headerPane" stylesheets="@MainView.css">
+      <BorderPane fx:id="headerPane">
          <top>
             <GridPane styleClass="header-pane">
               <columnConstraints>
@@ -70,6 +70,16 @@
                                  </graphic>
                               </MenuItem>
                               <SeparatorMenuItem mnemonicParsing="false" />
+                              <MenuItem fx:id="termsMenuItem" mnemonicParsing="false" text="%main.menu.twitch.terms">
+                                 <graphic>
+                                    <FontIcon iconLiteral="fab-twitch" styleClass="twitch-icon" />
+                                 </graphic>
+                              </MenuItem>
+                              <MenuItem fx:id="guidelineMenuItem" mnemonicParsing="false" text="%main.menu.twitch.guideline">
+                                 <graphic>
+                                    <FontIcon iconLiteral="fab-twitch" styleClass="twitch-icon" />
+                                 </graphic>
+                              </MenuItem>
                               <MenuItem fx:id="loginMenuItem" mnemonicParsing="false" text="%main.menu.login">
                                  <graphic>
                                     <FontIcon iconLiteral="fth-log-in" />
@@ -94,7 +104,11 @@
             <StackPane fx:id="followersContainer" BorderPane.alignment="CENTER" />
          </left>
          <center>
-            <StackPane fx:id="chatContainer" BorderPane.alignment="CENTER" />
+            <SplitPane fx:id="mainContainer" BorderPane.alignment="CENTER">
+               <items>
+                  <StackPane fx:id="chatContainer" />
+               </items>
+            </SplitPane>
          </center>
          <bottom>
             <GridPane styleClass="footer-pane">

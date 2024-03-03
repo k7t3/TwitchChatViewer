@@ -21,6 +21,7 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import javafx.scene.layout.Pane;
 import javafx.scene.text.Font;
+import javafx.stage.FileChooser;
 import javafx.util.StringConverter;
 
 import java.net.URL;
@@ -64,6 +65,12 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
 
     @FXML
     private Button cancelButton;
+
+    @FXML
+    private Button resetButton;
+
+    @FXML
+    private Button exportButton;
 
     @InjectViewModel
     private PreferencesViewModel viewModel;
@@ -149,6 +156,11 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
     private void initButtons() {
         ButtonBar.setButtonData(enterButton, ButtonBar.ButtonData.OK_DONE);
         ButtonBar.setButtonData(cancelButton, ButtonBar.ButtonData.CANCEL_CLOSE);
+        ButtonBar.setButtonData(resetButton, ButtonBar.ButtonData.LEFT);
+        ButtonBar.setButtonData(exportButton, ButtonBar.ButtonData.HELP);
+
+        exportButton.setVisible(false);
+        resetButton.setVisible(false);
 
         cancelButton.setOnAction(e -> {
             ThemeManager.getInstance().setTheme(initialTheme);
@@ -161,9 +173,11 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         var prefs = AppPreferences.getInstance();
         prefs.setTheme(themeChoiceBox.getValue());
         prefs.setExperimental(experimentalSwitch.isSelected());
-        prefs.setFont(fontComboBox.getValue());
-        prefs.setShowUserName(showNameSwitch.isSelected());
-        prefs.setShowBadges(showBadgeSwitch.isSelected());
+
+        var chatPrefs = prefs.getChatPreferences();
+        chatPrefs.setFont(fontComboBox.getValue());
+        chatPrefs.setShowUserName(showNameSwitch.isSelected());
+        chatPrefs.setShowBadges(showBadgeSwitch.isSelected());
 
         filterViewModel.sync();
 
@@ -178,12 +192,53 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         initialTheme = prefs.getTheme();
         themeChoiceBox.getSelectionModel().select(initialTheme);
         experimentalSwitch.setSelected(prefs.isExperimental());
-        fontComboBox.getSelectionModel().select(prefs.getFont());
-        showNameSwitch.setSelected(prefs.isShowUserName());
-        showBadgeSwitch.setSelected(prefs.isShowBadges());
+
+        var chatPrefs = prefs.getChatPreferences();
+        fontComboBox.getSelectionModel().select(chatPrefs.getFont());
+        showNameSwitch.setSelected(chatPrefs.isShowUserName());
+        showBadgeSwitch.setSelected(chatPrefs.isShowBadges());
 
         defaultPreviewLabel.fontProperty().bind(fontComboBox.valueProperty().map(ChatFont::getFont));
         previewLabel.fontProperty().bind(fontComboBox.valueProperty().map(ChatFont::getFont));
     }
+
+//    private void exportPreferences() {
+//        var selector = new FileChooser();
+//        selector.getExtensionFilters().addFirst(new FileChooser.ExtensionFilter("XML file", "*.xml"));
+//        selector.setInitialFileName("twitch-chat-viewer.xml");
+//
+//        var window = root.getScene().getWindow();
+//
+//        var file = selector.showSaveDialog(window);
+//        if (file == null)
+//            return;
+//
+//        root.setDisable(true);
+//        var task = viewModel.exportAsync(file.toPath());
+//        FXTask.setOnFinished(task, e -> root.setDisable(false));
+//    }
+//
+//    public void importPreferences() {
+//        var selector = new FileChooser();
+//        selector.getExtensionFilters().addFirst(new FileChooser.ExtensionFilter("XML file", "*.xml"));
+//        selector.setInitialFileName("twitch-chat-viewer.xml");
+//
+//        var window = root.getScene().getWindow();
+//
+//        var file = selector.showOpenDialog(window);
+//        if (file == null)
+//            return;
+//
+//        root.setDisable(true);
+//        var task = viewModel.importAsync(file.toPath());
+//        FXTask.setOnFinished(task, e -> root.setDisable(false));
+//    }
+//
+//    private void clearPreferences() {
+//        root.setDisable(true);
+//        var task = viewModel.clearAsync();
+//        FXTask.setOnFinished(task, e -> root.setDisable(false));
+//        FXTask.setOnSucceeded(task, e -> modalPane.hide());
+//    }
 
 }
