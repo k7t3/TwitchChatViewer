@@ -4,7 +4,7 @@ import atlantafx.base.controls.ModalPane;
 import atlantafx.base.theme.Styles;
 import atlantafx.base.util.Animations;
 import com.github.k7t3.tcv.app.channel.FollowChannelsViewModel;
-import com.github.k7t3.tcv.app.chat.ChatContainerViewModel;
+import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.main.MainViewModel;
 import com.github.k7t3.tcv.prefs.KeyActionRepository;
@@ -73,7 +73,7 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
     private FollowChannelsViewModel channelsViewModel;
 
-    private ChatContainerViewModel chatContainerViewModel;
+    private ChatRoomContainerViewModel chatContainerViewModel;
 
     private KeyActionRepository keyActionRepository;
 

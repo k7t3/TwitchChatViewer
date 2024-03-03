@@ -4,53 +4,53 @@ import com.github.k7t3.tcv.domain.clip.VideoClip;
 
 public interface ChatRoomListener {
 
-    void onChatDataPosted(ChatData item);
+    void onChatDataPosted(ChatRoom chatRoom, ChatData item);
 
-    void onClipPosted(VideoClip clip);
+    void onClipPosted(ChatRoom chatRoom, VideoClip clip);
 
-    void onChatCleared();
+    void onChatCleared(ChatRoom chatRoom);
 
-    void onChatMessageDeleted(String messageId);
+    void onChatMessageDeleted(ChatRoom chatRoom, String messageId);
 
-    void onStateUpdated(ChatRoomState roomState, boolean active);
+    void onStateUpdated(ChatRoom chatRoom, ChatRoomState roomState, boolean active);
 
-    void onRaidReceived(String raiderName, int viewerCount);
+    void onRaidReceived(ChatRoom chatRoom, String raiderName, int viewerCount);
 
-    void onUserSubscribed(String userName);
+    void onUserSubscribed(ChatRoom chatRoom, String userName);
 
-    void onUserGiftedSubscribe(String giverName, String userName);
+    void onUserGiftedSubscribe(ChatRoom chatRoom, String giverName, String userName);
 
     ChatRoomListener DEFAULT = new ChatRoomListener() {
         @Override
-        public void onChatDataPosted(ChatData item) {
+        public void onChatDataPosted(ChatRoom chatRoom, ChatData item) {
         }
 
         @Override
-        public void onClipPosted(VideoClip clip) {
+        public void onClipPosted(ChatRoom chatRoom, VideoClip clip) {
         }
 
         @Override
-        public void onChatCleared() {
+        public void onChatCleared(ChatRoom chatRoom) {
         }
 
         @Override
-        public void onChatMessageDeleted(String messageId) {
+        public void onChatMessageDeleted(ChatRoom chatRoom, String messageId) {
         }
 
         @Override
-        public void onStateUpdated(ChatRoomState roomState, boolean active) {
+        public void onStateUpdated(ChatRoom chatRoom, ChatRoomState roomState, boolean active) {
         }
 
         @Override
-        public void onRaidReceived(String raiderName, int viewerCount) {
+        public void onRaidReceived(ChatRoom chatRoom, String raiderName, int viewerCount) {
         }
 
         @Override
-        public void onUserSubscribed(String userName) {
+        public void onUserSubscribed(ChatRoom chatRoom, String userName) {
         }
 
         @Override
-        public void onUserGiftedSubscribe(String giverName, String userName) {
+        public void onUserGiftedSubscribe(ChatRoom chatRoom, String giverName, String userName) {
         }
     };
 

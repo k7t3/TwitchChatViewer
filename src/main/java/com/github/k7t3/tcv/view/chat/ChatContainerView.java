@@ -1,8 +1,11 @@
 package com.github.k7t3.tcv.view.chat;
 
+import atlantafx.base.theme.Styles;
 import atlantafx.base.util.Animations;
-import com.github.k7t3.tcv.app.chat.ChatContainerViewModel;
+import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
 import com.github.k7t3.tcv.app.chat.ChatRoomViewModel;
+import com.github.k7t3.tcv.app.chat.ChatRoomViewModelBase;
+import com.github.k7t3.tcv.app.chat.MergedChatRoomViewModel;
 import com.github.k7t3.tcv.view.core.Resources;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
@@ -12,10 +15,14 @@ import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.input.DataFormat;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 
 import java.net.URL;
@@ -23,7 +30,19 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.ResourceBundle;
 
-public class ChatContainerView implements FxmlView<ChatContainerViewModel>, Initializable {
+public class ChatContainerView implements FxmlView<ChatRoomContainerViewModel>, Initializable {
+
+    @FXML
+    private HBox selectingPane;
+
+    @FXML
+    private Label selectingCountLabel;
+
+    @FXML
+    private Button mergeButton;
+
+    @FXML
+    private Button cancelButton;
 
     @FXML
     private BorderPane container;
@@ -31,9 +50,9 @@ public class ChatContainerView implements FxmlView<ChatContainerViewModel>, Init
     private GridPane chatContainer;
 
     @InjectViewModel
-    private ChatContainerViewModel viewModel;
+    private ChatRoomContainerViewModel viewModel;
 
-    private Map<ChatRoomViewModel, Node> items;
+    private Map<ChatRoomViewModelBase, Node> items;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -42,9 +61,22 @@ public class ChatContainerView implements FxmlView<ChatContainerViewModel>, Init
 
         chatContainer = new GridPane();
         container.setCenter(chatContainer);
+
+        selectingCountLabel.textProperty().bind(
+                viewModel.selectingCountProperty().asString(Resources.getString("container.selecting.count.format"))
+        );
+        selectingPane.managedProperty().bind(selectingPane.visibleProperty());
+        selectingPane.visibleProperty().bind(viewModel.selectModeProperty());
+
+        mergeButton.getStyleClass().addAll(Styles.ROUNDED, Styles.SMALL, Styles.ACCENT);
+        mergeButton.disableProperty().bind(viewModel.selectingCountProperty().lessThan(2));
+        mergeButton.setOnAction(e -> viewModel.mergeSelectedChats());
+
+        cancelButton.getStyleClass().addAll(Styles.ROUNDED, Styles.SMALL);
+        cancelButton.setOnAction(e -> viewModel.unselectAll());
     }
 
-    private void chatChanged(ListChangeListener.Change<? extends ChatRoomViewModel> c) {
+    private void chatChanged(ListChangeListener.Change<? extends ChatRoomViewModelBase> c) {
         while (c.next()) {
             if (c.wasAdded()) {
                 for (var chat : c.getAddedSubList())
@@ -57,34 +89,60 @@ public class ChatContainerView implements FxmlView<ChatContainerViewModel>, Init
         }
     }
 
-    private void onRemoved(ChatRoomViewModel chat) {
+    private void onRemoved(ChatRoomViewModelBase chat) {
         var node = items.get(chat);
         if (node == null) return;
 
         chatContainer.getChildren().remove(node);
     }
 
-    private void onAdded(ChatRoomViewModel chat) {
-        var tuple = FluentViewLoader.fxmlView(ChatRoomView.class)
-                .viewModel(chat)
-                .resourceBundle(Resources.getResourceBundle())
-                .load();
+    private void onAdded(ChatRoomViewModelBase chat) {
 
-        var node = tuple.getView();
+        // 通常のチャットビュー
+        if (chat instanceof ChatRoomViewModel c2) {
+            var tuple = FluentViewLoader.fxmlView(ChatRoomView.class)
+                    .viewModel(c2)
+                    .resourceBundle(Resources.getResourceBundle())
+                    .load();
 
-        var dragController = new DragController();
-        dragController.installDragEvents(node);
+            var node = tuple.getView();
 
-        var columnCount = chatContainer.getColumnCount();
-        GridPane.setFillWidth(node, true);
-        GridPane.setFillHeight(node, true);
-        GridPane.setHgrow(node, Priority.ALWAYS);
-        GridPane.setVgrow(node, Priority.ALWAYS);
-        chatContainer.addColumn(columnCount, node);
+            var dragController = new DragController();
+            dragController.installDragEvents(node);
 
-        tuple.getViewModel().joinChatAsync();
+            var columnCount = chatContainer.getColumnCount();
+            GridPane.setFillWidth(node, true);
+            GridPane.setFillHeight(node, true);
+            GridPane.setHgrow(node, Priority.ALWAYS);
+            GridPane.setVgrow(node, Priority.ALWAYS);
+            chatContainer.addColumn(columnCount, node);
 
-        items.put(chat, node);
+            tuple.getViewModel().joinChatAsync();
+
+            items.put(chat, node);
+        }
+
+        // マージされたチャットビュー
+        else if (chat instanceof MergedChatRoomViewModel merged) {
+            var tuple = FluentViewLoader.fxmlView(MergedChatRoomView.class)
+                    .viewModel(merged)
+                    .resourceBundle(Resources.getResourceBundle())
+                    .load();
+
+            var node = tuple.getView();
+
+            var dragController = new DragController();
+            dragController.installDragEvents(node);
+
+            var columnCount = chatContainer.getColumnCount();
+            GridPane.setFillWidth(node, true);
+            GridPane.setFillHeight(node, true);
+            GridPane.setHgrow(node, Priority.ALWAYS);
+            GridPane.setVgrow(node, Priority.ALWAYS);
+            chatContainer.addColumn(columnCount, node);
+
+            items.put(chat, node);
+        }
     }
 
     private static class DragController {
@@ -95,6 +153,9 @@ public class ChatContainerView implements FxmlView<ChatContainerViewModel>, Init
         public void installDragEvents(Node node) {
             // ドラッグの開始
             node.setOnDragDetected(e -> {
+
+                if (e.getButton() != MouseButton.PRIMARY)
+                    return;
 
                 var dragBoard = node.startDragAndDrop(TransferMode.MOVE);
 

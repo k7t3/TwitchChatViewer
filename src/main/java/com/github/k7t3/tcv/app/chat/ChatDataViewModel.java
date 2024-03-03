@@ -1,5 +1,6 @@
 package com.github.k7t3.tcv.app.chat;
 
+import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.domain.chat.ChatData;
 import com.github.k7t3.tcv.domain.chat.ChatMessage;
 import de.saxsys.mvvmfx.ViewModel;
@@ -17,6 +18,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class ChatDataViewModel implements ViewModel {
+
+    private final ReadOnlyObjectWrapper<TwitchChannelViewModel> channel;
 
     private final ReadOnlyStringWrapper userName = new ReadOnlyStringWrapper();
 
@@ -42,17 +45,19 @@ public class ChatDataViewModel implements ViewModel {
 
     private final ChannelChatBadgeStore channelBadgeStore;
 
-    private final ChannelEmoteStore emoteStore;
+    private final ChatEmoteStore emoteStore;
 
     private final DefinedChatColors definedChatColors;
 
     ChatDataViewModel(
+            TwitchChannelViewModel channel,
             ChatData chatData,
             GlobalChatBadgeStore globalBadgeStore,
             ChannelChatBadgeStore channelBadgeStore,
-            ChannelEmoteStore emoteStore,
+            ChatEmoteStore emoteStore,
             DefinedChatColors definedChatColors
     ) {
+        this.channel = new ReadOnlyObjectWrapper<>(channel);
         this.chatData = chatData;
         this.globalBadgeStore = globalBadgeStore;
         this.channelBadgeStore = channelBadgeStore;
@@ -67,7 +72,7 @@ public class ChatDataViewModel implements ViewModel {
 
     private void update() {
         userName.set(chatData.userName());
-        displayName.set(chatData.userDisplayName());
+        displayName.set(chatData.userDisplayName() != null ? chatData.userDisplayName() : "");
         message.set(chatData.message());
 
         // カラーがnullのときはランダム
@@ -88,7 +93,7 @@ public class ChatDataViewModel implements ViewModel {
         this.badges.setAll(badges);
     }
 
-    public ChannelEmoteStore getEmoteStore() {
+    public ChatEmoteStore getEmoteStore() {
         return emoteStore;
     }
 
@@ -98,15 +103,13 @@ public class ChatDataViewModel implements ViewModel {
 
     public void copyMessage() {
         var cb = Clipboard.getSystemClipboard();
-
-        var message = getMessage().stream()
-                .map(ChatMessage.MessageFragment::fragment)
-                .collect(Collectors.joining());
-
-        cb.setContent(Map.of(DataFormat.PLAIN_TEXT, message));
+        cb.setContent(Map.of(DataFormat.PLAIN_TEXT, getMessage().getPlain()));
     }
 
     // ********** PROPERTIES **********
+
+    public ReadOnlyObjectProperty<TwitchChannelViewModel> channelProperty() { return channel.getReadOnlyProperty(); }
+    public TwitchChannelViewModel getChannel() { return channel.get(); }
 
     private ReadOnlyStringWrapper userNameWrapper() { return userName; }
     public ReadOnlyStringProperty userNameProperty() { return userName.getReadOnlyProperty(); }

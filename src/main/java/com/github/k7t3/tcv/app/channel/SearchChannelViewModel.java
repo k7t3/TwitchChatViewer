@@ -2,7 +2,7 @@ package com.github.k7t3.tcv.app.channel;
 
 import com.github.k7t3.tcv.domain.Twitch;
 import com.github.k7t3.tcv.domain.channel.ChannelFinder;
-import com.github.k7t3.tcv.app.chat.ChatContainerViewModel;
+import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.ExceptionHandler;
 import de.saxsys.mvvmfx.SceneLifecycle;
@@ -36,7 +36,7 @@ public class SearchChannelViewModel implements ViewModel, SceneLifecycle {
 
     private final SearchChannelService searchService = new SearchChannelService();
 
-    private ChatContainerViewModel chatContainerViewModel;
+    private ChatRoomContainerViewModel chatContainerViewModel;
 
     private Twitch twitch;
 
@@ -61,7 +61,7 @@ public class SearchChannelViewModel implements ViewModel, SceneLifecycle {
         searchService.search(unit.toMillis(amount), getKeyword(), isOnlyLive());
     }
 
-    public void setChatContainerViewModel(ChatContainerViewModel chatContainerViewModel) {
+    public void setChatContainerViewModel(ChatRoomContainerViewModel chatContainerViewModel) {
         this.chatContainerViewModel = chatContainerViewModel;
     }
 

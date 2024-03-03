@@ -10,21 +10,34 @@ import com.github.k7t3.tcv.domain.chat.GlobalChatBadges;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.prefs.ChatFont;
 import de.saxsys.mvvmfx.ViewModel;
+import javafx.beans.Observable;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.scene.text.Font;
 
 import java.util.List;
 
-public class ChatContainerViewModel implements ViewModel {
+public class ChatRoomContainerViewModel implements ViewModel {
 
     /** 開かれているチャット(チャンネル)のリスト*/
-    private final ObservableList<ChatRoomViewModel> chatList = FXCollections.observableArrayList();
+    private final ObservableList<ChatRoomViewModelBase> chatList = FXCollections.observableArrayList(c -> new Observable[] { c.selectedProperty() });
+
+    /** 選択しているチャット*/
+    private final ObservableList<ChatRoomViewModelBase> selectedList = new FilteredList<>(chatList, ChatRoomViewModelBase::isSelected);
+
+    /** 選択モード*/
+    private final ReadOnlyBooleanWrapper selectMode = new ReadOnlyBooleanWrapper(false);
+
+    private final ReadOnlyIntegerWrapper selectingCount = new ReadOnlyIntegerWrapper();
 
     private final ReadOnlyBooleanWrapper loaded = new ReadOnlyBooleanWrapper(false);
 
     private GlobalChatBadgeStore globalBadgeStore;
+
+    private ChatEmoteStore chatEmoteStore;
 
     private final DefinedChatColors definedChatColors = new DefinedChatColors();
 
@@ -40,7 +53,7 @@ public class ChatContainerViewModel implements ViewModel {
 
     private List<ChatRoomListener> defaultChatRoomListeners;
 
-    public ChatContainerViewModel() {
+    public ChatRoomContainerViewModel() {
         initialize();
     }
 
@@ -52,9 +65,14 @@ public class ChatContainerViewModel implements ViewModel {
                 chatList.clear();
             }
         });
+
+        selectingCount.bind(Bindings.size(selectedList));
+
+        // 一つ以上選択されているときは選択モード
+        selectMode.bind(selectingCount.greaterThan(0));
     }
 
-    public ObservableList<ChatRoomViewModel> getChatList() {
+    public ObservableList<ChatRoomViewModelBase> getChatList() {
         return chatList;
     }
 
@@ -80,6 +98,7 @@ public class ChatContainerViewModel implements ViewModel {
             var globalBadges = new GlobalChatBadges();
             globalBadges.load(twitch);
             globalBadgeStore = new GlobalChatBadgeStore(globalBadges);
+            chatEmoteStore = new ChatEmoteStore();
         });
         FXTask.setOnSucceeded(task, e -> loaded.set(true));
 
@@ -88,43 +107,76 @@ public class ChatContainerViewModel implements ViewModel {
         return task;
     }
 
-    public ChatRoomViewModel register(TwitchChannel channel) {
+    public ChatRoomViewModelBase register(TwitchChannel channel) {
         if (!loaded.get()) throw new IllegalStateException("not loaded yet");
 
-        var exist = chatList.stream().filter(vm ->
-                        vm.getChannel().getBroadcaster().equals(channel.getBroadcaster())
-                )
-                .findFirst();
+        var exist = chatList.stream().filter(vm -> vm.hasChannel(channel)).findFirst();
 
         if (exist.isPresent()) {
             return exist.get();
         }
 
-        var viewModel = new ChatRoomViewModel(
-                channel,
-                globalBadgeStore,
-                definedChatColors,
+        var chatRoomViewModel = new ChatRoomViewModel(
                 this,
-                defaultChatRoomListeners
+                globalBadgeStore,
+                chatEmoteStore,
+                definedChatColors,
+                channel
         );
 
-        viewModel.visibleNameProperty().bind(showUserName);
-        viewModel.visibleBadgesProperty().bind(showBadges);
+        var channelViewModel = chatRoomViewModel.getChannel();
+        channelViewModel.getChatRoomListeners().addAll(defaultChatRoomListeners);
+
+        bindChatRoomProperties(chatRoomViewModel);
+
+        chatList.add(chatRoomViewModel);
+
+        return chatRoomViewModel;
+    }
+
+    private void bindChatRoomProperties(ChatRoomViewModelBase viewModel) {
+        viewModel.showNameProperty().bind(showUserName);
+        viewModel.showBadgesProperty().bind(showBadges);
         viewModel.fontProperty().bind(font);
         viewModel.chatMessageFilterProperty().bind(chatMessageFilter);
-
-        chatList.add(viewModel);
-
-        return viewModel;
+        viewModel.selectModeProperty().bind(selectMode);
     }
 
     /**
      * 管理しているChatリストから削除する。
      * チャットから切断することはしない。切断済みのものを渡すこと。
-     * @param chat チャット
      */
-    void onLeft(ChatRoomViewModel chat) {
+    void onLeft(ChatRoomViewModelBase chat) {
         chatList.removeIf(vm -> vm.equals(chat));
+    }
+
+    public ObservableList<ChatRoomViewModelBase> getSelectedList() {
+        return selectedList;
+    }
+
+    public void unselectAll() {
+        chatList.forEach(c -> c.setSelected(false));
+    }
+
+    public void mergeSelectedChats() {
+
+        var chatRooms = getSelectedList().stream()
+                .filter(vm -> vm instanceof ChatRoomViewModel)
+                .map(vm -> (ChatRoomViewModel) vm)
+                .toList();
+
+        var chatRoomViewModel = new MergedChatRoomViewModel(
+                globalBadgeStore,
+                chatEmoteStore,
+                definedChatColors,
+                chatRooms,
+                this
+        );
+
+        bindChatRoomProperties(chatRoomViewModel);
+
+        chatList.removeAll(getSelectedList());
+        chatList.add(chatRoomViewModel);
     }
 
     // ******************** PROPERTIES ********************
@@ -133,4 +185,10 @@ public class ChatContainerViewModel implements ViewModel {
     public ReadOnlyBooleanProperty loadedProperty() { return loaded.getReadOnlyProperty(); }
     public boolean isLoaded() { return loaded.get(); }
     private void setLoaded(boolean loaded) { this.loaded.set(loaded); }
+
+    public ReadOnlyBooleanProperty selectModeProperty() { return selectMode.getReadOnlyProperty(); }
+    public boolean isSelectMode() { return selectMode.get(); }
+
+    public ReadOnlyIntegerProperty selectingCountProperty() { return selectingCount.getReadOnlyProperty(); }
+    public int getSelectingCount() { return selectingCount.get(); }
 }

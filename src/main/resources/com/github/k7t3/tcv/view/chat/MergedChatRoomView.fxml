@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.MenuButton?>
+<?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.SeparatorMenuItem?>
+<?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.control.ToolBar?>
+<?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<BorderPane prefWidth="200.0" styleClass="merged-chat-room-view" stylesheets="@MergedChatRoomView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.chat.MergedChatRoomView">
+   <top>
+      <HBox fx:id="headerPane" alignment="CENTER_LEFT" styleClass="merged-chat-room-header" BorderPane.alignment="CENTER">
+         <children>
+            <ToolBar fx:id="profileImageContainer" styleClass="merged-profile-image-container">
+               <padding>
+                  <Insets bottom="4.0" left="4.0" right="4.0" top="4.0" />
+               </padding>
+            </ToolBar>
+            <Pane HBox.hgrow="ALWAYS" />
+            <VBox alignment="TOP_RIGHT">
+               <children>
+                  <MenuButton fx:id="actionsMenuButton" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" text="MenuButton">
+                    <items>
+                      <MenuItem fx:id="popoutMenuItem" mnemonicParsing="false" text="%chat.menu.popout">
+                           <graphic>
+                              <FontIcon iconLiteral="fth-arrow-up-right" />
+                           </graphic>
+                        </MenuItem>
+                        <SeparatorMenuItem mnemonicParsing="false" />
+                      <MenuItem fx:id="closeMenuItem" mnemonicParsing="false" text="%button.close">
+                           <graphic>
+                              <FontIcon iconLiteral="fth-x" />
+                           </graphic>
+                        </MenuItem>
+                    </items>
+                     <graphic>
+                        <FontIcon iconLiteral="fth-more-vertical" />
+                     </graphic>
+                  </MenuButton>
+                  <ToggleButton fx:id="scrollToEnd" mnemonicParsing="false" text="↓" underline="true">
+                     <tooltip>
+                        <Tooltip text="%chat.scroll" />
+                     </tooltip>
+                  </ToggleButton>
+               </children>
+            </VBox>
+         </children>
+      </HBox>
+   </top>
+   <center>
+      <StackPane fx:id="chatDataContainer" BorderPane.alignment="CENTER">
+         <children>
+            <Pane fx:id="backgroundImageLayer" opacity="0.2" />
+         </children></StackPane>
+   </center>
+</BorderPane>

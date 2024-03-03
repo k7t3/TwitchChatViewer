@@ -1,5 +1,8 @@
 package com.github.k7t3.tcv.app.core;
 
+import com.github.k7t3.tcv.domain.exception.IllegalCredentialException;
+import com.github.k7t3.tcv.view.core.Resources;
+import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.scene.control.TextArea;
 import javafx.stage.Stage;
@@ -23,6 +26,26 @@ public class ExceptionHandler {
 
     public static void handle(Stage parent, Throwable e) {
         LOGGER.error(e.getMessage(), e);
+
+        // 資格情報が無効になったとき
+        if (e instanceof IllegalCredentialException) {
+
+            var alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Illegal Credential");
+            alert.setHeaderText(Resources.getString("terminate.header"));
+            alert.setContentText(Resources.getString("terminate.content"));
+            alert.showAndWait();
+
+            // リソースのクローズ
+            var helper = AppHelper.getInstance();
+            helper.close();
+
+            // 終了
+            Platform.exit();
+
+            return;
+
+        }
 
         var alert = new Alert(Alert.AlertType.ERROR);
         alert.setTitle("Exception Occurred");

@@ -6,13 +6,13 @@ import javafx.scene.image.Image;
 import java.time.Duration;
 
 /**
- * チャンネルのエモート画像ストア
+ * チャットエモート画像ストア
  */
-public class ChannelEmoteStore extends CachedImageStore<String> {
+public class ChatEmoteStore extends CachedImageStore<String> {
 
     private static final String CDN_FORMAT = "https://static-cdn.jtvnw.net/emoticons/v2/%s/default/light/1.0";
 
-    public ChannelEmoteStore() {
+    public ChatEmoteStore() {
         super(100, Duration.ofMinutes(5));
     }
 

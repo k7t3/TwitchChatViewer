@@ -2,6 +2,7 @@ package com.github.k7t3.tcv.domain.chat;
 
 import com.github.k7t3.tcv.domain.Twitch;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
+import com.github.k7t3.tcv.domain.channel.TwitchChannel;
 import com.github.k7t3.tcv.domain.core.EventExecutorWrapper;
 import com.github.philippheuer.events4j.api.domain.IDisposable;
 import com.github.twitch4j.chat.events.AbstractChannelEvent;
@@ -25,6 +26,8 @@ public class ChatRoom {
 
     private final Broadcaster broadcaster;
 
+    private final TwitchChannel channel;
+
     private final String channelId;
 
     private final ChatMessageParser parser = new ChatMessageParser();
@@ -39,8 +42,9 @@ public class ChatRoom {
 
     private final EventExecutorWrapper eventExecutor;
 
-    public ChatRoom(Twitch twitch, EventExecutorWrapper eventExecutor, Broadcaster broadcaster) {
+    public ChatRoom(Twitch twitch, EventExecutorWrapper eventExecutor, Broadcaster broadcaster, TwitchChannel channel) {
         this.twitch = twitch;
+        this.channel = channel;
         this.eventExecutor = eventExecutor;
         this.broadcaster = broadcaster;
         this.channelId = broadcaster.getUserId();
@@ -57,6 +61,10 @@ public class ChatRoom {
 
     public Broadcaster getBroadcaster() {
         return broadcaster;
+    }
+
+    public TwitchChannel getChannel() {
+        return channel;
     }
 
     private List<IDisposable> subscriptions;
@@ -109,12 +117,12 @@ public class ChatRoom {
         eventExecutor.submit(() -> {
             var chatData = parseMessageEvent(event.getMessageEvent());
             for (var listener : listeners)
-                listener.onChatDataPosted(chatData);
+                listener.onChatDataPosted(this, chatData);
 
             var clipOp = clipFinder.findClip(message);
             if (clipOp.isPresent()) {
                 for (var listener : listeners)
-                    listener.onClipPosted(clipOp.get());
+                    listener.onClipPosted(this, clipOp.get());
             }
         });
     }
@@ -136,14 +144,14 @@ public class ChatRoom {
                 .map(pair -> new ChatBadge(pair.getKey(), pair.getValue()))
                 .toList();
 
-        return new ChatData(channelId, channelName, msgId, userId, userDisplayName, userName, userColor, badges, chatMessage);
+        return new ChatData(channelId, channelName, msgId, userId, userDisplayName, userName, userColor, badges, chatMessage, false);
     }
 
     private void onClearChatEvent(ClearChatEvent event) {
         if (notMyEvent(event)) return;
         eventExecutor.submit(() -> {
             for (var listener : listeners)
-                listener.onChatCleared();
+                listener.onChatCleared(this);
         });
     }
 
@@ -151,7 +159,7 @@ public class ChatRoom {
         if (notMyEvent(event)) return;
         eventExecutor.submit(() -> {
             for (var listener : listeners)
-                listener.onChatMessageDeleted(event.getMessage());
+                listener.onChatMessageDeleted(this, event.getMessage());
         });
     }
 
@@ -168,7 +176,7 @@ public class ChatRoom {
 
         eventExecutor.submit(() -> {
             for (var listener : listeners)
-                listener.onStateUpdated(roomState, active);
+                listener.onStateUpdated(this, roomState, active);
         });
     }
 
@@ -198,7 +206,7 @@ public class ChatRoom {
         var viewerCount = event.getViewers();
         eventExecutor.submit(() -> {
             for (var listener : listeners)
-                listener.onRaidReceived(raider.getName(), viewerCount);
+                listener.onRaidReceived(this, raider.getName(), viewerCount);
         });
     }
 
@@ -211,12 +219,12 @@ public class ChatRoom {
             var giver = event.getGiftedBy();
             eventExecutor.submit(() -> {
                 for (var listener : listeners)
-                    listener.onUserGiftedSubscribe(giver.getName(), user.getName());
+                    listener.onUserGiftedSubscribe(this, giver.getName(), user.getName());
             });
         } else {
             eventExecutor.submit(() -> {
                 for (var listener : listeners)
-                    listener.onUserSubscribed(user.getName());
+                    listener.onUserSubscribed(this, user.getName());
             });
         }
     }

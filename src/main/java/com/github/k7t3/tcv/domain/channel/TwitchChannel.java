@@ -86,7 +86,7 @@ public class TwitchChannel {
         var stream = StreamInfo.of(e.getStream());
         setStream(stream);
         for (var listener : listeners)
-            eventExecutor.submit(() -> listener.onGameChanged(stream));
+            eventExecutor.submit(() -> listener.onGameChanged(this, stream));
     }
 
     private void onChannelChangeTitleEvent(ChannelChangeTitleEvent e) {
@@ -97,7 +97,7 @@ public class TwitchChannel {
         var stream = StreamInfo.of(e.getStream());
         setStream(stream);
         for (var listener : listeners)
-            eventExecutor.submit(() -> listener.onTitleChanged(stream));
+            eventExecutor.submit(() -> listener.onTitleChanged(this, stream));
     }
 
     private void onChannelViewerCountUpdateEvent(ChannelViewerCountUpdateEvent e) {
@@ -108,7 +108,7 @@ public class TwitchChannel {
         var stream = StreamInfo.of(e.getStream());
         setStream(stream);
         for (var listener : listeners)
-            eventExecutor.submit(() -> listener.onViewerCountUpdated(stream));
+            eventExecutor.submit(() -> listener.onViewerCountUpdated(this, stream));
     }
 
     private void onChannelGoOfflineEvent(ChannelGoOfflineEvent e) {
@@ -118,7 +118,7 @@ public class TwitchChannel {
 
         setStream(null);
         for (var listener : listeners)
-            eventExecutor.submit(listener::onOffline);
+            eventExecutor.submit(() -> listener.onOffline(this));
     }
 
     private void onChannelGoLiveEvent(ChannelGoLiveEvent e) {
@@ -129,7 +129,7 @@ public class TwitchChannel {
         var stream = StreamInfo.of(e.getStream());
         setStream(stream);
         for (var listener : listeners)
-            eventExecutor.submit(() -> listener.onOnline(stream));
+            eventExecutor.submit(() -> listener.onOnline(this, stream));
     }
 
     public void addListener(TwitchChannelListener listener) {
@@ -153,11 +153,15 @@ public class TwitchChannel {
 
     private VideoClipListener clipListener;
 
+    public boolean isChatJoined() {
+        return chatRoom != null;
+    }
+
     public ChatRoom getChatRoom() {
         if (chatRoom != null) return chatRoom;
         LOGGER.info("{} chat room created", getChannelName());
 
-        chatRoom = new ChatRoom(twitch, eventExecutor, broadcaster);
+        chatRoom = new ChatRoom(twitch, eventExecutor, broadcaster, this);
         chatRoom.listen();
 
         clipListener = new VideoClipListener(twitch.getClipRepository(), broadcaster);

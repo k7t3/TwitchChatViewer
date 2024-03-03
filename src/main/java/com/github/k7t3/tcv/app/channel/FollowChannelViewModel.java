@@ -66,7 +66,7 @@ public class FollowChannelViewModel implements ViewModel, TwitchChannelListener 
     }
 
     @Override
-    public void onOnline(StreamInfo info) {
+    public void onOnline(TwitchChannel channel, StreamInfo info) {
         Platform.runLater(() -> {
             live.set(true);
             setGameName(info.gameName());
@@ -76,7 +76,7 @@ public class FollowChannelViewModel implements ViewModel, TwitchChannelListener 
     }
 
     @Override
-    public void onOffline() {
+    public void onOffline(TwitchChannel channel) {
         Platform.runLater(() -> {
             live.set(false);
             if (gameName != null) gameName.set(null);
@@ -86,17 +86,17 @@ public class FollowChannelViewModel implements ViewModel, TwitchChannelListener 
     }
 
     @Override
-    public void onViewerCountUpdated(StreamInfo info) {
+    public void onViewerCountUpdated(TwitchChannel channel, StreamInfo info) {
         Platform.runLater(() -> setViewerCount(info.viewerCount()));
     }
 
     @Override
-    public void onTitleChanged(StreamInfo info) {
+    public void onTitleChanged(TwitchChannel channel, StreamInfo info) {
         Platform.runLater(() -> setTitle(info.title()));
     }
 
     @Override
-    public void onGameChanged(StreamInfo info) {
+    public void onGameChanged(TwitchChannel channel, StreamInfo info) {
         Platform.runLater(() -> setGameName(info.gameName()));
     }
 

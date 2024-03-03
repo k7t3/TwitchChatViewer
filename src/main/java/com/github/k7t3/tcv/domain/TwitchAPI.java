@@ -4,6 +4,7 @@ import com.github.k7t3.tcv.domain.auth.CredentialController;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
 import com.github.k7t3.tcv.domain.channel.FoundChannel;
 import com.github.k7t3.tcv.domain.channel.StreamInfo;
+import com.github.k7t3.tcv.domain.exception.IllegalCredentialException;
 import com.github.twitch4j.common.events.domain.EventChannel;
 import com.github.twitch4j.common.exception.UnauthorizedException;
 import com.github.twitch4j.common.util.CollectionUtils;
@@ -293,6 +294,15 @@ public class TwitchAPI implements Closeable {
 
             var controller = new CredentialController(twitch.getCredentialStore());
             var credential = controller.refreshToken();
+
+            // 資格情報がnullのときはリフレッシュできない何らかの事情があるためログアウトする
+            if (credential == null) {
+
+                twitch.logout();
+
+                // 無効な資格情報をスロー
+                throw new IllegalCredentialException();
+            }
 
             twitch.updateCredential(credential);
 

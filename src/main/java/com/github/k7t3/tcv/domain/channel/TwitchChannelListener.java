@@ -2,14 +2,14 @@ package com.github.k7t3.tcv.domain.channel;
 
 public interface TwitchChannelListener {
 
-    void onOnline(StreamInfo info);
+    void onOnline(TwitchChannel channel, StreamInfo info);
 
-    void onOffline();
+    void onOffline(TwitchChannel channel);
 
-    void onViewerCountUpdated(StreamInfo info);
+    void onViewerCountUpdated(TwitchChannel channel, StreamInfo info);
 
-    void onTitleChanged(StreamInfo info);
+    void onTitleChanged(TwitchChannel channel, StreamInfo info);
 
-    void onGameChanged(StreamInfo info);
+    void onGameChanged(TwitchChannel channel, StreamInfo info);
 
 }

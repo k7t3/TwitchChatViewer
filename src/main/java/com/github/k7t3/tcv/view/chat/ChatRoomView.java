@@ -1,16 +1,17 @@
 package com.github.k7t3.tcv.view.chat;
 
 import atlantafx.base.controls.Popover;
-import atlantafx.base.controls.ToggleSwitch;
 import atlantafx.base.theme.Styles;
 import atlantafx.base.theme.Tweaks;
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.chat.ChatRoomViewModel;
+import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.domain.chat.ChatRoomState;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.collections.ListChangeListener;
 import javafx.collections.SetChangeListener;
+import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
@@ -43,16 +44,25 @@ public class ChatRoomView implements FxmlView<ChatRoomViewModel>, Initializable 
     private Label userNameLabel;
 
     @FXML
-    private Hyperlink streamInfoLink;
+    private Label streamTitleLabel;
 
     @FXML
     private MenuButton actionsMenuButton;
+
+    @FXML
+    private CheckMenuItem selectedMenuItem;
 
     @FXML
     private MenuItem closeMenuItem;
 
     @FXML
     private MenuItem popoutMenuItem;
+
+    @FXML
+    private Pane chatRoomControlsContainer;
+
+    @FXML
+    private CheckBox selectedCheckBox;
 
     @FXML
     private Pane stateContainer;
@@ -66,14 +76,18 @@ public class ChatRoomView implements FxmlView<ChatRoomViewModel>, Initializable 
     @FXML
     private Pane backgroundImageLayer;
 
+    private VirtualFlow<ChatDataViewModel, ChatDataCell> virtualFlow;
+
     @InjectViewModel
     private ChatRoomViewModel viewModel;
 
-    private VirtualFlow<ChatDataViewModel, ChatDataCell> virtualFlow;
+    private TwitchChannelViewModel channel;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        profileImageView.imageProperty().bind(viewModel.profileImageProperty());
+        channel = viewModel.getChannel();
+
+        profileImageView.imageProperty().bind(channel.profileImageProperty());
         profileImageView.setFitWidth(PROFILE_IMAGE_SIZE);
         profileImageView.setFitHeight(PROFILE_IMAGE_SIZE);
         var clip = new Rectangle();
@@ -83,7 +97,7 @@ public class ChatRoomView implements FxmlView<ChatRoomViewModel>, Initializable 
         clip.arcHeightProperty().bind(profileImageView.fitHeightProperty());
         profileImageView.setClip(clip);
 
-        userNameLabel.textProperty().bind(viewModel.userNameProperty());
+        userNameLabel.textProperty().bind(channel.observableUserName());
 
         actionsMenuButton.getStyleClass().addAll(Styles.FLAT, Tweaks.NO_ARROW);
         closeMenuItem.setOnAction(e -> viewModel.leaveChatAsync());
@@ -96,7 +110,7 @@ public class ChatRoomView implements FxmlView<ChatRoomViewModel>, Initializable 
 
         // 配信していないときののイメージを更新する
         updateBackgroundImage();
-        viewModel.liveProperty().addListener((ob, o, n) -> updateBackgroundImage());
+        channel.liveProperty().addListener((ob, o, n) -> updateBackgroundImage());
 
 
         var roomStateNodes = new ChatRoomStateNodes();
@@ -116,20 +130,32 @@ public class ChatRoomView implements FxmlView<ChatRoomViewModel>, Initializable 
 
 
         viewModel.getChatDataList().addListener((ListChangeListener<? super ChatDataViewModel>) c -> {
-            if (viewModel.isScrollToBottom() && c.next() && c.wasAdded()) {
+            if (viewModel.isAutoScroll() && c.next() && c.wasAdded()) {
                 virtualFlow.showAsLast(c.getList().size() - 1);
             }
         });
 
-        scrollToEnd.selectedProperty().bindBidirectional(viewModel.scrollToBottomProperty());
+        scrollToEnd.selectedProperty().bindBidirectional(viewModel.autoScrollProperty());
 
         installPopover();
-        streamInfoLink.visibleProperty().bind(viewModel.liveProperty());
+        streamTitleLabel.visibleProperty().bind(channel.liveProperty());
+        streamTitleLabel.textProperty().bind(channel.observableTitle());
+        streamTitleLabel.getStyleClass().add(Styles.TEXT_MUTED);
+
+        selectedMenuItem.selectedProperty().bindBidirectional(viewModel.selectedProperty());
+        selectedCheckBox.selectedProperty().bindBidirectional(viewModel.selectedProperty());
+        viewModel.selectedProperty().addListener((ob, o, n) ->
+                headerPane.pseudoClassStateChanged(PseudoClass.getPseudoClass("selected"), n));
+        chatRoomControlsContainer.visibleProperty().bind(viewModel.selectModeProperty().not());
+        chatRoomControlsContainer.managedProperty().bind(viewModel.selectModeProperty().not());
+
+        selectedCheckBox.visibleProperty().bind(viewModel.selectModeProperty());
+        selectedCheckBox.managedProperty().bind(viewModel.selectModeProperty());
     }
 
     private void updateBackgroundImage() {
-        if (!viewModel.isLive()) {
-            var backgroundImage = viewModel.getBackgroundImage();
+        if (!channel.isLive()) {
+            var backgroundImage = channel.getOfflineImage();
             if (backgroundImage != null) {
                 var bgSize = new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, true, true, true, false);
                 var bgImage = new BackgroundImage(backgroundImage, BackgroundRepeat.REPEAT, BackgroundRepeat.REPEAT, BackgroundPosition.DEFAULT, bgSize);
@@ -137,22 +163,19 @@ public class ChatRoomView implements FxmlView<ChatRoomViewModel>, Initializable 
                 backgroundImageLayer.setBackground(bg);
             }
         }
-        backgroundImageLayer.setVisible(!viewModel.isLive());
+        backgroundImageLayer.setVisible(!channel.isLive());
     }
 
     private void installPopover() {
         var gameNameLabel = new Label();
-        gameNameLabel.textProperty().bind(viewModel.gameNameProperty());
         gameNameLabel.setWrapText(true);
 
         var streamTitleLabel = new Label();
-        streamTitleLabel.textProperty().bind(viewModel.titleProperty());
         streamTitleLabel.setWrapText(true);
 
         var viewerCountLabel = new Label();
         viewerCountLabel.setGraphic(new FontIcon(FontAwesomeSolid.USER));
         viewerCountLabel.getStyleClass().add(Styles.DANGER);
-        viewerCountLabel.textProperty().bind(viewModel.viewerCountProperty().asString());
 
         // アップタイムはポップアップを表示したときに計算する
         var uptimeLabel = new Label();
@@ -164,14 +187,18 @@ public class ChatRoomView implements FxmlView<ChatRoomViewModel>, Initializable 
         vbox.setPadding(new Insets(10, 0, 10, 0));
 
         var pop = new Popover(vbox);
-        pop.titleProperty().bind(viewModel.userNameProperty());
+        pop.titleProperty().bind(channel.observableUserName());
         pop.setHeaderAlwaysVisible(true);
         pop.setDetachable(false);
         pop.setArrowLocation(Popover.ArrowLocation.TOP_LEFT);
 
         pop.addEventHandler(WindowEvent.WINDOW_SHOWING, e -> {
+            gameNameLabel.setText(channel.getStreamInfo().gameName());
+            streamTitleLabel.setText(channel.getStreamInfo().title());
+            viewerCountLabel.setText(Integer.toString(channel.getStreamInfo().viewerCount()));
+
             var now = LocalDateTime.now();
-            var startedAt = viewModel.getStartedAt();
+            var startedAt = channel.getStreamInfo().startedAt();
             var between = Duration.between(startedAt, now);
             var minutes = between.toMinutes();
 
@@ -184,7 +211,10 @@ public class ChatRoomView implements FxmlView<ChatRoomViewModel>, Initializable 
             }
         });
 
-        streamInfoLink.setOnAction(e -> pop.show(streamInfoLink));
+        streamTitleLabel.setOnMouseEntered(e -> pop.show(streamTitleLabel));
+        streamTitleLabel.setOnMouseExited(e -> pop.hide());
+        profileImageView.setOnMouseEntered(e -> pop.show(profileImageView));
+        profileImageView.setOnMouseExited(e -> pop.hide());
     }
 
 }

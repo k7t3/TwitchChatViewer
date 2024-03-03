@@ -1,6 +1,6 @@
 package com.github.k7t3.tcv.app.channel;
 
-import com.github.k7t3.tcv.app.chat.ChatContainerViewModel;
+import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
@@ -28,14 +28,14 @@ public class FoundChannelViewModel implements ViewModel {
 
     private final ReadOnlyStringWrapper gameName;
 
-    private final ChatContainerViewModel chatContainer;
+    private final ChatRoomContainerViewModel chatContainer;
 
-    public FoundChannelViewModel(ChatContainerViewModel chatContainer, FoundChannel channel) {
+    public FoundChannelViewModel(ChatRoomContainerViewModel chatContainer, FoundChannel channel) {
         this(chatContainer);
         update(channel);
     }
 
-    public FoundChannelViewModel(ChatContainerViewModel chatContainer) {
+    public FoundChannelViewModel(ChatRoomContainerViewModel chatContainer) {
         broadcaster = new ReadOnlyObjectWrapper<>();
         profileImage = new ReadOnlyObjectWrapper<>();
         live = new ReadOnlyBooleanWrapper();

@@ -1,6 +1,6 @@
 package com.github.k7t3.tcv.app.channel;
 
-import com.github.k7t3.tcv.app.chat.ChatContainerViewModel;
+import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.main.MainViewModel;
 import com.github.k7t3.tcv.app.service.FXTask;
@@ -50,7 +50,7 @@ public class FollowChannelsViewModel implements ViewModel {
 
     private MainViewModel mainViewModel;
 
-    private ChatContainerViewModel chatContainerViewModel;
+    private ChatRoomContainerViewModel chatContainerViewModel;
 
     public FollowChannelsViewModel() {
         var filtered = new FilteredList<>(followBroadcasters);
@@ -125,7 +125,7 @@ public class FollowChannelsViewModel implements ViewModel {
         mainViewModel.footerProperty().bind(selectedBroadcasterProperty().map(FollowChannelViewModel::getTitle));
     }
 
-    public void installChatContainerViewModel(ChatContainerViewModel chatContainerViewModel) {
+    public void installChatContainerViewModel(ChatRoomContainerViewModel chatContainerViewModel) {
         this.chatContainerViewModel = chatContainerViewModel;
     }
 

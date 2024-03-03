@@ -1,7 +1,7 @@
 package com.github.k7t3.tcv.view.action;
 
 import atlantafx.base.controls.ModalPane;
-import com.github.k7t3.tcv.app.chat.ChatContainerViewModel;
+import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
 import com.github.k7t3.tcv.view.channel.SearchChannelView;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import javafx.application.Platform;
@@ -16,11 +16,11 @@ public class SearchChannelViewCallAction extends AbstractKeyAction {
 
     private final ModalPane modalPane;
 
-    private final ChatContainerViewModel chatContainerViewModel;
+    private final ChatRoomContainerViewModel chatContainerViewModel;
 
     public SearchChannelViewCallAction(
             ModalPane modalPane,
-            ChatContainerViewModel chatContainerViewModel
+            ChatRoomContainerViewModel chatContainerViewModel
     ) {
         super(DEFAULT);
         this.modalPane = modalPane;
