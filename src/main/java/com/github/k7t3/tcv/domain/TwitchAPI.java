@@ -306,6 +306,10 @@ public class TwitchAPI implements Closeable {
 
             twitch.updateCredential(credential);
 
+        } catch (IllegalCredentialException e) {
+
+            throw e;
+
         } catch (Exception e) {
 
             LOGGER.error(e.getMessage(), e);

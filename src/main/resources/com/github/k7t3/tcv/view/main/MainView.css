@@ -12,7 +12,6 @@
 }
 
 .header-pane {
-    -fx-padding: 10 10 8 10;
     -fx-border-color: transparent transparent -color-border-default transparent;
 }
 

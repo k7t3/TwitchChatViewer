@@ -51,6 +51,9 @@ public class TCVApp extends Application {
         tm.setScene(scene);
         tm.setTheme(preferences.getTheme());
 
+        primaryStage.setTitle("Twitch Chat Viewer");
+        primaryStage.getIcons().setAll(Resources.getIcons());
+
         // 画面が表示されたら認証画面を表示する(おそらくModalPaneの仕様的に
         // シーングラフが表示されてからじゃないと動作しないため)
         WindowEventHelper.shownOnce(primaryStage, e ->

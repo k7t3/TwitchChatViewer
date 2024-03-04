@@ -140,7 +140,11 @@ public class ChatRoomView implements FxmlView<ChatRoomViewModel>, Initializable 
         installPopover();
         streamTitleLabel.visibleProperty().bind(channel.liveProperty());
         streamTitleLabel.textProperty().bind(channel.observableTitle());
-        streamTitleLabel.getStyleClass().addAll(Styles.TEXT_MUTED, Styles.TEXT_SMALL);
+        streamTitleLabel.getStyleClass().addAll(Styles.TEXT_MUTED);
+
+        var titleTooltip = new Tooltip();
+        titleTooltip.textProperty().bind(streamTitleLabel.textProperty());
+        streamTitleLabel.setTooltip(titleTooltip);
 
         selectedMenuItem.selectedProperty().bindBidirectional(viewModel.selectedProperty());
         selectedCheckBox.selectedProperty().bindBidirectional(viewModel.selectedProperty());

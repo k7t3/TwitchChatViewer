@@ -12,6 +12,7 @@ import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.SplitPane;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.Pane;
+import javafx.scene.text.FontSmoothingType;
 import javafx.scene.web.WebView;
 
 import java.net.URL;
@@ -43,6 +44,9 @@ public class BrowserView implements FxmlView<BrowserViewModel>, Initializable {
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         viewModel.setEngine(webView.getEngine());
+
+        webView.setContextMenuEnabled(false);
+        webView.setFontSmoothingType(FontSmoothingType.GRAY);
 
         titleLabel.textProperty().bind(viewModel.getEngine().titleProperty());
 

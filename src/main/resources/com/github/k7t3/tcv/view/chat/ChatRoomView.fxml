@@ -38,10 +38,10 @@
                </GridPane.margin></ImageView>
             <HBox GridPane.columnIndex="1">
                <children>
-                  <VBox spacing="1.0">
+                  <VBox alignment="CENTER_LEFT" spacing="1.0">
                      <children>
                         <Label fx:id="userNameLabel" text="UserName" />
-                        <Label fx:id="streamTitleLabel" text="Stream Title" wrapText="true" />
+                        <Label fx:id="streamTitleLabel" text="Stream Title" />
                      </children>
                      <padding>
                         <Insets bottom="4.0" left="4.0" right="4.0" top="4.0" />
