@@ -4,7 +4,6 @@ import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.domain.channel.StreamInfo;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
-import com.github.k7t3.tcv.domain.channel.TwitchChannelListener;
 import com.github.k7t3.tcv.domain.chat.ChatRoom;
 import com.github.k7t3.tcv.domain.chat.ChatRoomState;
 import com.github.k7t3.tcv.domain.clip.VideoClip;
@@ -20,7 +19,7 @@ import org.slf4j.LoggerFactory;
 import java.util.HashSet;
 import java.util.Objects;
 
-public class ChatRoomViewModel extends ChatRoomViewModelBase implements ViewModel, TwitchChannelListener {
+public class ChatRoomViewModel extends ChatRoomViewModelBase implements ViewModel {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ChatRoomViewModel.class);
     

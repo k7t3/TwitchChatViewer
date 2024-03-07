@@ -166,6 +166,36 @@ public class ChatRoomContainerViewModel implements ViewModel {
                 .map(vm -> (ChatRoomViewModel) vm)
                 .toList();
 
+        var mergedChatRooms = getSelectedList().stream()
+                .filter(vm -> vm instanceof MergedChatRoomViewModel)
+                .map(vm -> (MergedChatRoomViewModel) vm)
+                .toList();
+
+        unselectAll();
+
+        if (!mergedChatRooms.isEmpty()) {
+
+            // MergedChatRoomViewModelが存在するときは
+            // 先頭の要素を代表としてそれにすべて集約する。
+            MergedChatRoomViewModel mergedChatRoom = null;
+
+            for (var m : mergedChatRooms) {
+                if (mergedChatRoom == null) {
+                    mergedChatRoom = m;
+                } else {
+                    mergedChatRoom.aggregate(m);
+                    chatList.remove(m);
+                }
+            }
+
+            for (var c : chatRooms) {
+                mergedChatRoom.addChatRoom(c);
+                chatList.remove(c);
+            }
+
+            return;
+        }
+
         var chatRoomViewModel = new MergedChatRoomViewModel(
                 globalBadgeStore,
                 chatEmoteStore,
@@ -176,7 +206,7 @@ public class ChatRoomContainerViewModel implements ViewModel {
 
         bindChatRoomProperties(chatRoomViewModel);
 
-        chatList.removeAll(getSelectedList());
+        chatList.removeAll(chatRooms);
         chatList.add(chatRoomViewModel);
     }
 

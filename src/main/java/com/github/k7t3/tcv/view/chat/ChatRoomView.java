@@ -140,7 +140,7 @@ public class ChatRoomView implements FxmlView<ChatRoomViewModel>, Initializable 
         installPopover();
         streamTitleLabel.visibleProperty().bind(channel.liveProperty());
         streamTitleLabel.textProperty().bind(channel.observableTitle());
-        streamTitleLabel.getStyleClass().addAll(Styles.TEXT_MUTED);
+        streamTitleLabel.getStyleClass().addAll(Styles.TEXT_MUTED, Styles.TEXT_SMALL);
 
         var titleTooltip = new Tooltip();
         titleTooltip.textProperty().bind(streamTitleLabel.textProperty());

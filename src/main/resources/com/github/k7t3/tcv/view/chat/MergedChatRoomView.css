@@ -7,11 +7,15 @@
     -fx-border-color: transparent transparent -color-border-default transparent;
 }
 
-.merged-chat-name-label {
-    -fx-font-weight: bold;
+.merged-chat-room-header: selected {
+    -fx-background-color: -color-success-subtle;
 }
 
 .merged-profile-image-container {
     -fx-background-color: transparent;
     -fx-border-color: transparent;
+}
+
+.merged-profile-image-container .menu-button .label {
+    -fx-padding: 2 8 2 8;
 }

@@ -3,6 +3,7 @@ package com.github.k7t3.tcv.app.chat;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
+import com.github.k7t3.tcv.domain.channel.TwitchChannelListener;
 import com.github.k7t3.tcv.domain.chat.ChatData;
 import com.github.k7t3.tcv.domain.chat.ChatRoom;
 import com.github.k7t3.tcv.domain.chat.ChatRoomListener;
@@ -15,15 +16,17 @@ import javafx.scene.text.Font;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ConcurrentModificationException;
+import java.util.LinkedList;
 import java.util.Objects;
 
-public abstract class ChatRoomViewModelBase implements ChatRoomListener {
+public abstract class ChatRoomViewModelBase implements ChatRoomListener, TwitchChannelListener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ChatRoomViewModelBase.class);
 
     private final IntegerProperty itemCountLimit = new SimpleIntegerProperty(256);
 
-    private final ObservableList<ChatDataViewModel> chatDataList = FXCollections.observableArrayList();
+    private final ObservableList<ChatDataViewModel> chatDataList = FXCollections.observableArrayList(new LinkedList<>());
 
     private final BooleanProperty autoScroll = new SimpleBooleanProperty(true);
 
@@ -113,7 +116,13 @@ public abstract class ChatRoomViewModelBase implements ChatRoomListener {
                 return;
             }
 
-            var channel = getChannel(chatRoom.getChannel());
+            TwitchChannelViewModel channel;
+            try {
+                channel = getChannel(chatRoom.getChannel());
+            } catch (ConcurrentModificationException ignored) {
+                // チャンネルの分離時に発生する可能性がある
+                return;
+            }
 
             var chatData = createChatDataViewModel(channel, item);
             chatData.visibleNameProperty().bind(showName);

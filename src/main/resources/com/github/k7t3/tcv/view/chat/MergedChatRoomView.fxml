@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.CheckMenuItem?>
 <?import javafx.scene.control.MenuButton?>
 <?import javafx.scene.control.MenuItem?>
 <?import javafx.scene.control.SeparatorMenuItem?>
@@ -20,37 +22,43 @@
          <children>
             <ToolBar fx:id="profileImageContainer" styleClass="merged-profile-image-container">
                <padding>
-                  <Insets bottom="4.0" left="4.0" right="4.0" top="4.0" />
+                  <Insets bottom="2.0" left="4.0" right="4.0" top="2.0" />
                </padding>
             </ToolBar>
             <Pane HBox.hgrow="ALWAYS" />
-            <VBox alignment="TOP_RIGHT">
+            <StackPane>
                <children>
-                  <MenuButton fx:id="actionsMenuButton" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" text="MenuButton">
-                    <items>
-                      <MenuItem fx:id="popoutMenuItem" mnemonicParsing="false" text="%chat.menu.popout">
+                  <CheckBox fx:id="selectedCheckBox" mnemonicParsing="false" text="%chat.select" />
+                  <VBox fx:id="chatRoomControlsContainer" alignment="TOP_RIGHT">
+                     <children>
+                        <MenuButton fx:id="actionsMenuButton" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" text="MenuButton">
+                          <items>
+                              <CheckMenuItem fx:id="selectedMenuItem" mnemonicParsing="false" text="%chat.select" />
+                              <SeparatorMenuItem mnemonicParsing="false" />
+                            <MenuItem fx:id="popoutMenuItem" mnemonicParsing="false" text="%chat.menu.popout">
+                                 <graphic>
+                                    <FontIcon iconLiteral="fth-arrow-up-right" />
+                                 </graphic>
+                              </MenuItem>
+                            <MenuItem fx:id="closeMenuItem" mnemonicParsing="false" text="%button.close">
+                                 <graphic>
+                                    <FontIcon iconLiteral="fth-x" />
+                                 </graphic>
+                              </MenuItem>
+                          </items>
                            <graphic>
-                              <FontIcon iconLiteral="fth-arrow-up-right" />
+                              <FontIcon iconLiteral="fth-more-vertical" />
                            </graphic>
-                        </MenuItem>
-                        <SeparatorMenuItem mnemonicParsing="false" />
-                      <MenuItem fx:id="closeMenuItem" mnemonicParsing="false" text="%button.close">
-                           <graphic>
-                              <FontIcon iconLiteral="fth-x" />
-                           </graphic>
-                        </MenuItem>
-                    </items>
-                     <graphic>
-                        <FontIcon iconLiteral="fth-more-vertical" />
-                     </graphic>
-                  </MenuButton>
-                  <ToggleButton fx:id="scrollToEnd" mnemonicParsing="false" text="↓" underline="true">
-                     <tooltip>
-                        <Tooltip text="%chat.scroll" />
-                     </tooltip>
-                  </ToggleButton>
+                        </MenuButton>
+                        <ToggleButton fx:id="scrollToEnd" mnemonicParsing="false" text="↓" underline="true">
+                           <tooltip>
+                              <Tooltip text="%chat.scroll" />
+                           </tooltip>
+                        </ToggleButton>
+                     </children>
+                  </VBox>
                </children>
-            </VBox>
+            </StackPane>
          </children>
       </HBox>
    </top>

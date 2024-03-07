@@ -5,10 +5,14 @@ import atlantafx.base.theme.Styles;
 import atlantafx.base.theme.Tweaks;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
+import com.github.k7t3.tcv.app.chat.ChatRoomViewModel;
 import com.github.k7t3.tcv.app.chat.MergedChatRoomViewModel;
+import com.github.k7t3.tcv.view.core.Resources;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.collections.ListChangeListener;
+import javafx.collections.MapChangeListener;
+import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
@@ -16,20 +20,23 @@ import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.effect.SepiaTone;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.WindowEvent;
 import org.fxmisc.flowless.VirtualFlow;
 import org.fxmisc.flowless.VirtualizedScrollPane;
+import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.net.URL;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.ResourceBundle;
 
 public class MergedChatRoomView implements FxmlView<MergedChatRoomViewModel>, Initializable {
@@ -46,6 +53,9 @@ public class MergedChatRoomView implements FxmlView<MergedChatRoomViewModel>, In
     private MenuButton actionsMenuButton;
 
     @FXML
+    private CheckMenuItem selectedMenuItem;
+
+    @FXML
     private MenuItem closeMenuItem;
 
     @FXML
@@ -53,6 +63,12 @@ public class MergedChatRoomView implements FxmlView<MergedChatRoomViewModel>, In
 
     @FXML
     private ToggleButton scrollToEnd;
+
+    @FXML
+    private Pane chatRoomControlsContainer;
+
+    @FXML
+    private CheckBox selectedCheckBox;
 
     @FXML
     private StackPane chatDataContainer;
@@ -65,11 +81,20 @@ public class MergedChatRoomView implements FxmlView<MergedChatRoomViewModel>, In
     @InjectViewModel
     private MergedChatRoomViewModel viewModel;
 
+    private Map<TwitchChannelViewModel, Node> profileImageNodes;
+
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        viewModel.getChannels().stream()
-                .map(this::createProfileImageView)
-                .forEach(profileImageContainer.getItems()::add);
+        profileImageNodes = new HashMap<>();
+        for (var channel : viewModel.getChannels().keySet()) {
+            var chatRoom = viewModel.getChannels().get(channel);
+            var node = createProfileImageView(channel, chatRoom);
+            profileImageNodes.put(channel, node);
+            profileImageContainer.getItems().add(node);
+        }
+
+        // チャンネルの増減
+        viewModel.getChannels().addListener(this::channelChanged);
 
         actionsMenuButton.getStyleClass().addAll(Styles.FLAT, Tweaks.NO_ARROW);
         closeMenuItem.setOnAction(e -> viewModel.leaveChatAsync());
@@ -87,9 +112,19 @@ public class MergedChatRoomView implements FxmlView<MergedChatRoomViewModel>, In
         });
 
         scrollToEnd.selectedProperty().bindBidirectional(viewModel.autoScrollProperty());
+
+        selectedMenuItem.selectedProperty().bindBidirectional(viewModel.selectedProperty());
+        selectedCheckBox.selectedProperty().bindBidirectional(viewModel.selectedProperty());
+        viewModel.selectedProperty().addListener((ob, o, n) ->
+                headerPane.pseudoClassStateChanged(PseudoClass.getPseudoClass("selected"), n));
+        chatRoomControlsContainer.visibleProperty().bind(viewModel.selectModeProperty().not());
+        chatRoomControlsContainer.managedProperty().bind(viewModel.selectModeProperty().not());
+
+        selectedCheckBox.visibleProperty().bind(viewModel.selectModeProperty());
+        selectedCheckBox.managedProperty().bind(viewModel.selectModeProperty());
     }
 
-    private Node createProfileImageView(TwitchChannelViewModel channel) {
+    private Node createProfileImageView(TwitchChannelViewModel channel, ChatRoomViewModel chatRoom) {
         var imageView = new ImageView(channel.getProfileImage());
         imageView.setPreserveRatio(true);
         imageView.setSmooth(true);
@@ -112,7 +147,35 @@ public class MergedChatRoomView implements FxmlView<MergedChatRoomViewModel>, In
             }
         });
 
-        return imageView;
+        var separate = new MenuItem(Resources.getString("chat.separate"), new FontIcon(Feather.EXTERNAL_LINK));
+        separate.setOnAction(e -> viewModel.separateChatRoom(chatRoom));
+
+        var close = new MenuItem(Resources.getString("menu.close"), new FontIcon(Feather.X));
+        close.setOnAction(e -> viewModel.closeChatRoom(chatRoom));
+
+        var menuButton = new MenuButton(null, imageView, separate, new SeparatorMenuItem(), close);
+        menuButton.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+        menuButton.getStyleClass().addAll(Tweaks.NO_ARROW);
+        menuButton.setPrefHeight(Region.USE_COMPUTED_SIZE);
+
+        return menuButton;
+    }
+
+    private void channelChanged(MapChangeListener.Change<? extends TwitchChannelViewModel, ? extends ChatRoomViewModel> change) {
+        if (change.wasAdded()) {
+            var channel = change.getKey();
+            var chatRoom = change.getValueAdded();
+            var node = createProfileImageView(channel, chatRoom);
+            profileImageNodes.put(channel, node);
+            profileImageContainer.getItems().add(node);
+        }
+        if (change.wasRemoved()) {
+            var channel = change.getKey();
+            var node = profileImageNodes.get(channel);
+            if (node == null) return;
+            profileImageNodes.remove(channel);
+            profileImageContainer.getItems().remove(node);
+        }
     }
 
     private void installPopover(TwitchChannelViewModel channel, Node node) {
@@ -167,5 +230,4 @@ public class MergedChatRoomView implements FxmlView<MergedChatRoomViewModel>, In
         });
         node.setOnMouseExited(e -> pop.hide());
     }
-
 }
