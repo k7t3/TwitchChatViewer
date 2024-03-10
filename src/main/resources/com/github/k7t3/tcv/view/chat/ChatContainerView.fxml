@@ -11,6 +11,7 @@
    <top>
       <HBox fx:id="selectingPane" alignment="CENTER_LEFT" spacing="2.0" BorderPane.alignment="CENTER">
          <children>
+            <Button fx:id="selectAllButton" mnemonicParsing="false" text="%chat.select.all" />
             <Button fx:id="mergeButton" mnemonicParsing="false" text="%container.chat.button.merge">
                <tooltip>
                   <Tooltip text="%container.chat.tooltip.merge" />

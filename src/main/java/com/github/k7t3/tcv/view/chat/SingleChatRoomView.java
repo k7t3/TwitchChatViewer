@@ -3,9 +3,9 @@ package com.github.k7t3.tcv.view.chat;
 import atlantafx.base.controls.Popover;
 import atlantafx.base.theme.Styles;
 import atlantafx.base.theme.Tweaks;
+import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.chat.SingleChatRoomViewModel;
-import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.domain.chat.ChatRoomState;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
@@ -137,7 +137,8 @@ public class SingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, In
 
         scrollToEnd.selectedProperty().bindBidirectional(viewModel.autoScrollProperty());
 
-        installPopover();
+        ChatRoomViewUtils.installStreamInfoPopOver(channel, profileImageView);
+
         streamTitleLabel.visibleProperty().bind(channel.liveProperty());
         streamTitleLabel.textProperty().bind(channel.observableTitle());
         streamTitleLabel.getStyleClass().addAll(Styles.TEXT_MUTED, Styles.TEXT_SMALL);

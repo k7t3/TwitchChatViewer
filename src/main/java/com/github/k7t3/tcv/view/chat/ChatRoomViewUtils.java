@@ -25,6 +25,7 @@ public class ChatRoomViewUtils {
 
         var streamTitleLabel = new Label();
         streamTitleLabel.setWrapText(true);
+        streamTitleLabel.getStyleClass().addAll(Styles.TEXT_SMALL);
 
         var viewerCountLabel = new Label();
         viewerCountLabel.setGraphic(new FontIcon(FontAwesomeSolid.USER));

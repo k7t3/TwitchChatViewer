@@ -21,11 +21,11 @@ public class BrowserViewModel implements ViewModel {
     private final ObjectProperty<WebEngine> engine = new SimpleObjectProperty<>();
 
     public BrowserViewModel() {
-        engine.addListener((ob, o, n) -> {
-            if (n != null) {
-                n.setUserAgent(USER_AGENT);
-            }
-        });
+//        engine.addListener((ob, o, n) -> {
+//            if (n != null) {
+//                n.setUserAgent(USER_AGENT);
+//            }
+//        });
     }
 
     public void load() {

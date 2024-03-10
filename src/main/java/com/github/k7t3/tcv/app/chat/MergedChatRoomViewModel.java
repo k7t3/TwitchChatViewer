@@ -6,7 +6,7 @@ import com.github.k7t3.tcv.domain.channel.StreamInfo;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
 import com.github.k7t3.tcv.domain.chat.ChatRoom;
 import com.github.k7t3.tcv.domain.chat.ChatRoomState;
-import com.github.k7t3.tcv.domain.clip.VideoClip;
+import com.github.k7t3.tcv.domain.chat.ClipChatMessage;
 import de.saxsys.mvvmfx.ViewModel;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -206,7 +206,7 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
     }
 
     @Override
-    public void onClipPosted(ChatRoom chatRoom, VideoClip clip) {
+    public void onClipPosted(ChatRoom chatRoom, ClipChatMessage clipChatMessage) {
         // no-op
     }
 

@@ -1,5 +1,6 @@
 package com.github.k7t3.tcv.app.core;
 
+import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
 import com.github.k7t3.tcv.app.clip.PostedClipRepository;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
@@ -18,10 +19,16 @@ public class AppHelper implements Closeable {
 
     private PostedClipRepository clipRepository;
 
+    private ChatRoomContainerViewModel containerViewModel;
+
     private AppHelper() {
         userId.bind(twitch.map(Twitch::getUserId));
         userName.bind(twitch.map(Twitch::getUserName));
         authorized.bind(twitch.isNotNull());
+    }
+
+    public void setContainerViewModel(ChatRoomContainerViewModel containerViewModel) {
+        this.containerViewModel = containerViewModel;
     }
 
     public PostedClipRepository getClipRepository() {
@@ -42,6 +49,11 @@ public class AppHelper implements Closeable {
 
     @Override
     public void close() {
+        var container = containerViewModel;
+        if (container != null) {
+            container.clearAll();
+        }
+
         var worker = TaskWorker.getInstance();
         worker.close();
 

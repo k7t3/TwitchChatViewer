@@ -95,6 +95,7 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         loadFollowersView();
 
         var helper = AppHelper.getInstance();
+        helper.setContainerViewModel(chatContainerViewModel);
 
         followersContainer.disableProperty().bind(helper.authorizedProperty().not());
         chatContainer.disableProperty().bind(helper.authorizedProperty().not());

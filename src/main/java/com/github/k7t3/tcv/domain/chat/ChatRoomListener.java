@@ -1,12 +1,10 @@
 package com.github.k7t3.tcv.domain.chat;
 
-import com.github.k7t3.tcv.domain.clip.VideoClip;
-
 public interface ChatRoomListener {
 
     void onChatDataPosted(ChatRoom chatRoom, ChatData item);
 
-    void onClipPosted(ChatRoom chatRoom, VideoClip clip);
+    void onClipPosted(ChatRoom chatRoom, ClipChatMessage clipChatMessage);
 
     void onChatCleared(ChatRoom chatRoom);
 
@@ -26,7 +24,7 @@ public interface ChatRoomListener {
         }
 
         @Override
-        public void onClipPosted(ChatRoom chatRoom, VideoClip clip) {
+        public void onClipPosted(ChatRoom chatRoom, ClipChatMessage clipChatMessage) {
         }
 
         @Override

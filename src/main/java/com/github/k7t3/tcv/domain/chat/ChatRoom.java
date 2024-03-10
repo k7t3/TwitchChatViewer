@@ -3,7 +3,6 @@ package com.github.k7t3.tcv.domain.chat;
 import com.github.k7t3.tcv.domain.Twitch;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
-import com.github.k7t3.tcv.domain.clip.ClipFinder;
 import com.github.k7t3.tcv.domain.core.EventExecutorWrapper;
 import com.github.philippheuer.events4j.api.domain.IDisposable;
 import com.github.twitch4j.chat.events.AbstractChannelEvent;

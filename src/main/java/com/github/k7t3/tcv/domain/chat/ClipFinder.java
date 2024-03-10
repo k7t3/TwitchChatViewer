@@ -1,6 +1,7 @@
-package com.github.k7t3.tcv.domain.clip;
+package com.github.k7t3.tcv.domain.chat;
 
 import com.github.k7t3.tcv.domain.Twitch;
+import com.github.k7t3.tcv.domain.clip.VideoClip;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +27,7 @@ public class ClipFinder {
     /**
      * チャットに投稿されたクリップのURLをパースしてAPIに投げるメソッド
      */
-    public Optional<VideoClip> findClip(String message) {
+    public Optional<ClipChatMessage> findClip(String message) {
         var matcher = CLIP_URL_PATTERN.matcher(message);
         if (!matcher.find()) {
             return Optional.empty();
@@ -54,10 +55,10 @@ public class ClipFinder {
 
             if (clips.isEmpty()) {
                 LOGGER.warn("clip not found clip_id={} ({})", clipId, link);
-                return Optional.empty();
+                return Optional.of(ClipChatMessage.of(link, message));
             }
 
-            return Optional.of(VideoClip.of(clips.getFirst()));
+            return Optional.of(ClipChatMessage.of(link, message, VideoClip.of(clips.getFirst())));
 
         } catch (Exception e) {
             LOGGER.error(message, e);

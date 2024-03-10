@@ -42,6 +42,9 @@ public class ChatContainerView implements FxmlView<ChatRoomContainerViewModel>, 
     private Label selectingCountLabel;
 
     @FXML
+    private Button selectAllButton;
+
+    @FXML
     private Button mergeButton;
 
     @FXML
@@ -75,6 +78,9 @@ public class ChatContainerView implements FxmlView<ChatRoomContainerViewModel>, 
         );
         selectingPane.managedProperty().bind(selectingPane.visibleProperty());
         selectingPane.visibleProperty().bind(viewModel.selectModeProperty());
+
+        selectAllButton.getStyleClass().addAll(Styles.ROUNDED, Styles.SMALL);
+        selectAllButton.setOnAction(e -> viewModel.selectAll());
 
         mergeButton.getStyleClass().addAll(Styles.ROUNDED, Styles.SMALL, Styles.ACCENT);
         mergeButton.disableProperty().bind(viewModel.selectingCountProperty().lessThan(2));
@@ -114,7 +120,6 @@ public class ChatContainerView implements FxmlView<ChatRoomContainerViewModel>, 
 
             stage = behind.getFloatableStage();
             stage.setContent(view);
-            stage.initOwner(container.getScene().getWindow());
 
         }
 
@@ -131,7 +136,6 @@ public class ChatContainerView implements FxmlView<ChatRoomContainerViewModel>, 
 
             stage = behind.getFloatableStage();
             stage.setContent(view);
-            stage.initOwner(container.getScene().getWindow());
 
         }
 

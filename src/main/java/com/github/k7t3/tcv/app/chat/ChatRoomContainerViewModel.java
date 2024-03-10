@@ -17,6 +17,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 
+import java.util.Iterator;
 import java.util.List;
 
 public class ChatRoomContainerViewModel implements ViewModel {
@@ -62,7 +63,7 @@ public class ChatRoomContainerViewModel implements ViewModel {
 
         helper.authorizedProperty().addListener((ob, o, n) -> {
             if (!n) {
-                chatRoomList.clear();
+                clearAll();
             }
         });
 
@@ -109,7 +110,11 @@ public class ChatRoomContainerViewModel implements ViewModel {
         if (!loaded.get()) throw new IllegalStateException("not loaded yet");
 
         var exist = chatRoomList.stream().filter(vm -> vm.hasChannel(channel)).findFirst();
+        if (exist.isPresent()) {
+            return exist.get();
+        }
 
+        exist = floatableChatRoomList.stream().filter(vm -> vm.hasChannel(channel)).findFirst();
         if (exist.isPresent()) {
             return exist.get();
         }
@@ -177,6 +182,10 @@ public class ChatRoomContainerViewModel implements ViewModel {
         }
     }
 
+    public void selectAll() {
+        chatRoomList.forEach(c -> c.setSelected(true));
+    }
+
     public void unselectAll() {
         chatRoomList.forEach(c -> c.setSelected(false));
     }
@@ -230,6 +239,19 @@ public class ChatRoomContainerViewModel implements ViewModel {
 
         chatRoomList.removeAll(chatRooms);
         chatRoomList.add(chatRoomViewModel);
+    }
+
+    private void clearAll(Iterator<ChatRoomViewModel> chatRooms) {
+        while (chatRooms.hasNext()) {
+            var item = chatRooms.next();
+            chatRooms.remove();
+            item.leaveChatAsync();
+        }
+    }
+
+    public void clearAll() {
+        clearAll(getChatRoomList().iterator());
+        clearAll(getFloatableChatRoomList().iterator());
     }
 
     // ******************** PROPERTIES ********************

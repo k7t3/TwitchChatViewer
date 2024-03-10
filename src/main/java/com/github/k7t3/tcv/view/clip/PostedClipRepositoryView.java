@@ -1,19 +1,24 @@
 package com.github.k7t3.tcv.view.clip;
 
+import atlantafx.base.controls.Popover;
 import atlantafx.base.theme.Styles;
+import com.github.k7t3.tcv.app.clip.EstimatedClipURL;
 import com.github.k7t3.tcv.app.clip.PostedClipRepository;
 import com.github.k7t3.tcv.app.clip.PostedClipViewModel;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
+import com.github.k7t3.tcv.view.core.Resources;
 import com.github.k7t3.tcv.view.web.BrowserController;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.collections.FXCollections;
 import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
+import javafx.collections.SetChangeListener;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -21,24 +26,27 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Region;
 
 import java.net.URL;
-import java.util.Comparator;
 import java.util.ResourceBundle;
 
 public class PostedClipRepositoryView implements FxmlView<PostedClipRepository>, Initializable {
 
     @FXML
-    private Pane root;
-
-    @FXML
-    private Label titleLabel;
+    private SplitPane root;
 
     @FXML
     private HBox channelOwnersContainer;
 
     @FXML
     private ListView<PostedClipViewModel> videoClips;
+
+    @FXML
+    private Node helpIcon;
+
+    @FXML
+    private ListView<EstimatedClipURL> estimatedClipURLs;
 
     @InjectViewModel
     private PostedClipRepository repository;
@@ -50,17 +58,28 @@ public class PostedClipRepositoryView implements FxmlView<PostedClipRepository>,
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        titleLabel.getStyleClass().add(Styles.TITLE_3);
-
         postedClips = FXCollections.observableArrayList();
         postedClips.addAll(repository.getPostedClips().values());
         repository.getPostedClips().addListener(this::onPostedClipChanged);
 
+        estimatedClipURLs.getItems().setAll(repository.getEstimatedClipURLs());
+        estimatedClipURLs.setCellFactory(p -> new EstimatedClipURLCell(repository, browserController));
+
+        repository.getEstimatedClipURLs().addListener((SetChangeListener<? super EstimatedClipURL>) c -> {
+            if (c.wasAdded()) {
+                estimatedClipURLs.getItems().add(c.getElementAdded());
+            }
+            if (c.wasRemoved()) {
+                estimatedClipURLs.getItems().remove(c.getElementRemoved());
+            }
+        });
+
         initializeButtons();
+        installHelpMessage();
 
         filteredClips = new FilteredList<>(postedClips);
         var sortedClips = new SortedList<>(filteredClips);
-        sortedClips.setComparator(Comparator.comparing(PostedClipViewModel::getLastPostedAt));
+        sortedClips.setComparator((o1, o2) -> o2.getLastPostedAt().compareTo(o1.getLastPostedAt()));
 
         videoClips.setItems(sortedClips);
         videoClips.setCellFactory(param -> new PostedClipViewCell());
@@ -76,10 +95,11 @@ public class PostedClipRepositoryView implements FxmlView<PostedClipRepository>,
             }
         });
 
+        root.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
         root.parentProperty().addListener((ob, o, n) -> {
             if (n == null) return;
-            root.prefWidthProperty().bind(n.layoutBoundsProperty().map(b -> b.getWidth() * 0.4));
-            root.prefHeightProperty().bind(n.layoutBoundsProperty().map(b -> b.getHeight() * 0.7));
+            root.prefWidthProperty().bind(n.layoutBoundsProperty().map(b -> b.getWidth() * 0.6));
+            root.prefHeightProperty().bind(n.layoutBoundsProperty().map(b -> b.getHeight() * 0.8));
         });
     }
 
@@ -128,6 +148,29 @@ public class PostedClipRepositoryView implements FxmlView<PostedClipRepository>,
             }
         });
         return button;
+    }
+
+    private void installHelpMessage() {
+        var label = new Label(Resources.getString("clip.help"));
+        label.getStyleClass().addAll(Styles.TEXT_SMALL);
+        label.setWrapText(true);
+
+        var popOver = new Popover();
+        popOver.setDetachable(false);
+        popOver.setContentNode(label);
+        popOver.setArrowLocation(Popover.ArrowLocation.TOP_LEFT);
+        popOver.setPrefWidth(200);
+        popOver.setAutoHide(true);
+        //popOver.setCloseButtonEnabled(true);
+
+        // TitledPaneのスタイルに影響されてタイトルが巨大になってしまうため非表示
+        popOver.setHeaderAlwaysVisible(false);
+        popOver.setTitle("What is this?");
+
+        helpIcon.setOnMouseClicked(e -> {
+            e.consume();
+            popOver.show(helpIcon);
+        });
     }
 
 }

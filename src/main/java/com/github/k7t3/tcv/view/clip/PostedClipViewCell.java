@@ -77,6 +77,13 @@ public class PostedClipViewCell extends ListCell<PostedClipViewModel> {
         removeButton.setTooltip(new Tooltip(Resources.getString("clip.remove")));
         removeButton.setOnAction(e -> getItem().remove());
 
+        vbox.maxWidthProperty().bind(widthProperty()
+                .subtract(thumbnail.fitWidthProperty().multiply(2))
+                .subtract(openBrowser.widthProperty())
+                .subtract(clipURLButton.widthProperty())
+                .subtract(removeButton.widthProperty())
+        );
+
         layout = new HBox(thumbnail, vbox, openBrowser, clipURLButton, removeButton);
         layout.setAlignment(Pos.CENTER_LEFT);
         layout.setSpacing(4);

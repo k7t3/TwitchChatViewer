@@ -17,7 +17,7 @@
    <center>
       <StackPane fx:id="chatDataContainer">
          <children>
-            <Pane fx:id="backgroundImageLayer" />
+            <Pane fx:id="backgroundImageLayer" opacity="0.2" />
          </children></StackPane>
    </center>
    <top>
@@ -25,7 +25,7 @@
          <children>
             <ImageView fx:id="profileImageView" fitHeight="48.0" fitWidth="48.0" pickOnBounds="true" preserveRatio="true" />
             <Pane HBox.hgrow="ALWAYS" />
-            <MenuButton fx:id="menuButton" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" text="MenuButton" focusTraversable="false">
+            <MenuButton fx:id="menuButton" contentDisplay="GRAPHIC_ONLY" focusTraversable="false" mnemonicParsing="false" text="MenuButton">
               <items>
                   <CustomMenuItem mnemonicParsing="false" text="透過度">
                      <content>

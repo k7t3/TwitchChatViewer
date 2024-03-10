@@ -1,31 +1,33 @@
 package com.github.k7t3.tcv.app.clip;
 
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
-import com.github.k7t3.tcv.domain.chat.ChatData;
-import com.github.k7t3.tcv.domain.chat.ChatRoom;
-import com.github.k7t3.tcv.domain.chat.ChatRoomListener;
-import com.github.k7t3.tcv.domain.chat.ChatRoomState;
-import com.github.k7t3.tcv.domain.clip.VideoClip;
+import com.github.k7t3.tcv.domain.chat.*;
 import de.saxsys.mvvmfx.ViewModel;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.IntegerBinding;
+import javafx.beans.binding.NumberBinding;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableMap;
+import javafx.collections.ObservableSet;
 
+import java.util.HashSet;
 import java.util.List;
 
 public class PostedClipRepository implements ViewModel, ChatRoomListener {
 
     private final ObservableMap<String, PostedClipViewModel> postedClips = FXCollections.observableHashMap();
 
+    /** Twitch APIで取得に失敗したURL*/
+    private final ObservableSet<EstimatedClipURL> estimatedClipURLs = FXCollections.observableSet(new HashSet<>());
+
     private ClipThumbnailStore thumbnailStore;
 
     public PostedClipRepository() {
     }
 
-    public IntegerBinding getCountBinding() {
-        return Bindings.size(postedClips);
+    public NumberBinding getCountBinding() {
+        return Bindings.size(postedClips).add(Bindings.size(estimatedClipURLs));
     }
 
     public List<Broadcaster> getPostedBroadcasters() {
@@ -40,6 +42,10 @@ public class PostedClipRepository implements ViewModel, ChatRoomListener {
         return postedClips;
     }
 
+    public ObservableSet<EstimatedClipURL> getEstimatedClipURLs() {
+        return estimatedClipURLs;
+    }
+
     ClipThumbnailStore getThumbnailStore() {
         if (thumbnailStore == null) {
             thumbnailStore = new ClipThumbnailStore();
@@ -48,16 +54,26 @@ public class PostedClipRepository implements ViewModel, ChatRoomListener {
     }
 
     @Override
-    public void onClipPosted(ChatRoom chatRoom, VideoClip clip) {
-        Platform.runLater(() -> {
-            var broadcaster = chatRoom.getBroadcaster();
-            var posted = postedClips.get(clip.id());
-            if (posted == null) {
-                posted = new PostedClipViewModel(clip, broadcaster, this);
-                postedClips.put(clip.id(), posted);
-            }
-            posted.onPosted(broadcaster);
-        });
+    public void onClipPosted(ChatRoom chatRoom, ClipChatMessage clipChatMessage) {
+
+        if (clipChatMessage.getClip().isPresent()) {
+
+            var clip = clipChatMessage.getClip().get();
+            Platform.runLater(() -> {
+                var broadcaster = chatRoom.getBroadcaster();
+                var posted = postedClips.get(clip.id());
+                if (posted == null) {
+                    posted = new PostedClipViewModel(clip, broadcaster, this);
+                    postedClips.put(clip.id(), posted);
+                } else {
+                    posted.onPosted(broadcaster);
+                }
+            });
+
+        } else {
+            var estimatedClipURL = new EstimatedClipURL(clipChatMessage.getEstimatedURL());
+            Platform.runLater(() -> estimatedClipURLs.add(estimatedClipURL));
+        }
     }
 
     @Override
