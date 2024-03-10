@@ -1,5 +1,6 @@
 package com.github.k7t3.tcv.app.core;
 
+import com.github.k7t3.tcv.app.clip.PostedClipRepository;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.domain.Twitch;
@@ -15,10 +16,19 @@ public class AppHelper implements Closeable {
 
     private final ObjectProperty<Twitch> twitch = new SimpleObjectProperty<>();
 
+    private PostedClipRepository clipRepository;
+
     private AppHelper() {
         userId.bind(twitch.map(Twitch::getUserId));
         userName.bind(twitch.map(Twitch::getUserName));
         authorized.bind(twitch.isNotNull());
+    }
+
+    public PostedClipRepository getClipRepository() {
+        if (clipRepository == null) {
+            clipRepository = new PostedClipRepository();
+        }
+        return clipRepository;
     }
 
     public FXTask<Void> logout() {
@@ -41,6 +51,14 @@ public class AppHelper implements Closeable {
         }
     }
 
+    public static AppHelper getInstance() {
+        return Holder.INSTANCE;
+    }
+
+    private static class Holder {
+        private static final AppHelper INSTANCE = new AppHelper();
+    }
+
     // ########################################
     // PROPERTIES
 
@@ -57,11 +75,4 @@ public class AppHelper implements Closeable {
     public Twitch getTwitch() { return twitch.get(); }
     public void setTwitch(Twitch twitch) { this.twitch.set(twitch); }
 
-    public static AppHelper getInstance() {
-        return Holder.INSTANCE;
-    }
-
-    private static class Holder {
-        private static final AppHelper INSTANCE = new AppHelper();
-    }
 }

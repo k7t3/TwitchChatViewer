@@ -106,18 +106,8 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
         searchChannelButton.disableProperty().bind(helper.authorizedProperty().not());
 
-        Runnable authorizedCallback = () -> {
-            // ModalPaneを非表示にする
-            modalPane.hide(true);
-
-            // フォローしているチャンネルを初期化
-            channelsViewModel.loadAsync();
-
-            // チャットコンテナを初期化
-            chatContainerViewModel.loadAsync();
-        };
         loginMenuItem.visibleProperty().bind(helper.authorizedProperty().not());
-        loginMenuItem.setOnAction(new AuthorizationViewCallAction(modalPane, authorizedCallback));
+        loginMenuItem.setOnAction(new AuthorizationViewCallAction(modalPane, this::authorized));
 
         logoutMenuItem.visibleProperty().bind(helper.authorizedProperty());
         logoutMenuItem.setOnAction(new LogoutAction(rootPane));
@@ -129,7 +119,7 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         );
         // クリップが投稿されたらアニメーションを実行するリスナ
         viewModel.clipCountProperty().addListener((ob, o, n) -> {
-            if (0 < n.intValue()) {
+            if (o.intValue() < n.intValue()) {
                 var animation = Animations.wobble(clipButton);
                 animation.play();
             }
@@ -152,10 +142,13 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         prefsMenuItem.disableProperty().bind(prefViewCallAction.disableProperty());
         keyActionRepository.addAction(prefViewCallAction);
 
-        var clipViewCallAction = new VideoClipListViewCallAction(modalPane, viewModel, getBrowserController());
+        var clipViewCallAction = new VideoClipListViewCallAction(modalPane, getBrowserController());
         clipViewCallAction.disableProperty().bind(viewModel.clipCountProperty().lessThan(1));
         clipButton.setOnAction(clipViewCallAction);
         keyActionRepository.addAction(clipViewCallAction);
+
+        var closeChatRoomAction = new CloseChatRoomAction(chatContainerViewModel);
+        keyActionRepository.addAction(closeChatRoomAction);
     }
 
     private BrowserController getBrowserController() {
@@ -188,28 +181,26 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         var tuple = loader.load();
 
         chatContainerViewModel = tuple.getViewModel();
-        chatContainerViewModel.installMainViewModel(viewModel);
-
         chatContainer.getChildren().add(tuple.getView());
     }
 
     public void startMainView() {
-        Runnable authorizedCallback = () -> {
-            // ModalPaneを非表示にする
-            modalPane.hide(true);
-
-            // フォローしているチャンネルを初期化
-            channelsViewModel.loadAsync();
-
-            // チャットコンテナを初期化
-            chatContainerViewModel.loadAsync();
-
-            // キーアクションをインストール
-            keyActionRepository.install(rootPane.getScene());
-        };
-
-        var action = new AuthorizationViewCallAction(modalPane, authorizedCallback);
+        var action = new AuthorizationViewCallAction(modalPane, this::authorized);
         action.run();
+    }
+
+    private void authorized() {
+        // ModalPaneを非表示にする
+        modalPane.hide(true);
+
+        // フォローしているチャンネルを初期化
+        channelsViewModel.loadAsync();
+
+        // チャットコンテナを初期化
+        chatContainerViewModel.loadAsync();
+
+        // キーアクションをインストール
+        keyActionRepository.install(rootPane.getScene());
     }
 
 }

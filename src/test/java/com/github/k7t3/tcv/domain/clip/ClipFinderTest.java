@@ -1,8 +1,8 @@
-package com.github.k7t3.tcv.domain.channel;
+package com.github.k7t3.tcv.domain.clip;
 
 import com.github.k7t3.tcv.domain.Twitch;
 import com.github.k7t3.tcv.domain.TwitchLoader;
-import com.github.k7t3.tcv.domain.chat.ClipFinder;
+import com.github.k7t3.tcv.domain.clip.ClipFinder;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

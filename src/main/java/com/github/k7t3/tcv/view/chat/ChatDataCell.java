@@ -1,6 +1,7 @@
 package com.github.k7t3.tcv.view.chat;
 
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
+import com.github.k7t3.tcv.prefs.ChatFont;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.Insets;
@@ -10,7 +11,6 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import org.fxmisc.flowless.Cell;
@@ -32,7 +32,7 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
 
     private final BooleanProperty visibleName;
 
-    private final ObservableValue<Font> font;
+    private final ObservableValue<ChatFont> font;
 
     private final ChatDataViewModel viewModel;
 
@@ -58,30 +58,33 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
 
         setPadding(new Insets(4));
 
-        viewModel.getBadges().stream().map(this::createBadgeNode).forEach(getChildren()::add);
+        if (!viewModel.getChatData().isSystemMessage()) {
 
-        var userNameText = new Text();
-        userNameText.getStyleClass().add(NAME_STYLE_CLASS);
-        userNameText.visibleProperty().bind(visibleName);
-        userNameText.managedProperty().bind(visibleName);
-        userNameText.fillProperty().bind(viewModel.colorProperty());
-        userNameText.fontProperty().bind(font);
+            viewModel.getBadges().stream().map(this::createBadgeNode).forEach(getChildren()::add);
 
-        var colon = new Text(": ");
-        colon.getStyleClass().add(NAME_STYLE_CLASS);
-        colon.visibleProperty().bind(visibleName);
-        colon.managedProperty().bind(visibleName);
-        colon.fillProperty().bind(viewModel.colorProperty());
-        colon.fontProperty().bind(font);
+            var userNameText = new Text();
+            userNameText.getStyleClass().add(NAME_STYLE_CLASS);
+            userNameText.visibleProperty().bind(visibleName);
+            userNameText.managedProperty().bind(visibleName);
+            userNameText.fillProperty().bind(viewModel.colorProperty());
+            userNameText.fontProperty().bind(font.map(ChatFont::getFont));
 
-        // ユーザー名と表示名が異なるとき
-        if (!viewModel.getDisplayName().equalsIgnoreCase(viewModel.getUserName())) {
-            userNameText.setText(" %s(%s)".formatted(viewModel.getDisplayName(), viewModel.getUserName()));
-        } else {
-            userNameText.setText(" %s".formatted(viewModel.getUserName()));
+            var colon = new Text(": ");
+            colon.getStyleClass().add(NAME_STYLE_CLASS);
+            colon.visibleProperty().bind(visibleName);
+            colon.managedProperty().bind(visibleName);
+            colon.fillProperty().bind(viewModel.colorProperty());
+            colon.fontProperty().bind(font.map(ChatFont::getFont));
+
+            // ユーザー名と表示名が異なるとき
+            if (!viewModel.getDisplayName().equalsIgnoreCase(viewModel.getUserName())) {
+                userNameText.setText(" %s(%s)".formatted(viewModel.getDisplayName(), viewModel.getUserName()));
+            } else {
+                userNameText.setText(" %s".formatted(viewModel.getUserName()));
+            }
+
+            getChildren().addAll(userNameText, colon);
         }
-
-        getChildren().addAll(userNameText, colon);
 
         for (var fragment : viewModel.getMessage()) {
             switch (fragment.type()) {
@@ -92,7 +95,9 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
                 case MESSAGE -> {
                     var text = new Text(fragment.fragment());
                     text.getStyleClass().add(CHAT_STYLE_CLASS);
-                    text.fontProperty().bind(font);
+                    text.fontProperty().bind(font.map(f ->
+                            viewModel.getChatData().isSystemMessage() ? f.getBoldFont() : f.getFont())
+                    );
                     getChildren().add(text);
                 }
             }

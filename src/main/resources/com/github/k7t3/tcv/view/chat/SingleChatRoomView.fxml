@@ -20,7 +20,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
-<BorderPane prefWidth="200.0" styleClass="chat-room-view" stylesheets="@ChatRoomView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.chat.ChatRoomView">
+<BorderPane prefWidth="200.0" styleClass="chat-room-view" stylesheets="@SingleChatRoomView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.chat.SingleChatRoomView">
    <top>
       <GridPane fx:id="headerPane" styleClass="chat-room-header" BorderPane.alignment="CENTER">
          <columnConstraints>

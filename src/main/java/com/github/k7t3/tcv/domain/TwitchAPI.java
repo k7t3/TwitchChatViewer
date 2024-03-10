@@ -4,7 +4,7 @@ import com.github.k7t3.tcv.domain.auth.CredentialController;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
 import com.github.k7t3.tcv.domain.channel.FoundChannel;
 import com.github.k7t3.tcv.domain.channel.StreamInfo;
-import com.github.k7t3.tcv.domain.exception.IllegalCredentialException;
+import com.github.k7t3.tcv.domain.exception.InvalidCredentialException;
 import com.github.twitch4j.common.events.domain.EventChannel;
 import com.github.twitch4j.common.exception.UnauthorizedException;
 import com.github.twitch4j.common.util.CollectionUtils;
@@ -192,7 +192,7 @@ public class TwitchAPI implements Closeable {
         return set.getBadgeSets();
     }
 
-    private List<Clip> getClips(List<String> clipIds, boolean retried) {
+    public List<Clip> getClips(List<String> clipIds) {
         var list = hystrixCommandWrapper(helix -> helix.getClips(
                 twitch.getAccessToken(),
                 null,
@@ -206,25 +206,7 @@ public class TwitchAPI implements Closeable {
                 null
         ));
 
-        var clips = list.getData();
-        if (clips.isEmpty() && !retried) {
-
-            // 存在するクリップでも取得できないことがあるから
-            // 一度だけリトライするようにしてみる
-
-            LOGGER.info("retry getting clips");
-
-            try { TimeUnit.SECONDS.sleep(1); } catch (Exception ignored) {}
-
-            return getClips(clipIds, true);
-
-        }
-
-        return clips;
-    }
-
-    public List<Clip> getClips(List<String> clipIds) {
-        return getClips(clipIds, false);
+        return list.getData();
     }
 
     public boolean enableStreamEventListener(Broadcaster broadcaster) {
@@ -282,7 +264,6 @@ public class TwitchAPI implements Closeable {
 
     private void refreshAccessToken() {
 
-        // 既に認証が無効化されているときは何もしない
         if (!authorized.get()) {
             return;
         }
@@ -301,12 +282,14 @@ public class TwitchAPI implements Closeable {
                 twitch.logout();
 
                 // 無効な資格情報をスロー
-                throw new IllegalCredentialException();
+                throw new InvalidCredentialException();
             }
 
             twitch.updateCredential(credential);
+            authorized.set(true);
+            LOGGER.info("done refresh");
 
-        } catch (IllegalCredentialException e) {
+        } catch (InvalidCredentialException e) {
 
             throw e;
 
@@ -314,11 +297,6 @@ public class TwitchAPI implements Closeable {
 
             LOGGER.error(e.getMessage(), e);
             throw new RuntimeException(e);
-
-        } finally {
-
-            LOGGER.info("done refresh");
-            authorized.set(true);
 
         }
     }

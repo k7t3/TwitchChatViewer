@@ -6,7 +6,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox fx:id="root" maxHeight="-Infinity" maxWidth="-Infinity" styleClass="video-clip-list-view" stylesheets="@VideoClipListView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.clip.VideoClipListView">
+<VBox fx:id="root" maxHeight="-Infinity" maxWidth="-Infinity" styleClass="video-clip-list-view" stylesheets="@PostedClipRepositoryView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.clip.PostedClipRepositoryView">
    <children>
       <Label fx:id="titleLabel" text="Clips">
          <padding>

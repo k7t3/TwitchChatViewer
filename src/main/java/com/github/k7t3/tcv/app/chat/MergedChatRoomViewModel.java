@@ -12,45 +12,56 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableMap;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
-public class MergedChatRoomViewModel extends ChatRoomViewModelBase implements ViewModel {
+public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewModel {
 
     private static final int DEFAULT_ITEM_COUNT_LIMIT = 512;
 
-    private final ObservableMap<TwitchChannelViewModel, ChatRoomViewModel> channels = FXCollections.observableHashMap();
-
-    private final ChatRoomContainerViewModel containerViewModel;
+    private final ObservableMap<TwitchChannelViewModel, SingleChatRoomViewModel> channels = FXCollections.observableHashMap();
 
     MergedChatRoomViewModel(
             GlobalChatBadgeStore globalChatBadgeStore,
             ChatEmoteStore emoteStore,
             DefinedChatColors definedChatColors,
-            List<ChatRoomViewModel> chatRooms,
+            List<SingleChatRoomViewModel> chatRooms,
             ChatRoomContainerViewModel containerViewModel
     ) {
-        super(globalChatBadgeStore, emoteStore, definedChatColors);
+        super(globalChatBadgeStore, emoteStore, definedChatColors, containerViewModel);
         setItemCountLimit(DEFAULT_ITEM_COUNT_LIMIT);
-        this.containerViewModel = containerViewModel;
 
         initChatRooms(chatRooms);
     }
 
-    private void initChatRooms(List<ChatRoomViewModel> chatRooms) {
+    private void initChatRooms(List<SingleChatRoomViewModel> chatRooms) {
         for (var chatRoom : chatRooms) {
             addChatRoom(chatRoom);
         }
     }
 
-    public void addChatRoom(ChatRoomViewModel chatRoom) {
+    public void addChatRoom(SingleChatRoomViewModel chatRoom) {
         var channel = chatRoom.getChannel();
 
-        if (channel.isLive()) {
-            channel.getChatRoomListeners().remove(chatRoom);
-            channel.getChannelListeners().remove(chatRoom);
+        channel.getChatRoomListeners().remove(chatRoom);
+        channel.getChannelListeners().remove(chatRoom);
+
+        //
+        // 追加するチャットルームが現在持っているチャットの情報をマージする
+        // とりあえずすべてマージして、最後に制限の個数で切り捨てる
+        //
+        var mergedChats = new ArrayList<>(getChatDataList());
+        mergedChats.addAll(chatRoom.getChatDataList());
+        mergedChats.sort(Comparator.comparing(o -> o.getChatData().firedAt()));
+
+        var limit = getItemCountLimit();
+        if (mergedChats.size() <= limit) {
+            getChatDataList().setAll(mergedChats);
         } else {
-            throw new IllegalStateException();
+            var subList = mergedChats.subList(mergedChats.size() - limit, mergedChats.size());
+            getChatDataList().setAll(subList);
         }
 
         channel.getChatRoomListeners().add(this);
@@ -59,6 +70,10 @@ public class MergedChatRoomViewModel extends ChatRoomViewModelBase implements Vi
         channels.put(channel, chatRoom);
     }
 
+    /**
+     * チャンネルが削除されたとき、残りをチャンネル数を確認して
+     * 最後の一つであれば個別のチャンネルとして切り離し、このインスタンスは取り除く。
+     */
     private void onChannelRemoved() {
         if (channels.size() != 1) {
             return;
@@ -67,10 +82,10 @@ public class MergedChatRoomViewModel extends ChatRoomViewModelBase implements Vi
         var chatRoom = channels.entrySet().stream().findFirst().orElseThrow().getValue();
         separateChatRoom(chatRoom);
 
-        containerViewModel.getChatList().remove(this);
+        containerViewModel.getChatRoomList().remove(this);
     }
 
-    public void separateChatRoom(ChatRoomViewModel chatRoom) {
+    public void separateChatRoom(SingleChatRoomViewModel chatRoom) {
         if (!channels.containsValue(chatRoom)) return;
 
         var channel = chatRoom.getChannel();
@@ -79,16 +94,27 @@ public class MergedChatRoomViewModel extends ChatRoomViewModelBase implements Vi
         channel.getChannelListeners().remove(this);
 
         channels.remove(channel);
+
+        // 分離するチャンネルのチャットを取り出す
+        var chatList = getChatDataList().stream()
+                .filter(c -> c.getChannel().equals(channel))
+                .toList();
+
+        // 分離したチャンネルにチャット情報を渡す
+        chatRoom.getChatDataList().setAll(chatList);
+
+        // 現在のチャットから削除
+        getChatDataList().removeAll(chatList);
 
         channel.getChannelListeners().add(chatRoom);
         channel.getChatRoomListeners().add(chatRoom);
 
-        containerViewModel.getChatList().add(chatRoom);
+        containerViewModel.getChatRoomList().add(chatRoom);
 
         onChannelRemoved();
     }
 
-    public void closeChatRoom(ChatRoomViewModel chatRoom) {
+    public void closeChatRoom(SingleChatRoomViewModel chatRoom) {
         if (!channels.containsValue(chatRoom)) return;
 
         var channel = chatRoom.getChannel();
@@ -101,8 +127,8 @@ public class MergedChatRoomViewModel extends ChatRoomViewModelBase implements Vi
         onChannelRemoved();
     }
 
-    public MergedChatRoomViewModel aggregate(MergedChatRoomViewModel mergedChatRoom) {
-        if (this == mergedChatRoom) return this;
+    public void aggregate(MergedChatRoomViewModel mergedChatRoom) {
+        if (this == mergedChatRoom) return;
 
         for (var entry : mergedChatRoom.channels.entrySet()) {
             var channel = entry.getKey();
@@ -113,17 +139,32 @@ public class MergedChatRoomViewModel extends ChatRoomViewModelBase implements Vi
             channel.getChatRoomListeners().remove(mergedChatRoom);
             channel.getChannelListeners().remove(mergedChatRoom);
 
+            //
+            // 追加するチャットルームが現在持っているチャットの情報をマージする
+            // とりあえずすべてマージして、最後に制限の個数で切り捨てる
+            //
+            var mergedChats = new ArrayList<>(getChatDataList());
+            mergedChats.addAll(chatRoom.getChatDataList());
+            mergedChats.sort(Comparator.comparing(o -> o.getChatData().firedAt()));
+
+            var limit = getItemCountLimit();
+            if (mergedChats.size() <= limit) {
+                chatRoom.getChatDataList().setAll(mergedChats);
+            } else {
+                var subList = mergedChats.subList(mergedChats.size() - limit, mergedChats.size());
+                chatRoom.getChatDataList().setAll(subList);
+            }
+
             channel.getChatRoomListeners().add(this);
             channel.getChannelListeners().add(this);
 
             channels.put(channel, chatRoom);
-            containerViewModel.getChatList().remove(mergedChatRoom);
+            containerViewModel.getChatRoomList().remove(mergedChatRoom);
         }
 
-        return this;
     }
 
-    public ObservableMap<TwitchChannelViewModel, ChatRoomViewModel> getChannels() {
+    public ObservableMap<TwitchChannelViewModel, SingleChatRoomViewModel> getChannels() {
         return channels;
     }
 

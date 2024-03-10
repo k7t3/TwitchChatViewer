@@ -3,7 +3,6 @@ package com.github.k7t3.tcv.domain.channel;
 import com.github.k7t3.tcv.domain.Twitch;
 import com.github.k7t3.tcv.domain.chat.ChatBadge;
 import com.github.k7t3.tcv.domain.chat.ChatRoom;
-import com.github.k7t3.tcv.domain.clip.VideoClipListener;
 import com.github.k7t3.tcv.domain.core.EventExecutorWrapper;
 import com.github.philippheuer.events4j.api.domain.IDisposable;
 import com.github.twitch4j.events.*;
@@ -151,8 +150,6 @@ public class TwitchChannel {
 
     private ChatRoom chatRoom;
 
-    private VideoClipListener clipListener;
-
     public boolean isChatJoined() {
         return chatRoom != null;
     }
@@ -164,16 +161,12 @@ public class TwitchChannel {
         chatRoom = new ChatRoom(twitch, eventExecutor, broadcaster, this);
         chatRoom.listen();
 
-        clipListener = new VideoClipListener(twitch.getClipRepository(), broadcaster);
-        chatRoom.addListener(clipListener);
-
         return chatRoom;
     }
 
     public void leaveChat() {
         if (chatRoom == null) return;
 
-        chatRoom.removeListener(clipListener);
         chatRoom.leave();
 
         // フォローされていないチャンネルはチャットを使い終わった時点でクリアする

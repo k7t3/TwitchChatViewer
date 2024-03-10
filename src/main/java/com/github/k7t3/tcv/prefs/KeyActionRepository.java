@@ -12,7 +12,11 @@ public class KeyActionRepository {
 
     private final List<KeyAction> actions = new ArrayList<>();
 
+    private Scene scene;
+
     public void install(Scene scene) {
+        if (this.scene != null) return;
+        this.scene = scene;
         scene.addEventFilter(KeyEvent.KEY_PRESSED, e -> actions.stream().filter(a -> a.accept(e)).findFirst().ifPresent(r -> {
             if (r.isDisable()) return;
             r.run();

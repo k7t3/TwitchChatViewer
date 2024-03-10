@@ -4,8 +4,9 @@ import atlantafx.base.theme.Styles;
 import atlantafx.base.util.Animations;
 import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
 import com.github.k7t3.tcv.app.chat.ChatRoomViewModel;
-import com.github.k7t3.tcv.app.chat.ChatRoomViewModelBase;
 import com.github.k7t3.tcv.app.chat.MergedChatRoomViewModel;
+import com.github.k7t3.tcv.app.chat.SingleChatRoomViewModel;
+import com.github.k7t3.tcv.view.core.FloatableStage;
 import com.github.k7t3.tcv.view.core.Resources;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
@@ -13,6 +14,7 @@ import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.animation.Timeline;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -25,6 +27,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 
+import java.io.IOException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
@@ -52,12 +55,17 @@ public class ChatContainerView implements FxmlView<ChatRoomContainerViewModel>, 
     @InjectViewModel
     private ChatRoomContainerViewModel viewModel;
 
-    private Map<ChatRoomViewModelBase, Node> items;
+    private Map<ChatRoomViewModel, Node> items;
+
+    private Map<ChatRoomViewModel, FloatableStage> floatableStages;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         items = new HashMap<>();
-        viewModel.getChatList().addListener(this::chatChanged);
+        viewModel.getChatRoomList().addListener(this::chatChanged);
+
+        floatableStages = new HashMap<>();
+        viewModel.getFloatableChatRoomList().addListener(this::floatableChatChanged);
 
         chatContainer = new GridPane();
         container.setCenter(chatContainer);
@@ -76,7 +84,74 @@ public class ChatContainerView implements FxmlView<ChatRoomContainerViewModel>, 
         cancelButton.setOnAction(e -> viewModel.unselectAll());
     }
 
-    private void chatChanged(ListChangeListener.Change<? extends ChatRoomViewModelBase> c) {
+    private void floatableChatChanged(ListChangeListener.Change<? extends ChatRoomViewModel> c) {
+        while (c.next()) {
+            if (c.wasAdded()) {
+                for (var chat : c.getAddedSubList())
+                    floatableAdded(chat);
+            }
+            if (c.wasRemoved()) {
+                for (var chat : c.getRemoved())
+                    floatableRemoved(chat);
+            }
+        }
+    }
+
+    private void floatableAdded(ChatRoomViewModel chat) {
+        var stage = floatableStages.get(chat);
+        if (stage != null) return;
+
+        // マージされたチャット
+        if (chat instanceof MergedChatRoomViewModel mergedChatRoom) {
+
+            var tuple = FluentViewLoader.fxmlView(FloatableMergedChatRoomView.class)
+                    .resourceBundle(Resources.getResourceBundle())
+                    .viewModel(mergedChatRoom)
+                    .load();
+
+            var view = tuple.getView();
+            var behind = tuple.getCodeBehind();
+
+            stage = behind.getFloatableStage();
+            stage.setContent(view);
+            stage.initOwner(container.getScene().getWindow());
+
+        }
+
+        // 単体のチャット
+        else if (chat instanceof SingleChatRoomViewModel chatRoom) {
+
+            var tuple = FluentViewLoader.fxmlView(FloatableSingleChatRoomView.class)
+                    .resourceBundle(Resources.getResourceBundle())
+                    .viewModel(chatRoom)
+                    .load();
+
+            var view = tuple.getView();
+            var behind = tuple.getCodeBehind();
+
+            stage = behind.getFloatableStage();
+            stage.setContent(view);
+            stage.initOwner(container.getScene().getWindow());
+
+        }
+
+        else {
+            return;
+        }
+
+        floatableStages.put(chat, stage);
+        stage.show();
+    }
+
+    private void floatableRemoved(ChatRoomViewModel chat) {
+        var stage = floatableStages.get(chat);
+        if (stage == null) return;
+
+        stage.close();
+        floatableStages.remove(chat);
+    }
+
+    private void chatChanged(ListChangeListener.Change<? extends ChatRoomViewModel> c) {
         while (c.next()) {
             if (c.wasAdded()) {
                 for (var chat : c.getAddedSubList())
@@ -89,18 +164,18 @@ public class ChatContainerView implements FxmlView<ChatRoomContainerViewModel>, 
         }
     }
 
-    private void onRemoved(ChatRoomViewModelBase chat) {
+    private void onRemoved(ChatRoomViewModel chat) {
         var node = items.get(chat);
         if (node == null) return;
 
         chatContainer.getChildren().remove(node);
     }
 
-    private void onAdded(ChatRoomViewModelBase chat) {
+    private void onAdded(ChatRoomViewModel chat) {
 
         // 通常のチャットビュー
-        if (chat instanceof ChatRoomViewModel c2) {
-            var tuple = FluentViewLoader.fxmlView(ChatRoomView.class)
+        if (chat instanceof SingleChatRoomViewModel c2) {
+            var tuple = FluentViewLoader.fxmlView(SingleChatRoomView.class)
                     .viewModel(c2)
                     .resourceBundle(Resources.getResourceBundle())
                     .load();

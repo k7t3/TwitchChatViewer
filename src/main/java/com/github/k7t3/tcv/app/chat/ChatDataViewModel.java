@@ -3,6 +3,7 @@ package com.github.k7t3.tcv.app.chat;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.domain.chat.ChatData;
 import com.github.k7t3.tcv.domain.chat.ChatMessage;
+import com.github.k7t3.tcv.prefs.ChatFont;
 import de.saxsys.mvvmfx.ViewModel;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
@@ -11,11 +12,9 @@ import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
 import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
 
 import java.util.ArrayList;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class ChatDataViewModel implements ViewModel {
 
@@ -37,7 +36,7 @@ public class ChatDataViewModel implements ViewModel {
 
     private final BooleanProperty deleted = new SimpleBooleanProperty(false);
 
-    private final ObjectProperty<Font> font = new SimpleObjectProperty<>(null);
+    private final ObjectProperty<ChatFont> font = new SimpleObjectProperty<>(null);
 
     private final ChatData chatData;
 
@@ -143,7 +142,7 @@ public class ChatDataViewModel implements ViewModel {
     public boolean isDeleted() { return deleted.get(); }
     public void setDeleted(boolean deleted) { this.deleted.set(deleted); }
 
-    public ObjectProperty<Font> fontProperty() { return font; }
-    public Font getFont() { return font.get(); }
-    public void setFont(Font font) { this.font.set(font); }
+    public ObjectProperty<ChatFont> fontProperty() { return font; }
+    public ChatFont getFont() { return font.get(); }
+    public void setFont(ChatFont font) { this.font.set(font); }
 }

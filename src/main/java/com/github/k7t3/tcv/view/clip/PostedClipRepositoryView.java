@@ -1,15 +1,17 @@
 package com.github.k7t3.tcv.view.clip;
 
 import atlantafx.base.theme.Styles;
-import com.github.k7t3.tcv.app.clip.ClipPlayerViewModel;
-import com.github.k7t3.tcv.app.clip.VideoClipListViewModel;
-import com.github.k7t3.tcv.app.clip.VideoClipViewModel;
-import com.github.k7t3.tcv.app.core.AppHelper;
+import com.github.k7t3.tcv.app.clip.PostedClipRepository;
+import com.github.k7t3.tcv.app.clip.PostedClipViewModel;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
-import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.view.web.BrowserController;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
+import javafx.collections.FXCollections;
+import javafx.collections.MapChangeListener;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
@@ -19,15 +21,12 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.net.URL;
+import java.util.Comparator;
 import java.util.ResourceBundle;
 
-public class VideoClipListView implements FxmlView<VideoClipListViewModel>, Initializable {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(VideoClipListViewModel.class);
+public class PostedClipRepositoryView implements FxmlView<PostedClipRepository>, Initializable {
 
     @FXML
     private Pane root;
@@ -39,36 +38,40 @@ public class VideoClipListView implements FxmlView<VideoClipListViewModel>, Init
     private HBox channelOwnersContainer;
 
     @FXML
-    private ListView<VideoClipViewModel> videoClips;
+    private ListView<PostedClipViewModel> videoClips;
 
     @InjectViewModel
-    private VideoClipListViewModel viewModel;
+    private PostedClipRepository repository;
 
     private BrowserController browserController;
 
+    private ObservableList<PostedClipViewModel> postedClips;
+    private FilteredList<PostedClipViewModel> filteredClips;
+
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        var helper = AppHelper.getInstance();
-        var twitch = helper.getTwitch();
-
         titleLabel.getStyleClass().add(Styles.TITLE_3);
 
-        viewModel.installRepository(twitch.getClipRepository());
+        postedClips = FXCollections.observableArrayList();
+        postedClips.addAll(repository.getPostedClips().values());
+        repository.getPostedClips().addListener(this::onPostedClipChanged);
 
         initializeButtons();
 
-        videoClips.setItems(viewModel.getClips());
-        videoClips.setCellFactory(param -> new VideoClipViewCell());
+        filteredClips = new FilteredList<>(postedClips);
+        var sortedClips = new SortedList<>(filteredClips);
+        sortedClips.setComparator(Comparator.comparing(PostedClipViewModel::getLastPostedAt));
+
+        videoClips.setItems(sortedClips);
+        videoClips.setCellFactory(param -> new PostedClipViewCell());
 
         videoClips.setOnKeyPressed(e -> {
             if (e.getCode() == KeyCode.ENTER) {
-                //openPlayerIfEnabled();
                 openBrowser();
             }
         });
         videoClips.setOnMouseClicked(e -> {
             if (e.getButton() == MouseButton.PRIMARY && e.getClickCount() == 2) {
-                //openPlayerIfEnabled();
                 openBrowser();
             }
         });
@@ -80,6 +83,15 @@ public class VideoClipListView implements FxmlView<VideoClipListViewModel>, Init
         });
     }
 
+    private void onPostedClipChanged(MapChangeListener.Change<? extends String, ? extends PostedClipViewModel> change) {
+        if (change.wasAdded()) {
+            postedClips.add(change.getValueAdded());
+        }
+        if (change.wasRemoved()) {
+            postedClips.remove(change.getValueRemoved());
+        }
+    }
+
     public void setBrowserController(BrowserController browserController) {
         this.browserController = browserController;
     }
@@ -88,30 +100,15 @@ public class VideoClipListView implements FxmlView<VideoClipListViewModel>, Init
         var selected = videoClips.getSelectionModel().getSelectedItem();
         if (selected == null) return;
 
-        var url = selected.getPosted().getClip().url();
+        var url = selected.getClip().url();
         browserController.load(url);
         browserController.show();
-    }
-
-    private void openPlayerIfEnabled() {
-        // プレイヤーは非公式の機能を使用しているためExperimentalとする
-        if (!AppPreferences.getInstance().isExperimental()) {
-            LOGGER.warn("clip player is disabled!");
-            return;
-        }
-
-        var selected = videoClips.getSelectionModel().getSelectedItem();
-        if (selected == null) return;
-
-        var player = new ClipPlayerStage(root.getScene().getWindow(), new ClipPlayerViewModel(selected));
-        player.setTitle(selected.getPosted().getClip().broadcasterName());
-        player.show();
     }
 
     private void initializeButtons() {
         var group = new ToggleGroup();
 
-        var buttons = viewModel.getChannelOwners()
+        var buttons = repository.getPostedBroadcasters()
                 .stream()
                 .map(channelOwner -> createButton(channelOwner, group))
                 .toList();
@@ -125,9 +122,9 @@ public class VideoClipListView implements FxmlView<VideoClipListViewModel>, Init
         button.setToggleGroup(group);
         button.setOnAction(e -> {
             if (button.isSelected()) {
-                viewModel.filter(channelOwner);
+                filteredClips.setPredicate(posted -> posted.isPosted(channelOwner));
             } else {
-                viewModel.filter(null);
+                filteredClips.setPredicate(null);
             }
         });
         return button;

@@ -1,0 +1,17 @@
+.chat-room-view {
+    -fx-border-color: transparent -color-border-default transparent transparent;
+    -fx-background-color: -color-bg-default;
+}
+
+.chat-room-header {
+    -fx-border-color: transparent transparent -color-border-default transparent;
+}
+
+.chat-room-header: selected {
+    -fx-background-color: -color-success-subtle;
+}
+
+.profile-image-container {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}

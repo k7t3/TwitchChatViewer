@@ -1,7 +1,6 @@
-package com.github.k7t3.tcv.domain.chat;
+package com.github.k7t3.tcv.domain.clip;
 
 import com.github.k7t3.tcv.domain.Twitch;
-import com.github.k7t3.tcv.domain.clip.VideoClip;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,7 +13,9 @@ public class ClipFinder {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ClipFinder.class);
 
-    private static final Pattern CLIP_URL_PATTERN = Pattern.compile("https://((www\\.twitch\\.tv|m\\.twitch\\.tv)/[^/]+/clip|clips\\.twitch\\.tv)/[^ 　]+");
+    private static final Pattern CLIP_URL_PATTERN = Pattern.compile(
+            "https://((www\\.twitch\\.tv|m\\.twitch\\.tv)/[^/]+/clip|clips\\.twitch\\.tv)/[\\p{Alnum}.,%_=?&#\\-+()\\[\\]*$~@!:/{};']*"
+    );
 
     private final Twitch twitch;
 

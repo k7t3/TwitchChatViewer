@@ -20,17 +20,17 @@ public class ClipPlayerViewModel implements ViewModel {
 
     private final ReadOnlyBooleanWrapper loaded = new ReadOnlyBooleanWrapper(false);
 
-    private ObjectProperty<VideoClipViewModel> clip;
+    private ObjectProperty<PostedClipViewModel> clip;
 
     private ReadOnlyObjectWrapper<Media> media;
 
     private ReadOnlyObjectWrapper<MediaPlayer> player;
 
-    public ClipPlayerViewModel(VideoClipViewModel clip) {
+    public ClipPlayerViewModel(PostedClipViewModel clip) {
         setClip(clip);
     }
 
-    private String getEstimatedMediaSource(VideoClipViewModel clip) {
+    private String getEstimatedMediaSource(PostedClipViewModel clip) {
         // クリップのサムネイルURLからメディアのURLを推定する
         var source = clip.getThumbnailUrl().replaceAll(REPLACEMENT_REGEX, ".mp4");
 
@@ -69,12 +69,12 @@ public class ClipPlayerViewModel implements ViewModel {
     public boolean isLoaded() { return loaded.get(); }
     public void setLoaded(boolean loaded) { this.loaded.set(loaded); }
 
-    public ObjectProperty<VideoClipViewModel> clipProperty() {
+    public ObjectProperty<PostedClipViewModel> clipProperty() {
         if (clip == null) clip = new SimpleObjectProperty<>();
         return clip;
     }
-    public VideoClipViewModel getClip() { return clipProperty().get(); }
-    public void setClip(VideoClipViewModel clip) { clipProperty().set(clip); }
+    public PostedClipViewModel getClip() { return clipProperty().get(); }
+    public void setClip(PostedClipViewModel clip) { clipProperty().set(clip); }
 
     private ReadOnlyObjectWrapper<Media> mediaWrapper() {
         if (media == null) {

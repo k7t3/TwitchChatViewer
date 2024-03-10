@@ -16,17 +16,19 @@ import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
-import javafx.scene.text.Font;
 
 import java.util.List;
 
 public class ChatRoomContainerViewModel implements ViewModel {
 
-    /** 開かれているチャット(チャンネル)のリスト*/
-    private final ObservableList<ChatRoomViewModelBase> chatList = FXCollections.observableArrayList(c -> new Observable[] { c.selectedProperty() });
+    /** 開かれているチャットルーム(チャンネル)のリスト*/
+    private final ObservableList<ChatRoomViewModel> chatRoomList = FXCollections.observableArrayList(c -> new Observable[] { c.selectedProperty() });
 
-    /** 選択しているチャット*/
-    private final ObservableList<ChatRoomViewModelBase> selectedList = new FilteredList<>(chatList, ChatRoomViewModelBase::isSelected);
+    /** フロートモード*/
+    private final ObservableList<ChatRoomViewModel> floatableChatRoomList = FXCollections.observableArrayList();
+
+    /** 選択しているチャットルーム*/
+    private final ObservableList<ChatRoomViewModel> selectedList = new FilteredList<>(chatRoomList, ChatRoomViewModel::isSelected);
 
     /** 選択モード*/
     private final ReadOnlyBooleanWrapper selectMode = new ReadOnlyBooleanWrapper(false);
@@ -45,11 +47,9 @@ public class ChatRoomContainerViewModel implements ViewModel {
 
     private final BooleanProperty showBadges = new SimpleBooleanProperty(true);
 
-    private final ObjectProperty<Font> font = new SimpleObjectProperty<>(null);
+    private final ObjectProperty<ChatFont> font = new SimpleObjectProperty<>(null);
 
     private final ObjectProperty<ChatMessageFilter> chatMessageFilter = new SimpleObjectProperty<>(ChatMessageFilter.DEFAULT);
-
-    private MainViewModel mainViewModel;
 
     private List<ChatRoomListener> defaultChatRoomListeners;
 
@@ -62,7 +62,7 @@ public class ChatRoomContainerViewModel implements ViewModel {
 
         helper.authorizedProperty().addListener((ob, o, n) -> {
             if (!n) {
-                chatList.clear();
+                chatRoomList.clear();
             }
         });
 
@@ -70,23 +70,20 @@ public class ChatRoomContainerViewModel implements ViewModel {
 
         // 一つ以上選択されているときは選択モード
         selectMode.bind(selectingCount.greaterThan(0));
-    }
 
-    public ObservableList<ChatRoomViewModelBase> getChatList() {
-        return chatList;
-    }
-
-    public void installMainViewModel(MainViewModel mainViewModel) {
-        this.mainViewModel = mainViewModel;
-        defaultChatRoomListeners = List.of(mainViewModel.createClipPostListener());
+        defaultChatRoomListeners = List.of(helper.getClipRepository());
 
         // Preferencesと同期
         var prefs = AppPreferences.getInstance();
         var chatPrefs = prefs.getChatPreferences();
         showUserName.bind(chatPrefs.showUserNameProperty());
         showBadges.bind(chatPrefs.showBadgesProperty());
-        font.bind(chatPrefs.fontProperty().map(ChatFont::getFont));
+        font.bind(chatPrefs.fontProperty());
         chatMessageFilter.bind(prefs.getMessageFilterPreferences().messageFilterProperty());
+    }
+
+    public ObservableList<ChatRoomViewModel> getChatRoomList() {
+        return chatRoomList;
     }
 
     public FXTask<Void> loadAsync() {
@@ -108,16 +105,16 @@ public class ChatRoomContainerViewModel implements ViewModel {
         return task;
     }
 
-    public ChatRoomViewModelBase register(TwitchChannel channel) {
+    public ChatRoomViewModel register(TwitchChannel channel) {
         if (!loaded.get()) throw new IllegalStateException("not loaded yet");
 
-        var exist = chatList.stream().filter(vm -> vm.hasChannel(channel)).findFirst();
+        var exist = chatRoomList.stream().filter(vm -> vm.hasChannel(channel)).findFirst();
 
         if (exist.isPresent()) {
             return exist.get();
         }
 
-        var chatRoomViewModel = new ChatRoomViewModel(
+        var chatRoomViewModel = new SingleChatRoomViewModel(
                 this,
                 globalBadgeStore,
                 chatEmoteStore,
@@ -130,12 +127,12 @@ public class ChatRoomContainerViewModel implements ViewModel {
 
         bindChatRoomProperties(chatRoomViewModel);
 
-        chatList.add(chatRoomViewModel);
+        chatRoomList.add(chatRoomViewModel);
 
         return chatRoomViewModel;
     }
 
-    private void bindChatRoomProperties(ChatRoomViewModelBase viewModel) {
+    private void bindChatRoomProperties(ChatRoomViewModel viewModel) {
         viewModel.showNameProperty().bind(showUserName);
         viewModel.showBadgesProperty().bind(showBadges);
         viewModel.fontProperty().bind(font);
@@ -147,23 +144,48 @@ public class ChatRoomContainerViewModel implements ViewModel {
      * 管理しているChatリストから削除する。
      * チャットから切断することはしない。切断済みのものを渡すこと。
      */
-    void onLeft(ChatRoomViewModelBase chat) {
-        chatList.removeIf(vm -> vm.equals(chat));
+    void onLeft(ChatRoomViewModel chat) {
+        chatRoomList.removeIf(vm -> vm.equals(chat));
     }
 
-    public ObservableList<ChatRoomViewModelBase> getSelectedList() {
+    public ObservableList<ChatRoomViewModel> getSelectedList() {
         return selectedList;
     }
 
+    public ObservableList<ChatRoomViewModel> getFloatableChatRoomList() {
+        return floatableChatRoomList;
+    }
+
+    public void removeLast() {
+        var chatRoomList = getChatRoomList();
+
+        if (chatRoomList.isEmpty()) return;
+        var last = getChatRoomList().getLast();
+
+        last.leaveChatAsync();
+        chatRoomList.remove(last);
+    }
+
+    public void popOutAsFloatableStage(ChatRoomViewModel chatRoom) {
+        chatRoomList.remove(chatRoom);
+        floatableChatRoomList.add(chatRoom);
+    }
+
+    public void restoreToContainer(ChatRoomViewModel chatRoom) {
+        if (floatableChatRoomList.remove(chatRoom)) {
+            chatRoomList.add(chatRoom);
+        }
+    }
+
     public void unselectAll() {
-        chatList.forEach(c -> c.setSelected(false));
+        chatRoomList.forEach(c -> c.setSelected(false));
     }
 
     public void mergeSelectedChats() {
 
         var chatRooms = getSelectedList().stream()
-                .filter(vm -> vm instanceof ChatRoomViewModel)
-                .map(vm -> (ChatRoomViewModel) vm)
+                .filter(vm -> vm instanceof SingleChatRoomViewModel)
+                .map(vm -> (SingleChatRoomViewModel) vm)
                 .toList();
 
         var mergedChatRooms = getSelectedList().stream()
@@ -184,13 +206,13 @@ public class ChatRoomContainerViewModel implements ViewModel {
                     mergedChatRoom = m;
                 } else {
                     mergedChatRoom.aggregate(m);
-                    chatList.remove(m);
+                    chatRoomList.remove(m);
                 }
             }
 
             for (var c : chatRooms) {
                 mergedChatRoom.addChatRoom(c);
-                chatList.remove(c);
+                chatRoomList.remove(c);
             }
 
             return;
@@ -206,8 +228,8 @@ public class ChatRoomContainerViewModel implements ViewModel {
 
         bindChatRoomProperties(chatRoomViewModel);
 
-        chatList.removeAll(chatRooms);
-        chatList.add(chatRoomViewModel);
+        chatRoomList.removeAll(chatRooms);
+        chatRoomList.add(chatRoomViewModel);
     }
 
     // ******************** PROPERTIES ********************

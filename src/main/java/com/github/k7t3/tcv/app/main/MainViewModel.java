@@ -22,16 +22,8 @@ public class MainViewModel implements ViewModel {
                 setClipCount(0);
             }
         });
-    }
 
-    public void updateClipCount() {
-        var helper = AppHelper.getInstance();
-        var repo = helper.getTwitch().getClipRepository();
-        setClipCount(repo.getClipCount());
-    }
-
-    public VideoClipPostListener createClipPostListener() {
-        return new VideoClipPostListener(this);
+        clipCount.bind(helper.getClipRepository().getCountBinding());
     }
 
     // ******************** PROPERTIES ********************

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.CheckMenuItem?>
+<?import javafx.scene.control.CustomMenuItem?>
+<?import javafx.scene.control.MenuButton?>
+<?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.SeparatorMenuItem?>
+<?import javafx.scene.control.Slider?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.StackPane?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<BorderPane stylesheets="@FloatableSingleChatRoomView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.chat.FloatableSingleChatRoomView">
+   <center>
+      <StackPane fx:id="chatDataContainer">
+         <children>
+            <Pane fx:id="backgroundImageLayer" />
+         </children></StackPane>
+   </center>
+   <top>
+      <HBox fx:id="headerPane" alignment="CENTER_LEFT" styleClass="chat-room-header" BorderPane.alignment="CENTER">
+         <children>
+            <ImageView fx:id="profileImageView" fitHeight="48.0" fitWidth="48.0" pickOnBounds="true" preserveRatio="true" />
+            <Pane HBox.hgrow="ALWAYS" />
+            <MenuButton fx:id="menuButton" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" text="MenuButton" focusTraversable="false">
+              <items>
+                  <CustomMenuItem mnemonicParsing="false" text="透過度">
+                     <content>
+                        <Slider fx:id="opacitySlider" blockIncrement="0.1" majorTickUnit="0.2" max="1.0" min="0.1" minorTickCount="1" />
+                     </content>
+                  </CustomMenuItem>
+                  <CheckMenuItem fx:id="autoScrollMenuItem" mnemonicParsing="false" text="%chat.scroll" />
+                  <CheckMenuItem fx:id="alwaysOnTopMenuItem" mnemonicParsing="false" text="%chat.always.top" />
+                  <SeparatorMenuItem mnemonicParsing="false" />
+                  <MenuItem fx:id="restoreMenuItem" mnemonicParsing="false" text="%chat.window.restore">
+                     <graphic>
+                        <FontIcon iconLiteral="fth-minus" />
+                     </graphic>
+                  </MenuItem>
+                  <SeparatorMenuItem mnemonicParsing="false" />
+                <MenuItem fx:id="closeMenuItem" mnemonicParsing="false" text="%menu.close">
+                     <graphic>
+                        <FontIcon iconLiteral="fth-x" />
+                     </graphic>
+                  </MenuItem>
+              </items>
+               <graphic>
+                  <FontIcon iconLiteral="fth-more-vertical" />
+               </graphic>
+            </MenuButton>
+         </children>
+      </HBox>
+   </top>
+</BorderPane>

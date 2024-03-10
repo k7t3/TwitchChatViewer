@@ -4,7 +4,7 @@ import atlantafx.base.controls.Popover;
 import atlantafx.base.theme.Styles;
 import atlantafx.base.theme.Tweaks;
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
-import com.github.k7t3.tcv.app.chat.ChatRoomViewModel;
+import com.github.k7t3.tcv.app.chat.SingleChatRoomViewModel;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.domain.chat.ChatRoomState;
 import de.saxsys.mvvmfx.FxmlView;
@@ -16,6 +16,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
+import javafx.scene.effect.SepiaTone;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.shape.Rectangle;
@@ -30,7 +31,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ResourceBundle;
 
-public class ChatRoomView implements FxmlView<ChatRoomViewModel>, Initializable {
+public class SingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, Initializable {
 
     private static final double PROFILE_IMAGE_SIZE = 48;
 
@@ -79,7 +80,7 @@ public class ChatRoomView implements FxmlView<ChatRoomViewModel>, Initializable 
     private VirtualFlow<ChatDataViewModel, ChatDataCell> virtualFlow;
 
     @InjectViewModel
-    private ChatRoomViewModel viewModel;
+    private SingleChatRoomViewModel viewModel;
 
     private TwitchChannelViewModel channel;
 
@@ -102,15 +103,14 @@ public class ChatRoomView implements FxmlView<ChatRoomViewModel>, Initializable 
         actionsMenuButton.getStyleClass().addAll(Styles.FLAT, Tweaks.NO_ARROW);
         closeMenuItem.setOnAction(e -> viewModel.leaveChatAsync());
 
-        // TODO
-        popoutMenuItem.setDisable(true);
+        popoutMenuItem.setOnAction(e -> viewModel.popOutAsFloatableStage());
 
         virtualFlow = VirtualFlow.createVertical(viewModel.getChatDataList(), ChatDataCell::new);
         chatDataContainer.getChildren().add(new VirtualizedScrollPane<>(virtualFlow));
 
         // 配信していないときののイメージを更新する
-        updateBackgroundImage();
-        channel.liveProperty().addListener((ob, o, n) -> updateBackgroundImage());
+        updateLiveState();
+        channel.liveProperty().addListener((ob, o, n) -> updateLiveState());
 
 
         var roomStateNodes = new ChatRoomStateNodes();
@@ -157,7 +157,7 @@ public class ChatRoomView implements FxmlView<ChatRoomViewModel>, Initializable 
         selectedCheckBox.managedProperty().bind(viewModel.selectModeProperty());
     }
 
-    private void updateBackgroundImage() {
+    private void updateLiveState() {
         if (!channel.isLive()) {
             var backgroundImage = channel.getOfflineImage();
             if (backgroundImage != null) {
@@ -166,7 +166,12 @@ public class ChatRoomView implements FxmlView<ChatRoomViewModel>, Initializable 
                 var bg = new Background(bgImage);
                 backgroundImageLayer.setBackground(bg);
             }
+            profileImageView.setEffect(new SepiaTone());
+        } else {
+            backgroundImageLayer.setBackground(null);
+            profileImageView.setEffect(null);
         }
+
         backgroundImageLayer.setVisible(!channel.isLive());
     }
 

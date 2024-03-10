@@ -1,6 +1,7 @@
 package com.github.k7t3.tcv.view.chat;
 
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
+import com.github.k7t3.tcv.prefs.ChatFont;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.Insets;
@@ -10,7 +11,6 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import org.fxmisc.flowless.Cell;
@@ -32,7 +32,7 @@ public class MergedChatDataCell extends TextFlow implements Cell<ChatDataViewMod
 
     private final BooleanProperty visibleName;
 
-    private final ObservableValue<Font> font;
+    private final ObservableValue<ChatFont> font;
 
     private final ChatDataViewModel viewModel;
 
@@ -58,13 +58,13 @@ public class MergedChatDataCell extends TextFlow implements Cell<ChatDataViewMod
 
         setPadding(new Insets(4));
 
-        if (!viewModel.getChatData().isSystemMessage()) {
+        // チャンネルのイメージを追加
+        var channelIcon = createBadgeNode(viewModel.getChannel().getProfileImage());
+        channelIcon.managedProperty().unbind();
+        channelIcon.visibleProperty().unbind();
+        getChildren().add(channelIcon);
 
-            // チャンネルのイメージを追加
-            var channelIcon = createBadgeNode(viewModel.getChannel().getProfileImage());
-            channelIcon.managedProperty().unbind();
-            channelIcon.visibleProperty().unbind();
-            getChildren().add(channelIcon);
+        if (!viewModel.getChatData().isSystemMessage()) {
 
             // ユーザーのバッジ
             viewModel.getBadges().stream().map(this::createBadgeNode).forEach(getChildren()::add);
@@ -74,7 +74,7 @@ public class MergedChatDataCell extends TextFlow implements Cell<ChatDataViewMod
             userNameText.visibleProperty().bind(visibleName);
             userNameText.managedProperty().bind(visibleName);
             userNameText.fillProperty().bind(viewModel.colorProperty());
-            userNameText.fontProperty().bind(font);
+            userNameText.fontProperty().bind(font.map(ChatFont::getFont));
 
             // ユーザー名と表示名が異なるとき
             if (!viewModel.getDisplayName().equalsIgnoreCase(viewModel.getUserName())) {
@@ -90,7 +90,7 @@ public class MergedChatDataCell extends TextFlow implements Cell<ChatDataViewMod
             colon.visibleProperty().bind(visibleName);
             colon.managedProperty().bind(visibleName);
             colon.fillProperty().bind(viewModel.colorProperty());
-            colon.fontProperty().bind(font);
+            colon.fontProperty().bind(font.map(ChatFont::getFont));
             getChildren().addAll(colon);
         }
 
@@ -103,7 +103,9 @@ public class MergedChatDataCell extends TextFlow implements Cell<ChatDataViewMod
                 case MESSAGE -> {
                     var text = new Text(fragment.fragment());
                     text.getStyleClass().add(CHAT_STYLE_CLASS);
-                    text.fontProperty().bind(font);
+                    text.fontProperty().bind(font.map(f ->
+                            viewModel.getChatData().isSystemMessage() ? f.getBoldFont() : f.getFont())
+                    );
                     getChildren().add(text);
                 }
             }

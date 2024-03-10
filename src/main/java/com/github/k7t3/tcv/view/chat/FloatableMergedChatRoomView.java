@@ -5,14 +5,14 @@ import atlantafx.base.theme.Styles;
 import atlantafx.base.theme.Tweaks;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
-import com.github.k7t3.tcv.app.chat.SingleChatRoomViewModel;
 import com.github.k7t3.tcv.app.chat.MergedChatRoomViewModel;
-import com.github.k7t3.tcv.view.core.Resources;
+import com.github.k7t3.tcv.app.chat.SingleChatRoomViewModel;
+import com.github.k7t3.tcv.prefs.AppPreferences;
+import com.github.k7t3.tcv.view.core.FloatableStage;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.collections.ListChangeListener;
 import javafx.collections.MapChangeListener;
-import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
@@ -20,15 +20,11 @@ import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.effect.SepiaTone;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.WindowEvent;
 import org.fxmisc.flowless.VirtualFlow;
 import org.fxmisc.flowless.VirtualizedScrollPane;
-import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
@@ -39,36 +35,27 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.ResourceBundle;
 
-public class MergedChatRoomView implements FxmlView<MergedChatRoomViewModel>, Initializable {
+public class FloatableMergedChatRoomView implements FxmlView<MergedChatRoomViewModel>, Initializable {
 
     private static final double PROFILE_IMAGE_SIZE = 48;
-
-    @FXML
-    private Pane headerPane;
 
     @FXML
     private ToolBar profileImageContainer;
 
     @FXML
-    private MenuButton actionsMenuButton;
+    private CheckMenuItem alwaysOnTopMenuItem;
 
     @FXML
-    private CheckMenuItem selectedMenuItem;
+    private CheckMenuItem autoScrollMenuItem;
+
+    @FXML
+    private MenuItem restoreMenuItem;
 
     @FXML
     private MenuItem closeMenuItem;
 
     @FXML
-    private MenuItem popoutMenuItem;
-
-    @FXML
-    private ToggleButton scrollToEnd;
-
-    @FXML
-    private Pane chatRoomControlsContainer;
-
-    @FXML
-    private CheckBox selectedCheckBox;
+    private MenuButton menuButton;
 
     @FXML
     private StackPane chatDataContainer;
@@ -76,54 +63,78 @@ public class MergedChatRoomView implements FxmlView<MergedChatRoomViewModel>, In
     @FXML
     private Pane backgroundImageLayer;
 
-    private VirtualFlow<ChatDataViewModel, MergedChatDataCell> virtualFlow;
+    @FXML
+    private Slider opacitySlider;
 
     @InjectViewModel
     private MergedChatRoomViewModel viewModel;
+
+    private VirtualFlow<ChatDataViewModel, MergedChatDataCell> virtualFlow;
+
+    private FloatableStage floatableStage;
 
     private Map<TwitchChannelViewModel, Node> profileImageNodes;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        profileImageNodes = new HashMap<>();
-        for (var channel : viewModel.getChannels().keySet()) {
-            var chatRoom = viewModel.getChannels().get(channel);
-            var node = createProfileImageView(channel, chatRoom);
-            profileImageNodes.put(channel, node);
-            profileImageContainer.getItems().add(node);
-        }
 
-        // チャンネルの増減
-        viewModel.getChannels().addListener(this::channelChanged);
+        floatableStage = new FloatableStage();
 
-        actionsMenuButton.getStyleClass().addAll(Styles.FLAT, Tweaks.NO_ARROW);
-        closeMenuItem.setOnAction(e -> viewModel.leaveChatAsync());
+        var prefs = AppPreferences.getInstance().getChatPreferences();
 
-        popoutMenuItem.setOnAction(e -> viewModel.popOutAsFloatableStage());
+        menuButton.getStyleClass().addAll(Tweaks.NO_ARROW, Styles.BUTTON_ICON);
 
+        // 閉じるボタン
+        closeMenuItem.setOnAction(e -> {
+            floatableStage.close();
+            viewModel.leaveChatAsync();
+        });
+
+        // 元に戻すボタン
+        restoreMenuItem.setOnAction(e -> {
+            floatableStage.close();
+            viewModel.restoreToContainer();
+        });
+
+        // チャット
         virtualFlow = VirtualFlow.createVertical(viewModel.getChatDataList(), MergedChatDataCell::new);
         chatDataContainer.getChildren().add(new VirtualizedScrollPane<>(virtualFlow));
 
+        // 自動スクロールの設定
         viewModel.getChatDataList().addListener((ListChangeListener<? super ChatDataViewModel>) c -> {
             if (viewModel.isAutoScroll() && c.next() && c.wasAdded()) {
                 virtualFlow.showAsLast(c.getList().size() - 1);
             }
         });
+        autoScrollMenuItem.selectedProperty().bindBidirectional(viewModel.autoScrollProperty());
 
-        scrollToEnd.selectedProperty().bindBidirectional(viewModel.autoScrollProperty());
+        // 透過度
+        floatableStage.backgroundOpacityProperty().bindBidirectional(prefs.floatableChatOpacityProperty());
+        opacitySlider.valueProperty().bindBidirectional(floatableStage.backgroundOpacityProperty());
 
-        selectedMenuItem.selectedProperty().bindBidirectional(viewModel.selectedProperty());
-        selectedCheckBox.selectedProperty().bindBidirectional(viewModel.selectedProperty());
-        viewModel.selectedProperty().addListener((ob, o, n) ->
-                headerPane.pseudoClassStateChanged(PseudoClass.getPseudoClass("selected"), n));
-        chatRoomControlsContainer.visibleProperty().bind(viewModel.selectModeProperty().not());
-        chatRoomControlsContainer.managedProperty().bind(viewModel.selectModeProperty().not());
+        // 常に最前面に表示
+        alwaysOnTopMenuItem.selectedProperty().bindBidirectional(prefs.floatableChatAlwaysTopProperty());
+        alwaysOnTopMenuItem.selectedProperty().addListener((ob, o, n) -> floatableStage.setAlwaysOnTop(n));
+        floatableStage.setAlwaysOnTop(alwaysOnTopMenuItem.isSelected());
 
-        selectedCheckBox.visibleProperty().bind(viewModel.selectModeProperty());
-        selectedCheckBox.managedProperty().bind(viewModel.selectModeProperty());
+        profileImageNodes = new HashMap<>();
+        for (var channel : viewModel.getChannels().keySet()) {
+            var chatRoom = viewModel.getChannels().get(channel);
+            var node = createProfileImageView(channel);
+            profileImageNodes.put(channel, node);
+            profileImageContainer.getItems().add(node);
+        }
+        viewModel.getChannels().addListener(this::channelChanged);
     }
 
-    private Node createProfileImageView(TwitchChannelViewModel channel, SingleChatRoomViewModel chatRoom) {
+    public FloatableStage getFloatableStage() {
+        return floatableStage;
+    }
+
+    /**
+     * ブロードキャスターのプロファイルイメージNode
+     */
+    private Node createProfileImageView(TwitchChannelViewModel channel) {
         var imageView = new ImageView(channel.getProfileImage());
         imageView.setPreserveRatio(true);
         imageView.setSmooth(true);
@@ -146,25 +157,16 @@ public class MergedChatRoomView implements FxmlView<MergedChatRoomViewModel>, In
             }
         });
 
-        var separate = new MenuItem(Resources.getString("chat.separate"), new FontIcon(Feather.EXTERNAL_LINK));
-        separate.setOnAction(e -> viewModel.separateChatRoom(chatRoom));
-
-        var close = new MenuItem(Resources.getString("menu.close"), new FontIcon(Feather.X));
-        close.setOnAction(e -> viewModel.closeChatRoom(chatRoom));
-
-        var menuButton = new MenuButton(null, imageView, separate, new SeparatorMenuItem(), close);
-        menuButton.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
-        menuButton.getStyleClass().addAll(Tweaks.NO_ARROW);
-        menuButton.setPrefHeight(Region.USE_COMPUTED_SIZE);
-
-        return menuButton;
+        return imageView;
     }
 
+    /**
+     * 監視するチャンネルの一覧が更新されたときにViewに反映するメソッド
+     */
     private void channelChanged(MapChangeListener.Change<? extends TwitchChannelViewModel, ? extends SingleChatRoomViewModel> change) {
         if (change.wasAdded()) {
             var channel = change.getKey();
-            var chatRoom = change.getValueAdded();
-            var node = createProfileImageView(channel, chatRoom);
+            var node = createProfileImageView(channel);
             profileImageNodes.put(channel, node);
             profileImageContainer.getItems().add(node);
         }

@@ -1,6 +1,6 @@
 package com.github.k7t3.tcv.app.core;
 
-import com.github.k7t3.tcv.domain.exception.IllegalCredentialException;
+import com.github.k7t3.tcv.domain.exception.InvalidCredentialException;
 import com.github.k7t3.tcv.view.core.Resources;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
@@ -28,7 +28,7 @@ public class ExceptionHandler {
         LOGGER.error(e.getMessage(), e);
 
         // 資格情報が無効になったとき
-        if (e instanceof IllegalCredentialException) {
+        if (e instanceof InvalidCredentialException) {
 
             var alert = new Alert(Alert.AlertType.ERROR);
             alert.setTitle("Illegal Credential");
