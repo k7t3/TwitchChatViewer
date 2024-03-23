@@ -87,6 +87,7 @@ public class FloatableSingleChatRoomView implements FxmlView<SingleChatRoomViewM
         ChatRoomViewUtils.installStreamInfoPopOver(channel, profileImageView);
 
         floatableStage = new FloatableStage();
+        ChatRoomViewUtils.initializeFloatableStage(floatableStage, viewModel);
 
         var prefs = AppPreferences.getInstance().getChatPreferences();
 
@@ -94,13 +95,13 @@ public class FloatableSingleChatRoomView implements FxmlView<SingleChatRoomViewM
 
         // 閉じるボタン
         closeMenuItem.setOnAction(e -> {
-            floatableStage.close();
+            floatableStage.requestClose();
             viewModel.leaveChatAsync();
         });
 
         // 元に戻すボタン
         restoreMenuItem.setOnAction(e -> {
-            floatableStage.close();
+            floatableStage.requestClose();
             viewModel.restoreToContainer();
         });
 

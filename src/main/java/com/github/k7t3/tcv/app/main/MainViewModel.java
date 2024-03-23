@@ -19,7 +19,7 @@ public class MainViewModel implements ViewModel {
         // 認証解除されたらクリップ非表示
         helper.authorizedProperty().addListener((ob, o, n) -> {
             if (!n) {
-                setClipCount(0);
+                helper.getClipRepository().clear();
             }
         });
 

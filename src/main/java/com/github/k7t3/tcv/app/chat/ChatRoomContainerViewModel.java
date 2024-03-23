@@ -1,7 +1,6 @@
 package com.github.k7t3.tcv.app.chat;
 
 import com.github.k7t3.tcv.app.core.AppHelper;
-import com.github.k7t3.tcv.app.main.MainViewModel;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
@@ -17,8 +16,9 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 
-import java.util.Iterator;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 public class ChatRoomContainerViewModel implements ViewModel {
 
@@ -26,7 +26,7 @@ public class ChatRoomContainerViewModel implements ViewModel {
     private final ObservableList<ChatRoomViewModel> chatRoomList = FXCollections.observableArrayList(c -> new Observable[] { c.selectedProperty() });
 
     /** フロートモード*/
-    private final ObservableList<ChatRoomViewModel> floatableChatRoomList = FXCollections.observableArrayList();
+    private final ObservableList<ChatRoomViewModel> floatingChatRoomList = FXCollections.observableArrayList();
 
     /** 選択しているチャットルーム*/
     private final ObservableList<ChatRoomViewModel> selectedList = new FilteredList<>(chatRoomList, ChatRoomViewModel::isSelected);
@@ -114,7 +114,7 @@ public class ChatRoomContainerViewModel implements ViewModel {
             return exist.get();
         }
 
-        exist = floatableChatRoomList.stream().filter(vm -> vm.hasChannel(channel)).findFirst();
+        exist = floatingChatRoomList.stream().filter(vm -> vm.hasChannel(channel)).findFirst();
         if (exist.isPresent()) {
             return exist.get();
         }
@@ -151,14 +151,15 @@ public class ChatRoomContainerViewModel implements ViewModel {
      */
     void onLeft(ChatRoomViewModel chat) {
         chatRoomList.removeIf(vm -> vm.equals(chat));
+        floatingChatRoomList.removeIf(vm -> vm.equals(chat));
     }
 
     public ObservableList<ChatRoomViewModel> getSelectedList() {
         return selectedList;
     }
 
-    public ObservableList<ChatRoomViewModel> getFloatableChatRoomList() {
-        return floatableChatRoomList;
+    public ObservableList<ChatRoomViewModel> getFloatingChatRoomList() {
+        return floatingChatRoomList;
     }
 
     public void removeLast() {
@@ -173,11 +174,11 @@ public class ChatRoomContainerViewModel implements ViewModel {
 
     public void popOutAsFloatableStage(ChatRoomViewModel chatRoom) {
         chatRoomList.remove(chatRoom);
-        floatableChatRoomList.add(chatRoom);
+        floatingChatRoomList.add(chatRoom);
     }
 
     public void restoreToContainer(ChatRoomViewModel chatRoom) {
-        if (floatableChatRoomList.remove(chatRoom)) {
+        if (floatingChatRoomList.remove(chatRoom)) {
             chatRoomList.add(chatRoom);
         }
     }
@@ -241,17 +242,28 @@ public class ChatRoomContainerViewModel implements ViewModel {
         chatRoomList.add(chatRoomViewModel);
     }
 
-    private void clearAll(Iterator<ChatRoomViewModel> chatRooms) {
-        while (chatRooms.hasNext()) {
-            var item = chatRooms.next();
-            chatRooms.remove();
-            item.leaveChatAsync();
-        }
-    }
-
+    /**
+     * コンテナをクリアする。
+     * チャットがすべてログアウトされるまでスレッドをブロックする。
+     */
     public void clearAll() {
-        clearAll(getChatRoomList().iterator());
-        clearAll(getFloatableChatRoomList().iterator());
+        var singles = getChatRoomList();
+        var floatings = getFloatingChatRoomList();
+
+        var chatRooms = new ArrayList<ChatRoomViewModel>();
+        chatRooms.addAll(singles);
+        chatRooms.addAll(floatings);
+
+        singles.clear();
+        floatings.clear();
+
+        chatRooms.stream().map(ChatRoomViewModel::leaveChatAsync).forEach(task -> {
+            try {
+                task.get();
+            } catch (InterruptedException | ExecutionException ignored) {
+                // no-op
+            }
+        });
     }
 
     // ******************** PROPERTIES ********************

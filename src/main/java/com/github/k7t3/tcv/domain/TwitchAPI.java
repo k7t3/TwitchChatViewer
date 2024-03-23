@@ -35,6 +35,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class TwitchAPI implements Closeable {
 
@@ -86,9 +87,6 @@ public class TwitchAPI implements Closeable {
     }
 
     public List<FoundChannel> search(String keyword, boolean liveOnly) {
-        var locale = Locale.getDefault();
-        var lang = locale.getLanguage();
-
         var query = URLEncoder.encode(keyword, StandardCharsets.UTF_8);
 
         var command = hystrixCommandWrapper(helix -> helix.searchChannels(
@@ -99,9 +97,11 @@ public class TwitchAPI implements Closeable {
                 liveOnly)
         );
 
+        // システムと同じ言語を優先するように並べ替える
+        var locale = Locale.getDefault();
+        var lang = locale.getLanguage();
         var results = command.getResults().stream()
                 .sorted((r1, r2) -> {
-                    // システムと同じ言語を優先するように並べ替える
                     var l1 = r1.getBroadcasterLanguage();
                     var l2 = r2.getBroadcasterLanguage();
 
@@ -122,15 +122,11 @@ public class TwitchAPI implements Closeable {
         if (results.isEmpty()) return List.of();
 
         var userIds = results.stream().map(ChannelSearchResult::getId).toList();
-        var broadcasters = getBroadcasters(userIds);
+        var broadcasters = getBroadcasters(userIds).stream().collect(Collectors.toMap(Broadcaster::getUserId, b -> b));
 
-        var resultIterator = results.iterator();
-
-        return broadcasters.stream().map(b -> {
-            assert resultIterator.hasNext();
-            var r = resultIterator.next();
-            return new FoundChannel(b, r.getIsLive(), r.getGameName());
-        }).toList();
+        return results.stream()
+                .map(r -> new FoundChannel(broadcasters.get(r.getId()), r.getIsLive(), r.getGameName()))
+                .toList();
     }
 
     public List<Broadcaster> getBroadcasters(List<String> userIds) {
@@ -229,7 +225,6 @@ public class TwitchAPI implements Closeable {
 
         } catch (HystrixRuntimeException e) {
 
-            // 401が返ってきたらリフレッシュ
             if (e.getCause() instanceof UnauthorizedException) {
 
                 // トークンが無効になっていると判断してリフレッシュ

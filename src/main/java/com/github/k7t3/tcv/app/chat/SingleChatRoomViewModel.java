@@ -16,6 +16,8 @@ import javafx.collections.ObservableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.HashSet;
 import java.util.Objects;
 
@@ -73,6 +75,12 @@ public class SingleChatRoomViewModel extends ChatRoomViewModel implements ViewMo
             throw new IllegalArgumentException();
 
         return viewModel;
+    }
+
+    @Override
+    public String getIdentity() {
+        var login = channel.get().getUserLogin();
+        return Base64.getEncoder().encodeToString(login.getBytes(StandardCharsets.UTF_8));
     }
 
     public ObservableSet<ChatRoomState> getRoomStates() {

@@ -1,6 +1,5 @@
 package com.github.k7t3.tcv.view.chat;
 
-import atlantafx.base.controls.Popover;
 import atlantafx.base.theme.Styles;
 import atlantafx.base.theme.Tweaks;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
@@ -15,22 +14,17 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.MapChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.effect.SepiaTone;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.*;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Rectangle;
-import javafx.stage.WindowEvent;
 import org.fxmisc.flowless.VirtualFlow;
 import org.fxmisc.flowless.VirtualizedScrollPane;
-import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
-import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.net.URL;
-import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ResourceBundle;
@@ -79,6 +73,7 @@ public class FloatableMergedChatRoomView implements FxmlView<MergedChatRoomViewM
     public void initialize(URL url, ResourceBundle resourceBundle) {
 
         floatableStage = new FloatableStage();
+        ChatRoomViewUtils.initializeFloatableStage(floatableStage, viewModel);
 
         var prefs = AppPreferences.getInstance().getChatPreferences();
 
@@ -86,13 +81,13 @@ public class FloatableMergedChatRoomView implements FxmlView<MergedChatRoomViewM
 
         // 閉じるボタン
         closeMenuItem.setOnAction(e -> {
-            floatableStage.close();
+            floatableStage.requestClose();
             viewModel.leaveChatAsync();
         });
 
         // 元に戻すボタン
         restoreMenuItem.setOnAction(e -> {
-            floatableStage.close();
+            floatableStage.requestClose();
             viewModel.restoreToContainer();
         });
 
@@ -119,7 +114,6 @@ public class FloatableMergedChatRoomView implements FxmlView<MergedChatRoomViewM
 
         profileImageNodes = new HashMap<>();
         for (var channel : viewModel.getChannels().keySet()) {
-            var chatRoom = viewModel.getChannels().get(channel);
             var node = createProfileImageView(channel);
             profileImageNodes.put(channel, node);
             profileImageContainer.getItems().add(node);

@@ -12,10 +12,12 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableMap;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewModel {
 
@@ -42,6 +44,15 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
         }
     }
 
+    @Override
+    public String getIdentity() {
+        var joined = channels.keySet().stream()
+                .map(TwitchChannelViewModel::getUserLogin)
+                .sorted()
+                .collect(Collectors.joining());
+        return Base64.getEncoder().encodeToString(joined.getBytes(StandardCharsets.UTF_8));
+    }
+
     public void addChatRoom(SingleChatRoomViewModel chatRoom) {
         var channel = chatRoom.getChannel();
 
@@ -50,7 +61,7 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
 
         //
         // 追加するチャットルームが現在持っているチャットの情報をマージする
-        // とりあえずすべてマージして、最後に制限の個数で切り捨てる
+        // とりあえずすべてマージして最後に制限の個数で切り捨てる
         //
         var mergedChats = new ArrayList<>(getChatDataList());
         mergedChats.addAll(chatRoom.getChatDataList());
@@ -197,12 +208,26 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
 
         containerViewModel.onLeft(this);
 
-        // TODO 複数タスクの集約・同期
-        for (var channel : channels.keySet()) {
-            channel.leaveChatAsync();
-        }
+        // FIXME JavaFXのTaskをマージするには？
+        var latch = new CountDownLatch(channels.size());
 
-        return FXTask.of(channels.size());
+        channels.keySet().stream().map(TwitchChannelViewModel::leaveChatAsync).forEach(task -> {
+            try {
+                task.get();
+            } catch (InterruptedException | ExecutionException ignored) {
+                // no-op
+            } finally {
+                latch.countDown();
+            }
+        });
+
+        return FXTask.task(() -> {
+            try {
+                latch.await();
+            } catch (InterruptedException ignored) {
+                // no-op
+            }
+        });
     }
 
     @Override

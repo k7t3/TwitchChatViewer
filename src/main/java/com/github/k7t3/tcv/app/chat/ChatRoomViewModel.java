@@ -87,17 +87,13 @@ public abstract class ChatRoomViewModel implements ChatRoomListener, TwitchChann
         return chatDataList;
     }
 
-    abstract boolean hasChannel(TwitchChannel channel);
+    /**
+     * このチャットルームを一意に表すメソッド。
+     * FloatableStageの座標を記録するための識別子として使用する。
+     */
+    public abstract String getIdentity();
 
-    protected void addChat(ChatDataViewModel chat) {
-        Platform.runLater(() -> {
-            // 上限制限
-            if (getItemCountLimit() <= chatDataList.size()) {
-                chatDataList.removeFirst();
-            }
-            chatDataList.add(chat);
-        });
-    }
+    abstract boolean hasChannel(TwitchChannel channel);
 
     @SuppressWarnings("UnusedReturnValue")
     public abstract FXTask<?> joinChatAsync();
@@ -118,6 +114,21 @@ public abstract class ChatRoomViewModel implements ChatRoomListener, TwitchChann
         );
     }
 
+    protected void addChat(ChatDataViewModel chat) {
+        Platform.runLater(() -> {
+
+            chat.visibleNameProperty().bind(showName);
+            chat.visibleBadgeProperty().bind(showBadges);
+            chat.fontProperty().bind(font);
+
+            // 上限制限
+            if (getItemCountLimit() <= chatDataList.size()) {
+                chatDataList.removeFirst();
+            }
+            chatDataList.add(chat);
+        });
+    }
+
     @Override
     public void onChatDataPosted(ChatRoom chatRoom, ChatData item) {
         try {
@@ -135,11 +146,8 @@ public abstract class ChatRoomViewModel implements ChatRoomListener, TwitchChann
             }
 
             var chatData = createChatDataViewModel(channel, item);
-            chatData.visibleNameProperty().bind(showName);
-            chatData.visibleBadgeProperty().bind(showBadges);
-            chatData.fontProperty().bind(font);
-
             addChat(chatData);
+
         } catch (Exception e) {
             LOGGER.error(item.toString(), e);
         }

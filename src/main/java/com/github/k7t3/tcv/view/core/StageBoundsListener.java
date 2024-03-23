@@ -1,5 +1,6 @@
 package com.github.k7t3.tcv.view.core;
 
+import com.github.k7t3.tcv.prefs.OS;
 import javafx.beans.value.ChangeListener;
 import javafx.stage.Stage;
 
@@ -59,14 +60,28 @@ public class StageBoundsListener {
         stage.yProperty().addListener(yListener);
         stage.widthProperty().addListener(widthListener);
         stage.heightProperty().addListener(heightListener);
-        stage.maximizedProperty().addListener(maximizeListener);
-        maximized = stage.isMaximized();
+        setMaximized();
         x = stage.getX();
         y = stage.getY();
         width = stage.getWidth();
         height = stage.getHeight();
         oldX = x;
         oldY = y;
+    }
+
+    private void setMaximized() {
+        if (OS.isMac() && stage instanceof FloatableStage) {
+
+            // MacOSにおいてFloatableStageが意図せずmaximized判定になるため特例処理
+            // 最大化プロパティのリスナがなぜかtrueを検出してしまう。(JavaFX 21.0.2)
+            maximized = false;
+
+        } else {
+
+            maximized = stage.isMaximized();
+            stage.maximizedProperty().addListener(maximizeListener);
+
+        }
     }
 
     public void uninstall() {

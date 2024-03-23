@@ -50,10 +50,13 @@
                               <FontIcon iconLiteral="fth-more-vertical" />
                            </graphic>
                         </MenuButton>
-                        <ToggleButton fx:id="scrollToEnd" mnemonicParsing="false" text="↓" underline="true">
+                        <ToggleButton fx:id="scrollToEnd" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" text="↓" underline="true">
                            <tooltip>
                               <Tooltip text="%chat.scroll" />
                            </tooltip>
+                           <graphic>
+                              <FontIcon iconLiteral="fth-arrow-down" />
+                           </graphic>
                         </ToggleButton>
                      </children>
                   </VBox>

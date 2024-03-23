@@ -15,11 +15,12 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import javafx.stage.WindowEvent;
 
 public class FloatableStage extends Stage {
 
-    private static final double DEFAULT_HEIGHT = 1024;
-    private static final double DEFAULT_WIDTH = 576;
+    private static final double DEFAULT_HEIGHT = 640;
+    private static final double DEFAULT_WIDTH = 360;
 
     private static final double EXPANDABLE_BLOCK_SIZE = 12;
 
@@ -52,6 +53,14 @@ public class FloatableStage extends Stage {
             if (n != null)
                 scene.contentLayer.getChildren().setAll(n);
         });
+    }
+
+    /**
+     * ユーザー操作で閉じる場合に使用するメソッド。
+     * 内部的に{@link javafx.stage.WindowEvent#WINDOW_CLOSE_REQUEST}を発火させる。
+     */
+    public void requestClose() {
+        fireEvent(new WindowEvent(this, WindowEvent.WINDOW_CLOSE_REQUEST));
     }
 
     public ObjectProperty<Node> contentProperty() { return content; }
@@ -89,10 +98,10 @@ public class FloatableStage extends Stage {
 
             backgroundLayer.setStyle("""
                     -fx-background-color: -color-bg-default;
-                    -fx-background-radius: 10px;
+                    -fx-background-radius: 8px;
                     -fx-border-color: -color-border-default;
                     -fx-border-width: 2px;
-                    -fx-border-radius: 10px;
+                    -fx-border-radius: 8px;
                     """);
             backgroundLayer.prefWidthProperty().bind(root.widthProperty());
             backgroundLayer.prefHeightProperty().bind(root.heightProperty());

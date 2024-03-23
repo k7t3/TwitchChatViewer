@@ -53,6 +53,11 @@ public class PostedClipRepository implements ViewModel, ChatRoomListener {
         return thumbnailStore;
     }
 
+    public void clear() {
+        postedClips.clear();
+        estimatedClipURLs.clear();
+    }
+
     @Override
     public void onClipPosted(ChatRoom chatRoom, ClipChatMessage clipChatMessage) {
 

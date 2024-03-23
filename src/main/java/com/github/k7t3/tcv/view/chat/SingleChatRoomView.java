@@ -18,6 +18,7 @@ import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.effect.SepiaTone;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.*;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.WindowEvent;
@@ -147,6 +148,14 @@ public class SingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, In
         titleTooltip.textProperty().bind(streamTitleLabel.textProperty());
         streamTitleLabel.setTooltip(titleTooltip);
 
+        // ヘッダをダブルクリックすると選択状態を切り替える
+        headerPane.setOnMouseClicked(e -> {
+            if (e.getButton() == MouseButton.PRIMARY && e.getClickCount() == 2) {
+                e.consume();
+                viewModel.setSelected(!viewModel.isSelected());
+            }
+        });
+
         selectedMenuItem.selectedProperty().bindBidirectional(viewModel.selectedProperty());
         selectedCheckBox.selectedProperty().bindBidirectional(viewModel.selectedProperty());
         viewModel.selectedProperty().addListener((ob, o, n) ->
@@ -174,58 +183,6 @@ public class SingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, In
         }
 
         backgroundImageLayer.setVisible(!channel.isLive());
-    }
-
-    private void installPopover() {
-        var gameNameLabel = new Label();
-        gameNameLabel.setWrapText(true);
-
-        var streamTitleLabel = new Label();
-        streamTitleLabel.setWrapText(true);
-
-        var viewerCountLabel = new Label();
-        viewerCountLabel.setGraphic(new FontIcon(FontAwesomeSolid.USER));
-        viewerCountLabel.getStyleClass().add(Styles.DANGER);
-
-        // アップタイムはポップアップを表示したときに計算する
-        var uptimeLabel = new Label();
-        uptimeLabel.setGraphic(new FontIcon(FontAwesomeSolid.CLOCK));
-
-        var vbox = new VBox(gameNameLabel, streamTitleLabel, viewerCountLabel, uptimeLabel);
-        vbox.setPrefWidth(300);
-        vbox.setSpacing(4);
-        vbox.setPadding(new Insets(10, 0, 10, 0));
-
-        var pop = new Popover(vbox);
-        pop.titleProperty().bind(channel.observableUserName());
-        pop.setHeaderAlwaysVisible(true);
-        pop.setDetachable(false);
-        pop.setArrowLocation(Popover.ArrowLocation.TOP_LEFT);
-
-        pop.addEventHandler(WindowEvent.WINDOW_SHOWING, e -> {
-            gameNameLabel.setText(channel.getStreamInfo().gameName());
-            streamTitleLabel.setText(channel.getStreamInfo().title());
-            viewerCountLabel.setText(Integer.toString(channel.getStreamInfo().viewerCount()));
-
-            var now = LocalDateTime.now();
-            var startedAt = channel.getStreamInfo().startedAt();
-            var between = Duration.between(startedAt, now);
-            var minutes = between.toMinutes();
-
-            if (minutes < 60) {
-                uptimeLabel.setText("%d m".formatted(minutes));
-            } else {
-                var hours = minutes / 60;
-                minutes = minutes - hours * 60;
-                uptimeLabel.setText("%d h %d m".formatted(hours, minutes));
-            }
-        });
-        profileImageView.setOnMouseEntered(e -> {
-            if (channel.isLive()) {
-                pop.show(profileImageView);
-            }
-        });
-        profileImageView.setOnMouseExited(e -> pop.hide());
     }
 
 }

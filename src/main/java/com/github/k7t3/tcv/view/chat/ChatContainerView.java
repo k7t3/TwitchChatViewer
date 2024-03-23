@@ -14,7 +14,6 @@ import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.animation.Timeline;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -27,7 +26,6 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 
-import java.io.IOException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
@@ -68,7 +66,7 @@ public class ChatContainerView implements FxmlView<ChatRoomContainerViewModel>, 
         viewModel.getChatRoomList().addListener(this::chatChanged);
 
         floatableStages = new HashMap<>();
-        viewModel.getFloatableChatRoomList().addListener(this::floatableChatChanged);
+        viewModel.getFloatingChatRoomList().addListener(this::floatableChatChanged);
 
         chatContainer = new GridPane();
         container.setCenter(chatContainer);
@@ -144,6 +142,8 @@ public class ChatContainerView implements FxmlView<ChatRoomContainerViewModel>, 
         }
 
         floatableStages.put(chat, stage);
+        stage.setTitle("Twitch Chat Viewer - Floating Window");
+        stage.getIcons().addAll(Resources.getIcons());
         stage.show();
     }
 

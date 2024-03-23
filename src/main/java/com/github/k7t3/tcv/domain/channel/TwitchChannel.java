@@ -182,8 +182,10 @@ public class TwitchChannel {
     }
 
     void clear() {
-        // チャットを使用している場合は閉じる
-        leaveChat();
+        // チャットを使用している場合は退出
+        if (chatRoom != null) {
+            chatRoom.leave();
+        }
 
         // チャンネル監視イベントをクリア
         clearEventSubs();
