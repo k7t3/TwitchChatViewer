@@ -17,12 +17,12 @@ public class ChatMessageFilterViewModel implements ViewModel {
     public ChatMessageFilterViewModel() {
         var prefs = AppPreferences.getInstance();
         filterPrefs = prefs.getMessageFilterPreferences();
-        filters = FXCollections.observableList(new ArrayList<>(filterPrefs.getMessageFilter().getRegexes()));
+        filters = FXCollections.observableList(new ArrayList<>(filterPrefs.getRegexChatMessageFilter().getRegexes()));
     }
 
     public void sync() {
         var items = filters.stream().filter(f -> !f.trim().isEmpty()).toList();
-        var set = filterPrefs.getMessageFilter().getRegexes();
+        var set = filterPrefs.getRegexChatMessageFilter().getRegexes();
         set.clear();
         set.addAll(items);
         filterPrefs.sync();

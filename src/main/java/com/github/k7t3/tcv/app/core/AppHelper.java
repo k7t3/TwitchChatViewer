@@ -6,6 +6,7 @@ import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.domain.Twitch;
 import javafx.beans.property.*;
+import javafx.stage.Stage;
 
 import java.io.Closeable;
 
@@ -16,6 +17,8 @@ public class AppHelper implements Closeable {
     private final ReadOnlyBooleanWrapper authorized = new ReadOnlyBooleanWrapper();
 
     private final ObjectProperty<Twitch> twitch = new SimpleObjectProperty<>();
+
+    private ObjectProperty<Stage> primaryStage;
 
     private PostedClipRepository clipRepository;
 
@@ -86,5 +89,12 @@ public class AppHelper implements Closeable {
     public ObjectProperty<Twitch> twitchProperty() { return twitch; }
     public Twitch getTwitch() { return twitch.get(); }
     public void setTwitch(Twitch twitch) { this.twitch.set(twitch); }
+
+    public ObjectProperty<Stage> primaryStageProperty() {
+        if (primaryStage == null) primaryStage = new SimpleObjectProperty<>();
+        return primaryStage;
+    }
+    public Stage getPrimaryStage() { return primaryStageProperty().get(); }
+    public void setPrimaryStage(Stage primaryStage) { primaryStageProperty().set(primaryStage); }
 
 }

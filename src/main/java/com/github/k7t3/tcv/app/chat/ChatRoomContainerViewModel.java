@@ -80,7 +80,7 @@ public class ChatRoomContainerViewModel implements ViewModel {
         showUserName.bind(chatPrefs.showUserNameProperty());
         showBadges.bind(chatPrefs.showBadgesProperty());
         font.bind(chatPrefs.fontProperty());
-        chatMessageFilter.bind(prefs.getMessageFilterPreferences().messageFilterProperty());
+        chatMessageFilter.bind(prefs.getMessageFilterPreferences().chatMessageFilterProperty());
     }
 
     public ObservableList<ChatRoomViewModel> getChatRoomList() {
@@ -189,6 +189,11 @@ public class ChatRoomContainerViewModel implements ViewModel {
 
     public void unselectAll() {
         chatRoomList.forEach(c -> c.setSelected(false));
+    }
+
+    public void closeAll() {
+        var selectedList = new ArrayList<>(getSelectedList());
+        selectedList.forEach(ChatRoomViewModel::leaveChatAsync);
     }
 
     public void mergeSelectedChats() {

@@ -1,8 +1,18 @@
 package com.github.k7t3.tcv.view.chat;
 
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
+import com.github.k7t3.tcv.app.chat.UserChatMessageFilter;
+import com.github.k7t3.tcv.prefs.AppPreferences;
+import com.github.k7t3.tcv.view.core.Resources;
+import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.TextInputDialog;
+import org.kordamp.ikonli.Ikon;
+import org.kordamp.ikonli.feather.Feather;
+import org.kordamp.ikonli.javafx.FontIcon;
+import org.kordamp.ikonli.javafx.StackedFontIcon;
 
 import java.util.stream.Collectors;
 
@@ -16,15 +26,67 @@ public class ChatDataContextMenu extends ContextMenu {
 
         setHideOnEscape(true);
 
-        // TODO
+        if (viewModel.getChatData().isSystemMessage())
+            return;
 
-        var copy = new MenuItem("Copy Text");
+        var prefs = AppPreferences.getInstance().getMessageFilterPreferences();
+
+        // チャットメッセージをコピー
+        var copy = new MenuItem(Resources.getString("chat.menu.copy.message"));
         copy.setOnAction(e -> viewModel.copyMessage());
 
-        var addToNG = new MenuItem("Add to NG");
-        addToNG.setDisable(true);
+        // ユーザーのチャットを非表示にする
+        var hideMessageAsUser = new MenuItem(
+                Resources.getString("chat.menu.filter.user"),
+                blockIcon(Feather.USER)
+        );
+        hideMessageAsUser.setOnAction(e -> {
+            addHiddenUser();
+        });
 
-        getItems().addAll(copy, addToNG);
+        // チャットメッセージを非表示にする
+        var hideMessageAsRegex = new MenuItem(
+                Resources.getString("chat.menu.filter.regex"),
+                blockIcon(Feather.MESSAGE_CIRCLE)
+        );
+        hideMessageAsRegex.setOnAction(e -> {
+            addHiddenRegexMessage();
+        });
+
+        getItems().addAll(copy, new SeparatorMenuItem(), hideMessageAsUser, hideMessageAsRegex);
+    }
+
+    private Node blockIcon(Ikon icon) {
+        var stack = new StackedFontIcon();
+        stack.setIconCodes(Feather.SLASH, icon);
+        return stack;
+    }
+
+    private void addHiddenRegexMessage() {
+        var prefs = AppPreferences.getInstance().getMessageFilterPreferences();
+
+        var message = viewModel.getMessage().getPlain();
+        var filter = prefs.getRegexChatMessageFilter();
+        filter.getRegexes().add(message);
+    }
+
+    private void addHiddenUser() {
+        var dialog = new TextInputDialog("");
+        dialog.setTitle("Hide User");
+        dialog.setHeaderText(
+                Resources.getString("chat.filter.user.dialog.header.format")
+                        .formatted(viewModel.getUserName())
+        );
+        dialog.setContentText("Comment");
+        dialog.initOwner(getOwnerWindow());
+        dialog.showAndWait().ifPresent(comment -> {
+            var c = comment == null || comment.trim().isEmpty()
+                    ? viewModel.getUserName()
+                    : comment.trim();
+            var prefs = AppPreferences.getInstance().getMessageFilterPreferences();
+            var user = new UserChatMessageFilter.FilteredUser(viewModel.getChatData().userId(), c);
+            prefs.getUserChatMessageFilter().getUsers().add(user);
+        });
     }
 
 }

@@ -1,5 +1,6 @@
 package com.github.k7t3.tcv.view;
 
+import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.LoggerInitializer;
 import com.github.k7t3.tcv.app.core.Shutdown;
 import com.github.k7t3.tcv.prefs.AppPreferences;
@@ -45,6 +46,9 @@ public class TCVApp extends Application {
     public void start(Stage primaryStage) {
 
         log.info("start application");
+
+        var helper = AppHelper.getInstance();
+        helper.setPrimaryStage(primaryStage);
 
         var tuple = FluentViewLoader.fxmlView(MainView.class)
                 .resourceBundle(Resources.getResourceBundle()).load();

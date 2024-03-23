@@ -36,7 +36,7 @@ public class ChatRoomViewUtils {
     ) {
         virtualFlow.addEventHandler(ScrollEvent.SCROLL, e -> {
             // 上方向にスクロールしたときはオートスクロールを無効化
-            if (40 < e.getDeltaY()) {
+            if (0 < e.getDeltaY()) {
                 autoScroll.set(false);
             }
 

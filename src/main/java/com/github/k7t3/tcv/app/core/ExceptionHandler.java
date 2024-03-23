@@ -30,18 +30,17 @@ public class ExceptionHandler {
         // 資格情報が無効になったとき
         if (e instanceof InvalidCredentialException) {
 
+            var helper = AppHelper.getInstance();
+            var primaryStage = helper.getPrimaryStage();
+
             var alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Illegal Credential");
+            alert.initOwner(primaryStage);
+            alert.setTitle("Twitch API Error");
             alert.setHeaderText(Resources.getString("terminate.header"));
             alert.setContentText(Resources.getString("terminate.content"));
             alert.showAndWait();
 
-            // リソースのクローズ
-            var helper = AppHelper.getInstance();
-            helper.close();
-
-            // 終了
-            Platform.exit();
+            primaryStage.close();
 
             return;
 
