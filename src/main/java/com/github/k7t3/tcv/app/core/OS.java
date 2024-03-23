@@ -1,4 +1,4 @@
-package com.github.k7t3.tcv.prefs;
+package com.github.k7t3.tcv.app.core;
 
 public enum OS {
 

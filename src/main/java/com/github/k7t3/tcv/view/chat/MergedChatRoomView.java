@@ -20,6 +20,7 @@ import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.effect.SepiaTone;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -104,13 +105,18 @@ public class MergedChatRoomView implements FxmlView<MergedChatRoomViewModel>, In
         virtualFlow = VirtualFlow.createVertical(viewModel.getChatDataList(), MergedChatDataCell::new);
         chatDataContainer.getChildren().add(new VirtualizedScrollPane<>(virtualFlow));
 
-        viewModel.getChatDataList().addListener((ListChangeListener<? super ChatDataViewModel>) c -> {
-            if (viewModel.isAutoScroll() && c.next() && c.wasAdded()) {
-                virtualFlow.showAsLast(c.getList().size() - 1);
-            }
-        });
+        // 自動スクロールと仮想フローにおける動作を初期化
+        ChatRoomViewUtils.initializeVirtualFlowScrollActions(virtualFlow, viewModel.getChatDataList(), viewModel.autoScrollProperty());
 
         scrollToEnd.selectedProperty().bindBidirectional(viewModel.autoScrollProperty());
+
+        // ヘッダをダブルクリックすると選択状態を切り替える
+        headerPane.setOnMouseClicked(e -> {
+            if (e.getButton() == MouseButton.PRIMARY && e.getClickCount() == 2) {
+                e.consume();
+                viewModel.setSelected(!viewModel.isSelected());
+            }
+        });
 
         selectedMenuItem.selectedProperty().bindBidirectional(viewModel.selectedProperty());
         selectedCheckBox.selectedProperty().bindBidirectional(viewModel.selectedProperty());

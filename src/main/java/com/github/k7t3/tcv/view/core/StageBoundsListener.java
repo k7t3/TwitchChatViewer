@@ -1,6 +1,6 @@
 package com.github.k7t3.tcv.view.core;
 
-import com.github.k7t3.tcv.prefs.OS;
+import com.github.k7t3.tcv.app.core.OS;
 import javafx.beans.value.ChangeListener;
 import javafx.stage.Stage;
 

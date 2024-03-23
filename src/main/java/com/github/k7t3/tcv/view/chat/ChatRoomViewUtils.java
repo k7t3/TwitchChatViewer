@@ -3,15 +3,21 @@ package com.github.k7t3.tcv.view.chat;
 import atlantafx.base.controls.Popover;
 import atlantafx.base.theme.Styles;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
+import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.chat.ChatRoomViewModel;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.view.core.FloatableStage;
 import com.github.k7t3.tcv.view.core.StageBoundsListener;
+import javafx.beans.property.BooleanProperty;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
+import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.VBox;
 import javafx.stage.WindowEvent;
+import org.fxmisc.flowless.VirtualFlow;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
@@ -21,6 +27,32 @@ import java.time.LocalDateTime;
 public class ChatRoomViewUtils {
 
     private ChatRoomViewUtils() {
+    }
+
+    public static void initializeVirtualFlowScrollActions(
+            VirtualFlow<?, ?> virtualFlow,
+            ObservableList<?> items,
+            BooleanProperty autoScroll
+    ) {
+        virtualFlow.addEventHandler(ScrollEvent.SCROLL, e -> {
+            // 上方向にスクロールしたときはオートスクロールを無効化
+            if (40 < e.getDeltaY()) {
+                autoScroll.set(false);
+            }
+
+            // 最後までスクロールしたときはオートスクロールを有効化
+            else if (e.getDeltaY() < 0 &&
+                    items.size() - 1 == virtualFlow.getLastVisibleIndex()) {
+                autoScroll.set(true);
+            }
+        });
+
+        // 自動スクロールの設定
+        items.addListener((ListChangeListener<? super Object>) c -> {
+            if (autoScroll.get() && c.next() && c.wasAdded()) {
+                virtualFlow.showAsLast(c.getList().size() - 1);
+            }
+        });
     }
 
     public static void initializeFloatableStage(FloatableStage stage, ChatRoomViewModel chatRoom) {

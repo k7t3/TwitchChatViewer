@@ -109,12 +109,9 @@ public class FloatableSingleChatRoomView implements FxmlView<SingleChatRoomViewM
         virtualFlow = VirtualFlow.createVertical(viewModel.getChatDataList(), ChatDataCell::new);
         chatDataContainer.getChildren().add(new VirtualizedScrollPane<>(virtualFlow));
 
-        // 自動スクロールの設定
-        viewModel.getChatDataList().addListener((ListChangeListener<? super ChatDataViewModel>) c -> {
-            if (viewModel.isAutoScroll() && c.next() && c.wasAdded()) {
-                virtualFlow.showAsLast(c.getList().size() - 1);
-            }
-        });
+        // 自動スクロールと仮想フローにおける動作を初期化
+        ChatRoomViewUtils.initializeVirtualFlowScrollActions(virtualFlow, viewModel.getChatDataList(), viewModel.autoScrollProperty());
+
         autoScrollMenuItem.selectedProperty().bindBidirectional(viewModel.autoScrollProperty());
 
         // 透過度

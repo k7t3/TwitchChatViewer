@@ -129,12 +129,8 @@ public class SingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, In
                 .map(roomStateNodes::getIcon)
                 .forEach(stateContainer.getChildren()::add);
 
-
-        viewModel.getChatDataList().addListener((ListChangeListener<? super ChatDataViewModel>) c -> {
-            if (viewModel.isAutoScroll() && c.next() && c.wasAdded()) {
-                virtualFlow.showAsLast(c.getList().size() - 1);
-            }
-        });
+        // 自動スクロールと仮想フローにおける動作を初期化
+        ChatRoomViewUtils.initializeVirtualFlowScrollActions(virtualFlow, viewModel.getChatDataList(), viewModel.autoScrollProperty());
 
         scrollToEnd.selectedProperty().bindBidirectional(viewModel.autoScrollProperty());
 
