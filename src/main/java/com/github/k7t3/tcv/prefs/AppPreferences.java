@@ -71,23 +71,32 @@ public class AppPreferences extends PreferencesBase {
     }
 
     @Override
-    protected void onImported() {
-        windowPrefs.values().forEach(PreferencesBase::onImported);
+    protected void readFromPreferences() {
+        windowPrefs.values().forEach(PreferencesBase::readFromPreferences);
 
         if (keyActionPreferences != null)
-            keyActionPreferences.onImported();
+            keyActionPreferences.readFromPreferences();
 
         if (playerPreferences != null)
-            playerPreferences.onImported();
+            playerPreferences.readFromPreferences();
 
         if (messageFilterPreferences != null)
-            messageFilterPreferences.onImported();
+            messageFilterPreferences.readFromPreferences();
 
         if (chatPreferences != null)
-            chatPreferences.onImported();
+            chatPreferences.readFromPreferences();
     }
 
-    public void importPrefs(Path filePath) {
+    @Override
+    protected void writeToPreferences() {
+        if (messageFilterPreferences != null)
+            messageFilterPreferences.writeToPreferences();
+
+        if (chatPreferences != null)
+            chatPreferences.writeToPreferences();
+    }
+
+    public void importPreferences(Path filePath) {
         try (var input = Files.newInputStream(filePath)) {
             Preferences.importPreferences(input);
             preferences.sync();
@@ -96,7 +105,7 @@ public class AppPreferences extends PreferencesBase {
         }
     }
 
-    public void exportPrefs(Path exportFilePath) {
+    public void exportPreferences(Path exportFilePath) {
         try (var output = Files.newOutputStream(exportFilePath)) {
             preferences.exportNode(output);
         } catch (IOException | BackingStoreException e) {
@@ -115,6 +124,7 @@ public class AppPreferences extends PreferencesBase {
 
     public void save() {
         try {
+            writeToPreferences();
             preferences.flush();
             LOGGER.info("save preferences");
         } catch (BackingStoreException e) {

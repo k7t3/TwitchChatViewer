@@ -30,7 +30,7 @@ public class PlayerPreferences extends PreferencesBase {
     }
 
     @Override
-    protected void onImported() {
+    protected void readFromPreferences() {
         if (isMuted() != getBoolean(MUTED)) {
             setMuted(getBoolean(MUTED));
         }
@@ -41,6 +41,21 @@ public class PlayerPreferences extends PreferencesBase {
 
         if (isAuto() != getBoolean(AUTO)) {
             setAuto(getBoolean(AUTO));
+        }
+    }
+
+    @Override
+    protected void writeToPreferences() {
+        if (muted != null) {
+            preferences.putBoolean(MUTED, muted.get());
+        }
+
+        if (volume != null) {
+            preferences.putDouble(VOLUME, volume.get());
+        }
+
+        if (auto != null) {
+            preferences.putBoolean(AUTO, auto.get());
         }
     }
 

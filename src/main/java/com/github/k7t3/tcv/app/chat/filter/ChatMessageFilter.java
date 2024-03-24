@@ -1,4 +1,4 @@
-package com.github.k7t3.tcv.app.chat;
+package com.github.k7t3.tcv.app.chat.filter;
 
 import com.github.k7t3.tcv.domain.chat.ChatData;
 

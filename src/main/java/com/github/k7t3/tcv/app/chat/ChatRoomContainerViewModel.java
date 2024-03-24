@@ -1,5 +1,6 @@
 package com.github.k7t3.tcv.app.chat;
 
+import com.github.k7t3.tcv.app.chat.filter.ChatMessageFilter;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;

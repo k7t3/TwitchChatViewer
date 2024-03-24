@@ -53,7 +53,7 @@ public class ChatPreferences extends PreferencesBase {
     }
 
     @Override
-    protected void onImported() {
+    protected void readFromPreferences() {
         if (!Objects.equals(getFont().getFamily(), get(CHAT_FONT_FAMILY))) {
             setFont(new ChatFont(CHAT_FONT_FAMILY));
         }
@@ -72,6 +72,29 @@ public class ChatPreferences extends PreferencesBase {
 
         if (getFloatableChatOpacity() != getDouble(FLOATABLE_CHAT_OPACITY)) {
             setFloatableChatOpacity(getDouble(FLOATABLE_CHAT_OPACITY));
+        }
+    }
+
+    @Override
+    protected void writeToPreferences() {
+        if (font != null) {
+            preferences.put(CHAT_FONT_FAMILY, font.get().getFamily());
+        }
+
+        if (showUserName != null) {
+            preferences.putBoolean(CHAT_SHOW_USERNAME, showUserName.get());
+        }
+
+        if (showBadges != null) {
+            preferences.putBoolean(CHAT_SHOW_BADGES, showBadges.get());
+        }
+
+        if (floatableChatOpacity != null) {
+            preferences.putDouble(FLOATABLE_CHAT_OPACITY, floatableChatOpacity.get());
+        }
+
+        if (floatableChatAlwaysTop != null) {
+            preferences.putBoolean(FLOATABLE_CHAT_TOP, floatableChatAlwaysTop.get());
         }
     }
 

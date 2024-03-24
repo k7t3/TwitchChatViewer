@@ -1,4 +1,4 @@
-package com.github.k7t3.tcv.app.chat;
+package com.github.k7t3.tcv.app.chat.filter;
 
 import com.github.k7t3.tcv.domain.chat.ChatData;
 
@@ -8,6 +8,14 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
+/**
+ * 正規表現によるチャットメッセージフィルタ。
+ *
+ * <p>
+ * {@link RegexChatMessageFilter#getRegexes()}に登録される
+ * 正規表現のいずれかに該当するメッセージは非表示扱いになる。
+ * </p>
+ */
 public class RegexChatMessageFilter implements ChatMessageFilter {
 
     public static final RegexChatMessageFilter DEFAULT = new RegexChatMessageFilter(List.of());

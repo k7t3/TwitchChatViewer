@@ -1,7 +1,7 @@
 package com.github.k7t3.tcv.view.chat;
 
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
-import com.github.k7t3.tcv.app.chat.UserChatMessageFilter;
+import com.github.k7t3.tcv.app.chat.filter.UserChatMessageFilter;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.view.core.Resources;
 import javafx.scene.Node;
@@ -11,10 +11,7 @@ import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextInputDialog;
 import org.kordamp.ikonli.Ikon;
 import org.kordamp.ikonli.feather.Feather;
-import org.kordamp.ikonli.javafx.FontIcon;
 import org.kordamp.ikonli.javafx.StackedFontIcon;
-
-import java.util.stream.Collectors;
 
 @SuppressWarnings("ALL")
 public class ChatDataContextMenu extends ContextMenu {
@@ -58,7 +55,7 @@ public class ChatDataContextMenu extends ContextMenu {
 
     private Node blockIcon(Ikon icon) {
         var stack = new StackedFontIcon();
-        stack.setIconCodes(Feather.SLASH, icon);
+        stack.setIconCodes(icon, Feather.SLASH);
         return stack;
     }
 
@@ -83,8 +80,9 @@ public class ChatDataContextMenu extends ContextMenu {
             var c = comment == null || comment.trim().isEmpty()
                     ? viewModel.getUserName()
                     : comment.trim();
+            var chat = viewModel.getChatData();
             var prefs = AppPreferences.getInstance().getMessageFilterPreferences();
-            var user = new UserChatMessageFilter.FilteredUser(viewModel.getChatData().userId(), c);
+            var user = new UserChatMessageFilter.FilteredUser(chat.userId(), chat.userName(), c);
             prefs.getUserChatMessageFilter().getUsers().add(user);
         });
     }

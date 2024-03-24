@@ -49,6 +49,9 @@ public class ChatContainerView implements FxmlView<ChatRoomContainerViewModel>, 
     private Button cancelButton;
 
     @FXML
+    private Button closeButton;
+
+    @FXML
     private BorderPane container;
 
     private GridPane chatContainer;
@@ -83,6 +86,9 @@ public class ChatContainerView implements FxmlView<ChatRoomContainerViewModel>, 
         mergeButton.getStyleClass().addAll(Styles.ROUNDED, Styles.SMALL, Styles.ACCENT);
         mergeButton.disableProperty().bind(viewModel.selectingCountProperty().lessThan(2));
         mergeButton.setOnAction(e -> viewModel.mergeSelectedChats());
+
+        closeButton.getStyleClass().addAll(Styles.ROUNDED, Styles.SMALL);
+        closeButton.setOnAction(e -> viewModel.closeAll());
 
         cancelButton.getStyleClass().addAll(Styles.ROUNDED, Styles.SMALL);
         cancelButton.setOnAction(e -> viewModel.unselectAll());

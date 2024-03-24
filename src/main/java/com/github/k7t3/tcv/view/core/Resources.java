@@ -8,16 +8,18 @@ public class Resources {
 
     private static final ResourceBundle RESOURCE_BUNDLE;
 
-    private static final Map<Integer, Image> ICONS;
+    private static final TreeMap<Integer, Image> ICONS;
 
     static {
         RESOURCE_BUNDLE = ResourceBundle.getBundle("com.github.k7t3.tcv.tcv");
-        ICONS = Map.of(
-                16, smallerIcon(16),
-                32, smallerIcon(32),
-                128, loadIcon(128),
-                256, smallerIcon(256),
-                512, loadIcon(512)
+        ICONS = new TreeMap<>(
+                Map.of(
+                        16, smallerIcon(16),
+                        32, smallerIcon(32),
+                        128, loadIcon(128),
+                        256, loadIcon(256),
+                        512, loadIcon(512)
+                )
         );
     }
 

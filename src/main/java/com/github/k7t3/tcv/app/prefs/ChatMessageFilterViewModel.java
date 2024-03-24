@@ -25,7 +25,7 @@ public class ChatMessageFilterViewModel implements ViewModel {
         var set = filterPrefs.getRegexChatMessageFilter().getRegexes();
         set.clear();
         set.addAll(items);
-        filterPrefs.sync();
+        filterPrefs.writeToPreferences();
     }
 
     public ObservableList<String> getFilters() {

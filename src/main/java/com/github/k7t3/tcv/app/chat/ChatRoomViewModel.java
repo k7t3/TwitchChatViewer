@@ -1,6 +1,7 @@
 package com.github.k7t3.tcv.app.chat;
 
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
+import com.github.k7t3.tcv.app.chat.filter.ChatMessageFilter;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
 import com.github.k7t3.tcv.domain.channel.TwitchChannelListener;

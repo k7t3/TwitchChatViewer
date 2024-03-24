@@ -17,6 +17,7 @@
                   <Tooltip text="%container.chat.tooltip.merge" />
                </tooltip></Button>
             <Button fx:id="cancelButton" mnemonicParsing="false" text="%container.chat.button.cancel" />
+            <Button fx:id="closeButton" mnemonicParsing="false" text="%container.chat.button.close" />
             <Label fx:id="selectingCountLabel" text="Selecting Count">
                <padding>
                   <Insets left="10.0" />

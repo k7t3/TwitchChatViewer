@@ -17,13 +17,13 @@ public class PreferencesViewModel implements ViewModel {
     }
 
     public FXTask<Void> importAsync(Path filePath) {
-        var task = FXTask.task(() -> prefs.importPrefs(filePath));
+        var task = FXTask.task(() -> prefs.importPreferences(filePath));
         TaskWorker.getInstance().submit(task);
         return task;
     }
 
     public FXTask<Void> exportAsync(Path filePath) {
-        var task = FXTask.task(() -> prefs.exportPrefs(filePath));
+        var task = FXTask.task(() -> prefs.exportPreferences(filePath));
         TaskWorker.getInstance().submit(task);
         return task;
     }

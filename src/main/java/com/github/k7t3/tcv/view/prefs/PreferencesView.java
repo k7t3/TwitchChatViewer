@@ -5,6 +5,7 @@ import atlantafx.base.controls.ToggleSwitch;
 import atlantafx.base.theme.Theme;
 import com.github.k7t3.tcv.app.prefs.ChatMessageFilterViewModel;
 import com.github.k7t3.tcv.app.prefs.PreferencesViewModel;
+import com.github.k7t3.tcv.app.prefs.UserChatMessageFilterViewModel;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.prefs.AppPreferences;
@@ -21,7 +22,6 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import javafx.scene.layout.Pane;
 import javafx.scene.text.Font;
-import javafx.stage.FileChooser;
 import javafx.util.StringConverter;
 
 import java.net.URL;
@@ -77,11 +77,14 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
 
     private ChatMessageFilterViewModel filterViewModel;
 
+    private UserChatMessageFilterViewModel userFilterViewModel;
+
     private ModalPane modalPane;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         loadFilterViewModel();
+        loadUserFilterViewModel();
         initThemeComboBox();
         initFontComboBox();
         initButtons();
@@ -97,6 +100,23 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
 
         var tuple = FluentViewLoader.fxmlView(ChatMessageFilterView.class)
                 .viewModel(filterViewModel)
+                .resourceBundle(Resources.getResourceBundle())
+                .load();
+
+        var view = tuple.getView();
+        var codeBehind = tuple.getCodeBehind();
+
+        var tab = new Tab(codeBehind.getName(), view);
+        tab.setGraphic(codeBehind.getGraphic());
+        tab.setClosable(false);
+        tabPane.getTabs().add(tab);
+    }
+
+    private void loadUserFilterViewModel() {
+        userFilterViewModel = new UserChatMessageFilterViewModel();
+
+        var tuple = FluentViewLoader.fxmlView(UserChatMessageFilterView.class)
+                .viewModel(userFilterViewModel)
                 .resourceBundle(Resources.getResourceBundle())
                 .load();
 
@@ -157,7 +177,7 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         ButtonBar.setButtonData(enterButton, ButtonBar.ButtonData.OK_DONE);
         ButtonBar.setButtonData(cancelButton, ButtonBar.ButtonData.CANCEL_CLOSE);
         ButtonBar.setButtonData(resetButton, ButtonBar.ButtonData.LEFT);
-        ButtonBar.setButtonData(exportButton, ButtonBar.ButtonData.HELP);
+        ButtonBar.setButtonData(exportButton, ButtonBar.ButtonData.HELP_2);
 
         exportButton.setVisible(false);
         resetButton.setVisible(false);
@@ -180,6 +200,8 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         chatPrefs.setShowBadges(showBadgeSwitch.isSelected());
 
         filterViewModel.sync();
+
+        userFilterViewModel.sync();
 
         viewModel.saveAsync();
         modalPane.hide();

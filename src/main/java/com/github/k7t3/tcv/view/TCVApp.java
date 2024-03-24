@@ -31,7 +31,7 @@ public class TCVApp extends Application {
         // 暗黙的な終了を無効化
         // アプリケーションの終了はShutdownクラスを使用する
         //
-        //Platform.setImplicitExit(false);
+        Platform.setImplicitExit(false);
 
         // ロガーの初期化
         LoggerInitializer.initialize();

@@ -1,4 +1,4 @@
-package com.github.k7t3.tcv.app.chat;
+package com.github.k7t3.tcv.app.chat.filter;
 
 import com.github.k7t3.tcv.domain.chat.ChatData;
 
@@ -8,19 +8,29 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
+/**
+ * ユーザーIDによるチャットメッセージフィルタ。
+ *
+ * <p>
+ * {@link UserChatMessageFilter#getUsers()}に登録される
+ * ユーザーIDのいずれかに該当するメッセージは非表示扱いになる。
+ * </p>
+ */
 public class UserChatMessageFilter implements ChatMessageFilter {
 
     public static final UserChatMessageFilter DEFAULT = new UserChatMessageFilter(List.of());
 
-    public record FilteredUser(String userId, String comment) {
-        public void write(DataOutputStream os) throws IOException {
+    public record FilteredUser(String userId, String userName, String comment) {
+        private void write(DataOutputStream os) throws IOException {
             os.writeUTF(userId);
+            os.writeUTF(userName);
             os.writeUTF(comment);
         }
-        public static FilteredUser restore(DataInputStream is) throws IOException {
+        private static FilteredUser restore(DataInputStream is) throws IOException {
             var userId = is.readUTF();
+            var userName = is.readUTF();
             var comment = is.readUTF();
-            return new FilteredUser(userId, comment);
+            return new FilteredUser(userId, userName, comment);
         }
     }
 

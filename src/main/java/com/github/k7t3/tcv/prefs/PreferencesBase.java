@@ -16,7 +16,9 @@ public abstract class PreferencesBase {
         this.defaults = defaults;
     }
 
-    protected abstract void onImported();
+    protected abstract void readFromPreferences();
+
+    protected abstract void writeToPreferences();
 
     protected BooleanProperty createBooleanProperty(String key) {
         var property = new SimpleBooleanProperty(getBoolean(key));

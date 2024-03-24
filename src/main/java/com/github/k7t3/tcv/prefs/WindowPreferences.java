@@ -30,7 +30,12 @@ public class WindowPreferences extends PreferencesBase {
     }
 
     @Override
-    protected void onImported() {
+    protected void readFromPreferences() {
+        // no-op
+    }
+
+    @Override
+    protected void writeToPreferences() {
         // no-op
     }
 

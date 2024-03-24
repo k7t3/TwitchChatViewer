@@ -1,14 +1,15 @@
 package com.github.k7t3.tcv.prefs;
 
-import com.github.k7t3.tcv.app.chat.ChatMessageFilter;
-import com.github.k7t3.tcv.app.chat.RegexChatMessageFilter;
-import com.github.k7t3.tcv.app.chat.UserChatMessageFilter;
+import com.github.k7t3.tcv.app.chat.filter.ChatMessageFilter;
+import com.github.k7t3.tcv.app.chat.filter.RegexChatMessageFilter;
+import com.github.k7t3.tcv.app.chat.filter.UserChatMessageFilter;
 import com.github.k7t3.tcv.domain.chat.ChatData;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 
 import java.util.Arrays;
 import java.util.Map;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.prefs.Preferences;
 
 @SuppressWarnings("unused")
@@ -24,6 +25,8 @@ public class ChatMessageFilterPreferences extends PreferencesBase {
 
     private ReadOnlyObjectWrapper<UserChatMessageFilter> userChatMessageFilter;
 
+    private final ReentrantLock syncLock = new ReentrantLock();
+
     ChatMessageFilterPreferences(Preferences preferences, Map<String, Object> defaults) {
         super(preferences, defaults);
 
@@ -32,7 +35,7 @@ public class ChatMessageFilterPreferences extends PreferencesBase {
     }
 
     @Override
-    protected void onImported() {
+    protected void readFromPreferences() {
         var bytes = getByteArray(FILTER_REGEX);
         var filter = Arrays.equals(DEFAULT_VALUE, bytes)
                 ? RegexChatMessageFilter.DEFAULT
@@ -40,21 +43,27 @@ public class ChatMessageFilterPreferences extends PreferencesBase {
         setRegexChatMessageFilter(filter);
     }
 
-    public void sync() {
-        var regex = getRegexChatMessageFilter();
-        if (regex == null) {
-            preferences.remove(FILTER_REGEX);
-        } else {
-            var bytes = regex.serialize();
-            preferences.putByteArray(FILTER_REGEX, bytes);
-        }
+    @Override
+    public void writeToPreferences() {
+        syncLock.lock();
+        try {
+            var regex = getRegexChatMessageFilter();
+            if (regex == null) {
+                preferences.remove(FILTER_REGEX);
+            } else {
+                var bytes = regex.serialize();
+                preferences.putByteArray(FILTER_REGEX, bytes);
+            }
 
-        var users = getUserChatMessageFilter();
-        if (users == null) {
-            preferences.remove(FILTER_USER);
-        } else {
-            var bytes = users.serialize();
-            preferences.putByteArray(FILTER_USER, bytes);
+            var users = getUserChatMessageFilter();
+            if (users == null) {
+                preferences.remove(FILTER_USER);
+            } else {
+                var bytes = users.serialize();
+                preferences.putByteArray(FILTER_USER, bytes);
+            }
+        } finally {
+            syncLock.unlock();
         }
     }
 

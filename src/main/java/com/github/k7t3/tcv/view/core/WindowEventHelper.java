@@ -25,7 +25,6 @@ public class WindowEventHelper {
             public void changed(ObservableValue<? extends Boolean> ob, Boolean o, Boolean n) {
                 if (o && !n) {
                     onClosed.run();
-                    window.showingProperty().removeListener(this);
                 }
             }
         };

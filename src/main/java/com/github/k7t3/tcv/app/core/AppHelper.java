@@ -57,13 +57,13 @@ public class AppHelper implements Closeable {
             container.clearAll();
         }
 
-        var worker = TaskWorker.getInstance();
-        worker.close();
-
         var twitch = getTwitch();
         if (twitch != null) {
             twitch.close();
         }
+
+        var worker = TaskWorker.getInstance();
+        worker.close();
     }
 
     public static AppHelper getInstance() {

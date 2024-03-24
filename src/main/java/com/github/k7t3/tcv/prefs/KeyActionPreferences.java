@@ -22,7 +22,12 @@ public class KeyActionPreferences extends PreferencesBase {
     }
 
     @Override
-    protected void onImported() {
+    protected void readFromPreferences() {
+        // TODO
+    }
+
+    @Override
+    protected void writeToPreferences() {
         // TODO
     }
 
