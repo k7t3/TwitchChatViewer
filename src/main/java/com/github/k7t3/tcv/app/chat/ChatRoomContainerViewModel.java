@@ -20,6 +20,8 @@ import javafx.collections.transformation.FilteredList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class ChatRoomContainerViewModel implements ViewModel {
 
@@ -265,8 +267,8 @@ public class ChatRoomContainerViewModel implements ViewModel {
 
         chatRooms.stream().map(ChatRoomViewModel::leaveChatAsync).forEach(task -> {
             try {
-                task.get();
-            } catch (InterruptedException | ExecutionException ignored) {
+                task.get(1, TimeUnit.MINUTES);
+            } catch (InterruptedException | ExecutionException | TimeoutException ignored) {
                 // no-op
             }
         });

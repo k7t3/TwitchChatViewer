@@ -6,6 +6,7 @@
 <?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
 
 <BorderPane fx:id="container" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.chat.ChatContainerView">
    <top>
@@ -17,12 +18,13 @@
                   <Tooltip text="%container.chat.tooltip.merge" />
                </tooltip></Button>
             <Button fx:id="cancelButton" mnemonicParsing="false" text="%container.chat.button.cancel" />
-            <Button fx:id="closeButton" mnemonicParsing="false" text="%container.chat.button.close" />
             <Label fx:id="selectingCountLabel" text="Selecting Count">
                <padding>
                   <Insets left="10.0" />
                </padding>
             </Label>
+            <Pane HBox.hgrow="ALWAYS" />
+            <Button fx:id="closeButton" mnemonicParsing="false" text="%container.chat.button.close" />
          </children>
          <padding>
             <Insets bottom="2.0" left="10.0" right="2.0" top="2.0" />

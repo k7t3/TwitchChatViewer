@@ -1,6 +1,5 @@
 package com.github.k7t3.tcv.view.chat;
 
-import atlantafx.base.controls.Popover;
 import atlantafx.base.theme.Styles;
 import atlantafx.base.theme.Tweaks;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
@@ -9,27 +8,20 @@ import com.github.k7t3.tcv.app.chat.SingleChatRoomViewModel;
 import com.github.k7t3.tcv.domain.chat.ChatRoomState;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
-import javafx.collections.ListChangeListener;
 import javafx.collections.SetChangeListener;
 import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.effect.SepiaTone;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.*;
 import javafx.scene.shape.Rectangle;
-import javafx.stage.WindowEvent;
 import org.fxmisc.flowless.VirtualFlow;
 import org.fxmisc.flowless.VirtualizedScrollPane;
-import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
-import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.net.URL;
-import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.ResourceBundle;
 
 public class SingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, Initializable {
@@ -106,7 +98,7 @@ public class SingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, In
 
         popoutMenuItem.setOnAction(e -> viewModel.popOutAsFloatableStage());
 
-        virtualFlow = VirtualFlow.createVertical(viewModel.getChatDataList(), ChatDataCell::new);
+        virtualFlow = VirtualFlow.createVertical(viewModel.getChatDataList(), ChatDataCell::of);
         chatDataContainer.getChildren().add(new VirtualizedScrollPane<>(virtualFlow));
 
         // 配信していないときののイメージを更新する

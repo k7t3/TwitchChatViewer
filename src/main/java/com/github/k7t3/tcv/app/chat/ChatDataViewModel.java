@@ -36,6 +36,8 @@ public class ChatDataViewModel implements ViewModel {
 
     private final BooleanProperty deleted = new SimpleBooleanProperty(false);
 
+    private final BooleanProperty hidden = new SimpleBooleanProperty(false);
+
     private final ObjectProperty<ChatFont> font = new SimpleObjectProperty<>(null);
 
     private final ChatData chatData;
@@ -141,6 +143,10 @@ public class ChatDataViewModel implements ViewModel {
     public BooleanProperty deletedProperty() { return deleted; }
     public boolean isDeleted() { return deleted.get(); }
     public void setDeleted(boolean deleted) { this.deleted.set(deleted); }
+
+    public BooleanProperty hiddenProperty() { return hidden; }
+    public boolean isHidden() { return hidden.get(); }
+    public void setHidden(boolean hidden) { this.hidden.set(hidden); }
 
     public ObjectProperty<ChatFont> fontProperty() { return font; }
     public ChatFont getFont() { return font.get(); }

@@ -93,6 +93,8 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
 
     public void setModalPane(ModalPane modalPane) {
         this.modalPane = modalPane;
+        root.prefWidthProperty().bind(modalPane.widthProperty().multiply(0.5));
+        root.prefHeightProperty().bind(modalPane.heightProperty().multiply(0.5));
     }
 
     private void loadFilterViewModel() {

@@ -55,10 +55,10 @@ public class ClipFinder {
 
             if (clips.isEmpty()) {
                 LOGGER.warn("clip not found clip_id={} ({})", clipId, link);
-                return Optional.of(ClipChatMessage.of(link, message));
+                return Optional.of(ClipChatMessage.of(clipId, link, message));
             }
 
-            return Optional.of(ClipChatMessage.of(link, message, VideoClip.of(clips.getFirst())));
+            return Optional.of(ClipChatMessage.of(clipId, link, message, VideoClip.of(clips.getFirst())));
 
         } catch (Exception e) {
             LOGGER.error(message, e);

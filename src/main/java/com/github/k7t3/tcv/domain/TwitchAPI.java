@@ -15,6 +15,7 @@ import com.github.twitch4j.helix.TwitchHelix;
 import com.github.twitch4j.helix.domain.*;
 import com.netflix.hystrix.HystrixCommand;
 import com.netflix.hystrix.exception.HystrixRuntimeException;
+import feign.FeignException;
 import io.github.xanthic.cache.api.Cache;
 import io.github.xanthic.cache.api.domain.ExpiryType;
 import io.github.xanthic.cache.core.CacheApi;
@@ -48,6 +49,12 @@ public class TwitchAPI implements Closeable {
     private final AtomicBoolean authorized = new AtomicBoolean(true);
 
     private final ChannelListener channelListener = new ChannelListener();
+
+    private final ExponentialBackoffStrategy retryStrategy = ExponentialBackoffStrategy.builder()
+            .immediateFirst(false)
+            .baseMillis(1000L)
+            .jitter(false)
+            .build();
 
     public TwitchAPI(Twitch twitch) {
         this.twitch = twitch;
@@ -219,6 +226,8 @@ public class TwitchAPI implements Closeable {
 
         try {
 
+            retryStrategy.reset();
+
             var helix = twitch.getClient().getHelix();
             var command = function.apply(helix);
             return command.execute();
@@ -231,6 +240,18 @@ public class TwitchAPI implements Closeable {
                 refreshAccessToken();
 
                 return hystrixCommandWrapper(function);
+
+            }
+
+            if (e.getCause() instanceof FeignException fe) {
+
+                // リトライしてみる
+                if (500 <= fe.status() && fe.status() <= 599) {
+
+                    retryStrategy.sleep();
+
+                    return hystrixCommandWrapper(function);
+                }
 
             }
 

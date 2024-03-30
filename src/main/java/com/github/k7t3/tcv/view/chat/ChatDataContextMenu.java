@@ -65,6 +65,9 @@ public class ChatDataContextMenu extends ContextMenu {
         var message = viewModel.getMessage().getPlain();
         var filter = prefs.getRegexChatMessageFilter();
         filter.getRegexes().add(message);
+
+        // 非表示
+        viewModel.setHidden(true);
     }
 
     private void addHiddenUser() {
@@ -84,6 +87,9 @@ public class ChatDataContextMenu extends ContextMenu {
             var prefs = AppPreferences.getInstance().getMessageFilterPreferences();
             var user = new UserChatMessageFilter.FilteredUser(chat.userId(), chat.userName(), c);
             prefs.getUserChatMessageFilter().getUsers().add(user);
+
+            // 非表示
+            viewModel.setHidden(true);
         });
     }
 

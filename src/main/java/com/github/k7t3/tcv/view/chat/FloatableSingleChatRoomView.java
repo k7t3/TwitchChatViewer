@@ -9,7 +9,6 @@ import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.view.core.FloatableStage;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
-import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.CheckMenuItem;
@@ -95,18 +94,18 @@ public class FloatableSingleChatRoomView implements FxmlView<SingleChatRoomViewM
 
         // 閉じるボタン
         closeMenuItem.setOnAction(e -> {
-            floatableStage.requestClose();
+            floatableStage.close();
             viewModel.leaveChatAsync();
         });
 
         // 元に戻すボタン
         restoreMenuItem.setOnAction(e -> {
-            floatableStage.requestClose();
+            floatableStage.close();
             viewModel.restoreToContainer();
         });
 
         // チャット
-        virtualFlow = VirtualFlow.createVertical(viewModel.getChatDataList(), ChatDataCell::new);
+        virtualFlow = VirtualFlow.createVertical(viewModel.getChatDataList(), ChatDataCell::of);
         chatDataContainer.getChildren().add(new VirtualizedScrollPane<>(virtualFlow));
 
         // 自動スクロールと仮想フローにおける動作を初期化

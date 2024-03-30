@@ -10,7 +10,6 @@ import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.view.core.FloatableStage;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
-import javafx.collections.ListChangeListener;
 import javafx.collections.MapChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -63,7 +62,7 @@ public class FloatableMergedChatRoomView implements FxmlView<MergedChatRoomViewM
     @InjectViewModel
     private MergedChatRoomViewModel viewModel;
 
-    private VirtualFlow<ChatDataViewModel, MergedChatDataCell> virtualFlow;
+    private VirtualFlow<ChatDataViewModel, ChatDataCell> virtualFlow;
 
     private FloatableStage floatableStage;
 
@@ -81,18 +80,18 @@ public class FloatableMergedChatRoomView implements FxmlView<MergedChatRoomViewM
 
         // 閉じるボタン
         closeMenuItem.setOnAction(e -> {
-            floatableStage.requestClose();
+            floatableStage.close();
             viewModel.leaveChatAsync();
         });
 
         // 元に戻すボタン
         restoreMenuItem.setOnAction(e -> {
-            floatableStage.requestClose();
+            floatableStage.close();
             viewModel.restoreToContainer();
         });
 
         // チャット
-        virtualFlow = VirtualFlow.createVertical(viewModel.getChatDataList(), MergedChatDataCell::new);
+        virtualFlow = VirtualFlow.createVertical(viewModel.getChatDataList(), ChatDataCell::merged);
         chatDataContainer.getChildren().add(new VirtualizedScrollPane<>(virtualFlow));
 
         // 自動スクロールと仮想フローにおける動作を初期化

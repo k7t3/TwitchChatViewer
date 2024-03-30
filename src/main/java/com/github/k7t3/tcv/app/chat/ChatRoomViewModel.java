@@ -167,8 +167,10 @@ public abstract class ChatRoomViewModel implements ChatRoomListener, TwitchChann
     @Override
     public void onChatMessageDeleted(ChatRoom chatRoom, String messageId) {
         LOGGER.info("{} chat deleted", chatRoom.getBroadcaster().getUserLogin());
-        Platform.runLater(() ->
-                chatDataList.removeIf(c -> c.getChatData().msgId().equalsIgnoreCase(messageId)));
+        Platform.runLater(() -> chatDataList.stream()
+                .filter(c -> c.getChatData().msgId().equalsIgnoreCase(messageId))
+                .findFirst()
+                .ifPresent(chatData -> chatData.setDeleted(true)));
     }
 
     @Override

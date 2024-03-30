@@ -40,6 +40,11 @@
                                     <FontIcon iconLiteral="fth-arrow-up-right" />
                                  </graphic>
                               </MenuItem>
+                              <MenuItem fx:id="separateAllMenuItem" mnemonicParsing="false" text="%chat.separate.all">
+                                 <graphic>
+                                    <FontIcon iconLiteral="fth-grid" />
+                                 </graphic>
+                              </MenuItem>
                             <MenuItem fx:id="closeMenuItem" mnemonicParsing="false" text="%button.close">
                                  <graphic>
                                     <FontIcon iconLiteral="fth-x" />

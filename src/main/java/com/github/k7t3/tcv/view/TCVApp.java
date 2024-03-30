@@ -2,7 +2,6 @@ package com.github.k7t3.tcv.view;
 
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.LoggerInitializer;
-import com.github.k7t3.tcv.app.core.Shutdown;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.view.core.Resources;
 import com.github.k7t3.tcv.view.core.StageBoundsListener;
@@ -14,6 +13,7 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +29,7 @@ public class TCVApp extends Application {
 
         //
         // 暗黙的な終了を無効化
-        // アプリケーションの終了はShutdownクラスを使用する
+        // アプリケーションは明示的に終了する。
         //
         Platform.setImplicitExit(false);
 
@@ -70,8 +70,8 @@ public class TCVApp extends Application {
         WindowEventHelper.shownOnce(primaryStage, e ->
                 codeBehind.startMainView());
 
-        // ウインドウを閉じたときの処理
-        WindowEventHelper.closed(primaryStage, Shutdown::exit);
+        // ウインドウを閉じるときのイベント
+        primaryStage.setOnHiding(this::onHiding);
 
         // ウインドウの境界を追跡
         var boundsListener = new StageBoundsListener();
@@ -88,6 +88,24 @@ public class TCVApp extends Application {
 
         primaryStage.setScene(scene);
         primaryStage.show();
+    }
+
+    @Override
+    public void stop() {
+        log.info("application closing ...");
+
+        // 設定のSave
+        var prefs = AppPreferences.getInstance();
+        prefs.save();
+
+        // アプリケーションの終了
+        var helper = AppHelper.getInstance();
+        helper.close();
+    }
+
+    private void onHiding(WindowEvent e) {
+        // JavaFX Applicationの終了
+        Platform.exit();
     }
 
 }

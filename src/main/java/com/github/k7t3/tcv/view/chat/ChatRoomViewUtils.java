@@ -3,7 +3,6 @@ package com.github.k7t3.tcv.view.chat;
 import atlantafx.base.controls.Popover;
 import atlantafx.base.theme.Styles;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
-import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.chat.ChatRoomViewModel;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.view.core.FloatableStage;
@@ -70,8 +69,8 @@ public class ChatRoomViewUtils {
         var listener = new StageBoundsListener();
         listener.install(stage);
 
-        stage.setOnCloseRequest(e -> {
-            // ウインドウを閉じるときに座標を記録
+        // ウインドウを閉じるときに座標を記録
+        stage.setOnHiding(e -> {
             var current = listener.getCurrent();
             windowPrefs.setStageBounds(current);
         });

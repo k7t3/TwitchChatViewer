@@ -14,9 +14,7 @@ import javafx.collections.ObservableMap;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewModel {
@@ -94,6 +92,11 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
         separateChatRoom(chatRoom);
 
         containerViewModel.getChatRoomList().remove(this);
+    }
+
+    public void separateAll() {
+        var channels = new ArrayList<>(this.channels.values());
+        channels.forEach(this::separateChatRoom);
     }
 
     public void separateChatRoom(SingleChatRoomViewModel chatRoom) {
@@ -213,8 +216,8 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
 
         channels.keySet().stream().map(TwitchChannelViewModel::leaveChatAsync).forEach(task -> {
             try {
-                task.get();
-            } catch (InterruptedException | ExecutionException ignored) {
+                task.get(30, TimeUnit.SECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException ignored) {
                 // no-op
             } finally {
                 latch.countDown();

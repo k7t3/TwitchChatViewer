@@ -11,26 +11,33 @@ public class ClipChatMessage {
 
     private final VideoClip clip;
 
+    private final String id;
+
     private final String estimatedURL;
 
     private final String plainMessage;
 
-    private ClipChatMessage(VideoClip clip, String estimatedURL, String plainMessage) {
+    private ClipChatMessage(VideoClip clip, String id, String estimatedURL, String plainMessage) {
         this.clip = clip;
+        this.id = id;
         this.estimatedURL = estimatedURL;
         this.plainMessage = plainMessage;
     }
 
-    public static ClipChatMessage of(String url, String plainMessage, VideoClip clip) {
-        return new ClipChatMessage(clip, url, plainMessage);
+    public static ClipChatMessage of(String url, String id, String plainMessage, VideoClip clip) {
+        return new ClipChatMessage(clip, id, url, plainMessage);
     }
 
-    public static ClipChatMessage of(String url, String plainMessage) {
-        return new ClipChatMessage(null, url, plainMessage);
+    public static ClipChatMessage of(String id, String url, String plainMessage) {
+        return new ClipChatMessage(null, id, url, plainMessage);
     }
 
     public Optional<VideoClip> getClip() {
         return Optional.ofNullable(clip);
+    }
+
+    public String getId() {
+        return id;
     }
 
     public String getEstimatedURL() {
