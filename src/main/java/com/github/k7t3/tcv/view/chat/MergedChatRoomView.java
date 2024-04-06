@@ -6,11 +6,11 @@ import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.chat.MergedChatRoomViewModel;
 import com.github.k7t3.tcv.app.chat.SingleChatRoomViewModel;
-import com.github.k7t3.tcv.view.core.Resources;
+import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.view.core.JavaFXHelper;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.collections.MapChangeListener;
-import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
@@ -115,8 +115,7 @@ public class MergedChatRoomView implements FxmlView<MergedChatRoomViewModel>, In
 
         selectedMenuItem.selectedProperty().bindBidirectional(viewModel.selectedProperty());
         selectedCheckBox.selectedProperty().bindBidirectional(viewModel.selectedProperty());
-        viewModel.selectedProperty().addListener((ob, o, n) ->
-                headerPane.pseudoClassStateChanged(PseudoClass.getPseudoClass("selected"), n));
+        JavaFXHelper.registerPseudoClass(headerPane, "selected", viewModel.selectedProperty());
         chatRoomControlsContainer.visibleProperty().bind(viewModel.selectModeProperty().not());
         chatRoomControlsContainer.managedProperty().bind(viewModel.selectModeProperty().not());
 
@@ -159,6 +158,11 @@ public class MergedChatRoomView implements FxmlView<MergedChatRoomViewModel>, In
         menuButton.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
         menuButton.getStyleClass().addAll(Tweaks.NO_ARROW);
         menuButton.setPrefHeight(Region.USE_COMPUTED_SIZE);
+
+        ChatRoomViewUtils.installStreamInfoPopOver(channel, menuButton);
+
+        // ChatRoomViewUtils.installStreamInfoPopOverが付与するイベントを上書き
+        menuButton.setOnMousePressed(null);
 
         return menuButton;
     }

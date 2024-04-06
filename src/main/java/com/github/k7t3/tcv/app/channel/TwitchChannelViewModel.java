@@ -165,8 +165,14 @@ public class TwitchChannelViewModel {
     public ObservableValue<String> observableUserName() { return broadcaster.map(Broadcaster::getUserName); }
     public String getUserName() { return broadcaster.get().getUserName(); }
 
-    public ObservableValue<String> observableTitle() { return streamInfoWrapper().map(StreamInfo::title); }
-    public String getTitle() { return streamInfo == null ? "" : streamInfo.get().title(); }
+    public ObservableValue<String> observableTitle() { return streamInfoWrapper().map(StreamInfo::title).orElse(""); }
+    public String getTitle() { return streamInfo == null ? "" : observableTitle().getValue(); }
+
+    public ObservableValue<Integer> observableViewerCount() { return streamInfoWrapper().map(StreamInfo::viewerCount).orElse(-1); }
+    public int getViewerCount() { return streamInfo == null ? -1 : observableViewerCount().getValue(); }
+
+    public ObservableValue<String> observableGameName() { return streamInfoWrapper().map(StreamInfo::gameName).orElse(""); }
+    public String getGameName() { return streamInfo == null ? "" : observableGameName().getValue(); }
 
     private ReadOnlyObjectWrapper<Image> profileImageWrapper() {
         if (profileImage == null) {

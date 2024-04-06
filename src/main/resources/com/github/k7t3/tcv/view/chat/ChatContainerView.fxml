@@ -8,7 +8,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Pane?>
 
-<BorderPane fx:id="container" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.chat.ChatContainerView">
+<BorderPane fx:id="container" stylesheets="@ChatContainerView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.chat.ChatContainerView">
    <top>
       <HBox fx:id="selectingPane" alignment="CENTER_LEFT" spacing="2.0" BorderPane.alignment="CENTER">
          <children>

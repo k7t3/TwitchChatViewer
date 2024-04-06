@@ -2,9 +2,9 @@ package com.github.k7t3.tcv.app.channel;
 
 import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
-import com.github.k7t3.tcv.app.main.MainViewModel;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
+import com.github.k7t3.tcv.prefs.AppPreferences;
 import de.saxsys.mvvmfx.ViewModel;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
@@ -23,18 +23,18 @@ public class FollowChannelsViewModel implements ViewModel {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FollowChannelsViewModel.class);
 
-    private static final Comparator<FollowChannelViewModel> DEFAULT_COMPARATOR =
-            Comparator.comparing(FollowChannelViewModel::getViewerCount).reversed()
-                    .thenComparing(FollowChannelViewModel::getUserLogin);
+    private static final Comparator<TwitchChannelViewModel> DEFAULT_COMPARATOR =
+            Comparator.comparing(TwitchChannelViewModel::getViewerCount).reversed()
+                    .thenComparing(TwitchChannelViewModel::getUserLogin);
 
-    /** フォローしているすべてのブロードキャスター*/
-    private final ObservableList<FollowChannelViewModel> followBroadcasters =
+    /** フォローしているすべてのチャンネル*/
+    private final ObservableList<TwitchChannelViewModel> followChannels =
             FXCollections.observableArrayList(vm ->
-                    new Observable[] { vm.liveProperty(), vm.viewerCountProperty() }
+                    new Observable[] { vm.liveProperty(), vm.observableViewerCount() }
             );
 
     /** 並べ替え、フィルタ*/
-    private final SortedList<FollowChannelViewModel> transformedBroadcasters;
+    private final SortedList<TwitchChannelViewModel> transformedChannels;
 
     /** ライブ中のみ*/
     private final BooleanProperty onlyLive = new SimpleBooleanProperty(false);
@@ -44,20 +44,18 @@ public class FollowChannelsViewModel implements ViewModel {
 
     private final ReadOnlyBooleanWrapper loaded = new ReadOnlyBooleanWrapper(false);
 
-    private final ObjectProperty<FollowChannelViewModel> selectedBroadcaster = new SimpleObjectProperty<>(null);
+    private final ObservableList<TwitchChannelViewModel> selectedChannels = FXCollections.observableArrayList();
 
     private final BooleanProperty visibleFully = new SimpleBooleanProperty(true);
-
-    private MainViewModel mainViewModel;
 
     private ChatRoomContainerViewModel chatContainerViewModel;
 
     public FollowChannelsViewModel() {
-        var filtered = new FilteredList<>(followBroadcasters);
+        var filtered = new FilteredList<>(followChannels);
         filtered.predicateProperty().bind(Bindings.createObjectBinding(() -> this::test, filter, onlyLive));
 
-        transformedBroadcasters = new SortedList<>(filtered);
-        transformedBroadcasters.setComparator(DEFAULT_COMPARATOR);
+        transformedChannels = new SortedList<>(filtered);
+        transformedChannels.setComparator(DEFAULT_COMPARATOR);
 
         initialize();
     }
@@ -68,13 +66,13 @@ public class FollowChannelsViewModel implements ViewModel {
         // 認証が解除されたらクリア
         helper.authorizedProperty().addListener((ob, o, n) -> {
             if (!n) {
-                followBroadcasters.clear();
+                followChannels.clear();
                 loaded.set(false);
             }
         });
     }
 
-    private boolean test(FollowChannelViewModel channel) {
+    private boolean test(TwitchChannelViewModel channel) {
         var keyword = getFilter() == null ? "" : getFilter().trim().toLowerCase();
         if (keyword.isEmpty())
             return !isOnlyLive() || channel.isLive();
@@ -86,11 +84,11 @@ public class FollowChannelsViewModel implements ViewModel {
                 gameTitle.toLowerCase().contains(keyword);
     }
 
-    public ObservableList<FollowChannelViewModel> getFollowBroadcasters() {
-        return transformedBroadcasters;
+    public ObservableList<TwitchChannelViewModel> getFollowChannels() {
+        return transformedChannels;
     }
 
-    public FXTask<List<FollowChannelViewModel>> loadAsync() {
+    public FXTask<List<TwitchChannelViewModel>> loadAsync() {
         if (isLoaded()) {
             throw new RuntimeException("already loaded");
         }
@@ -103,26 +101,22 @@ public class FollowChannelsViewModel implements ViewModel {
 
         var task = FXTask.task(() -> {
             repository.loadAllFollowBroadcasters();
-            return repository.getChannels().stream()
-                    .map(c -> new FollowChannelViewModel(this, c))
-                    .peek(v -> v.visibleFullyProperty().bind(visibleFully))
+            var channels = repository.getChannels().stream()
+                    .map(TwitchChannelViewModel::new)
                     .toList();
+            channels.forEach(c -> c.getChannelListeners().add(new TwitchChannelStreamListener(c)));
+            return channels;
         });
         FXTask.setOnSucceeded(task, e -> {
             LOGGER.info("succeeded to get all followed channel");
 
-            followBroadcasters.setAll(task.getValue());
+            followChannels.setAll(task.getValue());
 
             loaded.set(true);
         });
         TaskWorker.getInstance().submit(task);
 
         return task;
-    }
-
-    public void installMainViewModel(MainViewModel mainViewModel) {
-        this.mainViewModel = mainViewModel;
-        mainViewModel.footerProperty().bind(selectedBroadcasterProperty().map(FollowChannelViewModel::getTitle));
     }
 
     public void installChatContainerViewModel(ChatRoomContainerViewModel chatContainerViewModel) {
@@ -133,12 +127,35 @@ public class FollowChannelsViewModel implements ViewModel {
         if (chatContainerViewModel == null)
             throw new IllegalStateException();
 
-        var selectedBroadcaster = getSelectedBroadcaster();
-        if (selectedBroadcaster == null) return;
+        var selectedChannels = getSelectedChannels();
+        if (selectedChannels.isEmpty()) return;
 
-        var channel = selectedBroadcaster.getChannel();
+        // 選択が一つだけならそのまま開いて終わり
+        if (selectedChannels.size() == 1) {
+            var channel = selectedChannels.getFirst();
+            chatContainerViewModel.register(channel.getChannel());
+            return;
+        }
 
-        chatContainerViewModel.register(channel);
+        var prefs = AppPreferences.getInstance().getGeneralPreferences();
+
+        // 開くときの動作
+        switch (prefs.getMultipleOpenType()) {
+
+            // まとめて開く
+            case MERGED -> {
+                var channels = selectedChannels.stream().map(TwitchChannelViewModel::getChannel).toList();
+                chatContainerViewModel.registerAll(channels);
+            }
+
+            // それぞれを分離して開く
+            case SEPARATED -> selectedChannels.forEach(channel -> chatContainerViewModel.register(channel.getChannel()));
+
+        }
+    }
+
+    public ObservableList<TwitchChannelViewModel> getSelectedChannels() {
+        return selectedChannels;
     }
 
     public ReadOnlyBooleanProperty loadedProperty() { return loaded.getReadOnlyProperty(); }
@@ -151,10 +168,6 @@ public class FollowChannelsViewModel implements ViewModel {
     public BooleanProperty onlyLiveProperty() { return onlyLive; }
     public boolean isOnlyLive() { return onlyLive.get(); }
     public void setOnlyLive(boolean onlyLive) { this.onlyLive.set(onlyLive); }
-
-    public ObjectProperty<FollowChannelViewModel> selectedBroadcasterProperty() { return selectedBroadcaster; }
-    public FollowChannelViewModel getSelectedBroadcaster() { return selectedBroadcaster.get(); }
-    public void setSelectedBroadcaster(FollowChannelViewModel selectedBroadcaster) { this.selectedBroadcaster.set(selectedBroadcaster); }
 
     public BooleanProperty visibleFullyProperty() { return visibleFully; }
     public boolean isVisibleFully() { return visibleFully.get(); }

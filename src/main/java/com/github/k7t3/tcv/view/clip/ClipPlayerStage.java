@@ -2,7 +2,7 @@ package com.github.k7t3.tcv.view.clip;
 
 import com.github.k7t3.tcv.app.clip.ClipPlayerViewModel;
 import com.github.k7t3.tcv.prefs.AppPreferences;
-import com.github.k7t3.tcv.view.core.Resources;
+import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.view.core.StageBoundsListener;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import javafx.scene.Scene;

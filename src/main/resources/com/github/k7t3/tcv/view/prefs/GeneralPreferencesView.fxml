@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.ChoiceBox?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.RowConstraints?>
+
+<GridPane hgap="4.0" prefHeight="200.0" prefWidth="400.0" styleClass="prefs-grid-pane" vgap="10.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.prefs.GeneralPreferencesView">
+   <columnConstraints>
+      <ColumnConstraints hgrow="SOMETIMES" minWidth="100.0" />
+      <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />
+   </columnConstraints>
+   <rowConstraints>
+      <RowConstraints />
+      <RowConstraints />
+      <RowConstraints minHeight="10.0" prefHeight="30.0" />
+   </rowConstraints>
+   <children>
+      <Label text="%prefs.theme" />
+      <ChoiceBox fx:id="themeChoiceBox" GridPane.columnIndex="1" />
+      <Label text="%prefs.behavior.open.multi" GridPane.rowIndex="1" />
+      <ComboBox fx:id="openTypeComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+      <Label text="%prefs.chat.cache.size" GridPane.rowIndex="2" />
+      <ComboBox fx:id="chatCacheSizeComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+   </children>
+   <padding>
+      <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+   </padding>
+</GridPane>

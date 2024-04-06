@@ -7,7 +7,7 @@ import com.github.k7t3.tcv.app.chat.ChatRoomViewModel;
 import com.github.k7t3.tcv.app.chat.MergedChatRoomViewModel;
 import com.github.k7t3.tcv.app.chat.SingleChatRoomViewModel;
 import com.github.k7t3.tcv.view.core.FloatableStage;
-import com.github.k7t3.tcv.view.core.Resources;
+import com.github.k7t3.tcv.app.core.Resources;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;

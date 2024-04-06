@@ -2,11 +2,21 @@ package com.github.k7t3.tcv.view.core;
 
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
+import javafx.css.PseudoClass;
 import javafx.event.EventHandler;
+import javafx.scene.Node;
 import javafx.stage.Window;
 import javafx.stage.WindowEvent;
 
-public class WindowEventHelper {
+public class JavaFXHelper {
+
+    public static void registerPseudoClass(Node node, String pseudoClassName, ObservableValue<Boolean> activeState) {
+        activeState.addListener((ob, o, n) -> updatePseudoClass(node, pseudoClassName, n));
+    }
+
+    public static void updatePseudoClass(Node node, String pseudoClass, boolean active) {
+        node.pseudoClassStateChanged(PseudoClass.getPseudoClass(pseudoClass), active);
+    }
 
     public static void shownOnce(Window window, EventHandler<WindowEvent> handler) {
         var once = new EventHandler<WindowEvent>() {

@@ -1,7 +1,7 @@
 package com.github.k7t3.tcv.view.web;
 
 import com.github.k7t3.tcv.app.web.BrowserViewModel;
-import com.github.k7t3.tcv.view.core.Resources;
+import com.github.k7t3.tcv.app.core.Resources;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import javafx.scene.Parent;
 import javafx.scene.control.SplitPane;

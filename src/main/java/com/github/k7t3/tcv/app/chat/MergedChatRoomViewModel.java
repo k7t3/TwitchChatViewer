@@ -31,7 +31,7 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
             ChatRoomContainerViewModel containerViewModel
     ) {
         super(globalChatBadgeStore, emoteStore, definedChatColors, containerViewModel);
-        setItemCountLimit(DEFAULT_ITEM_COUNT_LIMIT);
+        setChatCacheSize(DEFAULT_ITEM_COUNT_LIMIT);
 
         initChatRooms(chatRooms);
     }
@@ -65,7 +65,7 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
         mergedChats.addAll(chatRoom.getChatDataList());
         mergedChats.sort(Comparator.comparing(o -> o.getChatData().firedAt()));
 
-        var limit = getItemCountLimit();
+        var limit = getChatCacheSize();
         if (mergedChats.size() <= limit) {
             getChatDataList().setAll(mergedChats);
         } else {
@@ -161,7 +161,7 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
             mergedChats.addAll(chatRoom.getChatDataList());
             mergedChats.sort(Comparator.comparing(o -> o.getChatData().firedAt()));
 
-            var limit = getItemCountLimit();
+            var limit = getChatCacheSize();
             if (mergedChats.size() <= limit) {
                 chatRoom.getChatDataList().setAll(mergedChats);
             } else {

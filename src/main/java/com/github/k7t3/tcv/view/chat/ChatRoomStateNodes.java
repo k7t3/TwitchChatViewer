@@ -1,8 +1,7 @@
 package com.github.k7t3.tcv.view.chat;
 
-import atlantafx.base.theme.Styles;
 import com.github.k7t3.tcv.domain.chat.ChatRoomState;
-import com.github.k7t3.tcv.view.core.Resources;
+import com.github.k7t3.tcv.app.core.Resources;
 import javafx.scene.Node;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;

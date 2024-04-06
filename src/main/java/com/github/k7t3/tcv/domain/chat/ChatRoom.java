@@ -42,10 +42,10 @@ public class ChatRoom {
 
     private final EventExecutorWrapper eventExecutor;
 
-    public ChatRoom(Twitch twitch, EventExecutorWrapper eventExecutor, Broadcaster broadcaster, TwitchChannel channel) {
+    public ChatRoom(Twitch twitch, Broadcaster broadcaster, TwitchChannel channel) {
         this.twitch = twitch;
+        this.eventExecutor = twitch.getEventExecutor();
         this.channel = channel;
-        this.eventExecutor = eventExecutor;
         this.broadcaster = broadcaster;
         this.channelId = broadcaster.getUserId();
         this.clipFinder = new ClipFinder(twitch);
@@ -155,8 +155,7 @@ public class ChatRoom {
                 userColor,
                 badges,
                 chatMessage,
-                firedAt,
-                false
+                firedAt
         );
     }
 
@@ -228,6 +227,7 @@ public class ChatRoom {
 
         var user = event.getUser();
 
+        // ギフトのときはギフターとレシーバーを扱うだけ
         if (event.getGifted()) {
             var giver = event.getGiftedBy();
             eventExecutor.submit(() -> {
@@ -235,9 +235,12 @@ public class ChatRoom {
                     listener.onUserGiftedSubscribe(this, giver.getName(), user.getName());
             });
         } else {
+
+            var chatData = parseMessageEvent(event.getMessageEvent());
+
             eventExecutor.submit(() -> {
                 for (var listener : listeners)
-                    listener.onUserSubscribed(this, user.getName());
+                    listener.onUserSubscribed(this, chatData);
             });
         }
     }

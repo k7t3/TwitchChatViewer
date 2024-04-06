@@ -1,7 +1,7 @@
 package com.github.k7t3.tcv.view.action;
 
 import com.github.k7t3.tcv.app.core.AppHelper;
-import com.github.k7t3.tcv.view.core.Resources;
+import com.github.k7t3.tcv.app.core.Resources;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.layout.Pane;

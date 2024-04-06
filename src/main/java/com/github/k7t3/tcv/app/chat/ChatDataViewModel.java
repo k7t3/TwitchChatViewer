@@ -50,6 +50,9 @@ public class ChatDataViewModel implements ViewModel {
 
     private final DefinedChatColors definedChatColors;
 
+    private boolean system = false;
+    private boolean subs = false;
+
     ChatDataViewModel(
             TwitchChannelViewModel channel,
             ChatData chatData,
@@ -105,6 +108,22 @@ public class ChatDataViewModel implements ViewModel {
     public void copyMessage() {
         var cb = Clipboard.getSystemClipboard();
         cb.setContent(Map.of(DataFormat.PLAIN_TEXT, getMessage().getPlain()));
+    }
+
+    public boolean isSystem() {
+        return system;
+    }
+
+    public void setSystem(boolean system) {
+        this.system = system;
+    }
+
+    public boolean isSubs() {
+        return subs;
+    }
+
+    public void setSubs(boolean subs) {
+        this.subs = subs;
     }
 
     // ********** PROPERTIES **********

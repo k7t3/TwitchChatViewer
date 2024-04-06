@@ -1,6 +1,6 @@
 package com.github.k7t3.tcv.view.channel;
 
-import com.github.k7t3.tcv.app.channel.FollowChannelViewModel;
+import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Insets;
@@ -17,7 +17,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Rectangle;
 
-public class FollowChannelListCell extends ListCell<FollowChannelViewModel> {
+public class FollowChannelListCell extends ListCell<TwitchChannelViewModel> {
 
     private static final double PROFILE_IMAGE_WIDTH = 32;
     private static final double PROFILE_IMAGE_HEIGHT = 32;
@@ -43,11 +43,12 @@ public class FollowChannelListCell extends ListCell<FollowChannelViewModel> {
 
     private BooleanProperty live;
 
-    private BooleanProperty visibleFully;
+    private final BooleanProperty visibleFully;
 
     private Tooltip tooltip;
 
-    public FollowChannelListCell() {
+    public FollowChannelListCell(BooleanProperty visibleFullyProperty) {
+        this.visibleFully = visibleFullyProperty;
         getStyleClass().add(STYLE_CLASS);
         setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
     }
@@ -66,8 +67,6 @@ public class FollowChannelListCell extends ListCell<FollowChannelViewModel> {
 
         live = new SimpleBooleanProperty(false);
         profileImageView.effectProperty().bind(live.map(live -> live ? null : new SepiaTone()));
-
-        visibleFully = new SimpleBooleanProperty(true);
 
         userNameLabel = new Label();
         userNameLabel.getStyleClass().add(USER_NAME_STYLE_CLASS);
@@ -121,7 +120,7 @@ public class FollowChannelListCell extends ListCell<FollowChannelViewModel> {
         tooltip = new Tooltip();
     }
 
-    private void update(FollowChannelViewModel viewModel) {
+    private void update(TwitchChannelViewModel viewModel) {
         profileImageView.imageProperty().bind(viewModel.profileImageProperty());
 
         // ユーザー名はそうそう変更されないことを見越してバインドしない
@@ -133,16 +132,14 @@ public class FollowChannelListCell extends ListCell<FollowChannelViewModel> {
             userNameLabel.setText("%s (%s)".formatted(userName, loginName));
         }
 
-        gameTitleLabel.textProperty().bind(viewModel.gameNameProperty());
+        gameTitleLabel.textProperty().bind(viewModel.observableGameName());
         viewerCountLabel.textProperty().bind(
-                viewModel.viewerCountProperty()
-                        .divide(1000d)
-                        .map(d -> Double.max(d.doubleValue(), 0.1))
+                viewModel.observableViewerCount()
+                        .map(count -> count / 1000d)
+                        .map(d -> Double.max(d, 0.1))
                         .map("%.1f K"::formatted)
         );
         live.bind(viewModel.liveProperty());
-
-        visibleFully.bind(viewModel.visibleFullyProperty());
 
         var title = viewModel.getTitle();
         if (title != null) {
@@ -154,7 +151,7 @@ public class FollowChannelListCell extends ListCell<FollowChannelViewModel> {
     }
 
     @Override
-    protected void updateItem(FollowChannelViewModel item, boolean empty) {
+    protected void updateItem(TwitchChannelViewModel item, boolean empty) {
         super.updateItem(item, empty);
 
         if (item == null || empty) {

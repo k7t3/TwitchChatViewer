@@ -3,7 +3,7 @@ package com.github.k7t3.tcv.view.prefs;
 import atlantafx.base.theme.Styles;
 import atlantafx.base.theme.Tweaks;
 import com.github.k7t3.tcv.app.prefs.ChatMessageFilterViewModel;
-import com.github.k7t3.tcv.view.core.Resources;
+import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.view.core.cell.TextListCell;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.fxml.FXML;

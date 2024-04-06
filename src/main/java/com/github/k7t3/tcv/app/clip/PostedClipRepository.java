@@ -5,7 +5,6 @@ import com.github.k7t3.tcv.domain.chat.*;
 import de.saxsys.mvvmfx.ViewModel;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
-import javafx.beans.binding.IntegerBinding;
 import javafx.beans.binding.NumberBinding;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableMap;
@@ -107,7 +106,7 @@ public class PostedClipRepository implements ViewModel, ChatRoomListener {
     }
 
     @Override
-    public void onUserSubscribed(ChatRoom chatRoom, String userName) {
+    public void onUserSubscribed(ChatRoom chatRoom, ChatData chatData) {
         // no-op
     }
 

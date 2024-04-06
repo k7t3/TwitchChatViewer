@@ -11,7 +11,7 @@ import com.github.k7t3.tcv.prefs.KeyActionRepository;
 import com.github.k7t3.tcv.view.action.*;
 import com.github.k7t3.tcv.view.channel.FollowChannelsView;
 import com.github.k7t3.tcv.view.chat.ChatContainerView;
-import com.github.k7t3.tcv.view.core.Resources;
+import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.view.web.BrowserController;
 import com.github.k7t3.tcv.view.web.OpenCommunityGuidelineAction;
 import com.github.k7t3.tcv.view.web.OpenTermsAction;
@@ -170,8 +170,9 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         var tuple = loader.load();
 
         channelsViewModel = tuple.getViewModel();
-        channelsViewModel.installMainViewModel(viewModel);
         channelsViewModel.installChatContainerViewModel(chatContainerViewModel);
+
+        viewModel.installFollowChannelsViewModel(channelsViewModel);
 
         followersContainer.getChildren().add(tuple.getView());
     }

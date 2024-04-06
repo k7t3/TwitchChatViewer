@@ -1,4 +1,4 @@
-package com.github.k7t3.tcv.view.core;
+package com.github.k7t3.tcv.app.core;
 
 import javafx.scene.image.Image;
 

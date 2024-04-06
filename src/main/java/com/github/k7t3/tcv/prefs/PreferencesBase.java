@@ -3,6 +3,7 @@ package com.github.k7t3.tcv.prefs;
 import javafx.beans.property.*;
 
 import java.util.Map;
+import java.util.function.Function;
 import java.util.prefs.Preferences;
 
 public abstract class PreferencesBase {
@@ -26,6 +27,12 @@ public abstract class PreferencesBase {
         return property;
     }
 
+    protected IntegerProperty createIntegerProperty(String key) {
+        var property = new SimpleIntegerProperty(getInt(key));
+        property.addListener((ob, o, n) -> preferences.putInt(key, n.intValue()));
+        return property;
+    }
+
     protected DoubleProperty createDoubleProperty(String key) {
         var property = new SimpleDoubleProperty(getDouble(key));
         property.addListener((ob, o, n) -> preferences.putDouble(key, n.doubleValue()));
@@ -38,8 +45,22 @@ public abstract class PreferencesBase {
         return property;
     }
 
+    protected <T> ObjectProperty<T> createObjectProperty(
+            String key,
+            Function<String, T> fromString,
+            Function<T, String> toString
+    ) {
+        var property = new SimpleObjectProperty<>(fromString.apply(get(key)));
+        property.addListener((ob, o, n) -> preferences.put(key, toString.apply(n)));
+        return property;
+    }
+
     protected String get(String key) {
         return preferences.get(key, (String) defaults.get(key));
+    }
+
+    protected int getInt(String key) {
+        return preferences.getInt(key, (Integer) defaults.get(key));
     }
 
     protected double getDouble(String key) {

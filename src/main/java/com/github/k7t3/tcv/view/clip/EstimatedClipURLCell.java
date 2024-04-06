@@ -2,8 +2,7 @@ package com.github.k7t3.tcv.view.clip;
 
 import com.github.k7t3.tcv.app.clip.EstimatedClipURL;
 import com.github.k7t3.tcv.app.clip.PostedClipRepository;
-import com.github.k7t3.tcv.app.web.BrowserViewModel;
-import com.github.k7t3.tcv.view.core.Resources;
+import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.view.web.BrowserController;
 import javafx.scene.control.*;
 import org.kordamp.ikonli.feather.Feather;

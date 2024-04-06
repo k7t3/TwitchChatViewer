@@ -39,12 +39,11 @@ public class TwitchChannel {
 
     public TwitchChannel(
             Twitch twitch,
-            EventExecutorWrapper eventExecutor,
             Broadcaster broadcaster,
             StreamInfo stream
     ) {
         this.twitch = twitch;
-        this.eventExecutor = eventExecutor;
+        this.eventExecutor = twitch.getEventExecutor();
         this.broadcaster = broadcaster;
         this.streamRef = new AtomicReference<>(stream);
     }
@@ -158,7 +157,7 @@ public class TwitchChannel {
         if (chatRoom != null) return chatRoom;
         LOGGER.info("{} chat room created", getChannelName());
 
-        chatRoom = new ChatRoom(twitch, eventExecutor, broadcaster, this);
+        chatRoom = new ChatRoom(twitch, broadcaster, this);
         chatRoom.listen();
 
         return chatRoom;

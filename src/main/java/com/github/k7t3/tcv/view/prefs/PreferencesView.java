@@ -1,32 +1,22 @@
 package com.github.k7t3.tcv.view.prefs;
 
 import atlantafx.base.controls.ModalPane;
-import atlantafx.base.controls.ToggleSwitch;
-import atlantafx.base.theme.Theme;
-import com.github.k7t3.tcv.app.prefs.ChatMessageFilterViewModel;
-import com.github.k7t3.tcv.app.prefs.PreferencesViewModel;
-import com.github.k7t3.tcv.app.prefs.UserChatMessageFilterViewModel;
-import com.github.k7t3.tcv.app.service.FXTask;
-import com.github.k7t3.tcv.app.service.TaskWorker;
-import com.github.k7t3.tcv.prefs.AppPreferences;
-import com.github.k7t3.tcv.prefs.ChatFont;
-import com.github.k7t3.tcv.view.core.Resources;
+import com.github.k7t3.tcv.app.prefs.*;
+import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.view.core.ThemeManager;
-import com.github.k7t3.tcv.view.prefs.font.FontComboBoxCell;
-import com.github.k7t3.tcv.view.prefs.font.FontStringConverter;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
 import javafx.scene.layout.Pane;
-import javafx.scene.text.Font;
-import javafx.util.StringConverter;
 
 import java.net.URL;
 import java.util.ResourceBundle;
-import java.util.concurrent.TimeUnit;
 
 public class PreferencesView implements FxmlView<PreferencesViewModel>, Initializable {
 
@@ -35,27 +25,6 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
 
     @FXML
     private TabPane tabPane;
-
-    @FXML
-    private ChoiceBox<Theme> themeChoiceBox;
-
-    @FXML
-    private ToggleSwitch experimentalSwitch;
-
-    @FXML
-    private ComboBox<ChatFont> fontComboBox;
-
-    @FXML
-    private Label defaultPreviewLabel;
-
-    @FXML
-    private Label previewLabel;
-
-    @FXML
-    private ToggleSwitch showNameSwitch;
-
-    @FXML
-    private ToggleSwitch showBadgeSwitch;
 
     @FXML
     private ButtonBar buttonBar;
@@ -75,6 +44,10 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
     @InjectViewModel
     private PreferencesViewModel viewModel;
 
+    private GeneralPreferencesViewModel generalViewModel;
+
+    private ChatPreferencesViewModel chatViewModel;
+
     private ChatMessageFilterViewModel filterViewModel;
 
     private UserChatMessageFilterViewModel userFilterViewModel;
@@ -83,18 +56,51 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        loadGeneralViewModel();
+        loadChatViewModel();
         loadFilterViewModel();
         loadUserFilterViewModel();
-        initThemeComboBox();
-        initFontComboBox();
         initButtons();
-        initValues();
     }
 
     public void setModalPane(ModalPane modalPane) {
         this.modalPane = modalPane;
         root.prefWidthProperty().bind(modalPane.widthProperty().multiply(0.5));
         root.prefHeightProperty().bind(modalPane.heightProperty().multiply(0.5));
+    }
+
+    private void loadGeneralViewModel() {
+        generalViewModel = new GeneralPreferencesViewModel();
+
+        var tuple = FluentViewLoader.fxmlView(GeneralPreferencesView.class)
+                .viewModel(generalViewModel)
+                .resourceBundle(Resources.getResourceBundle())
+                .load();
+
+        var view = tuple.getView();
+        var codeBehind = tuple.getCodeBehind();
+
+        var tab = new Tab(codeBehind.getName(), view);
+        tab.setGraphic(codeBehind.getGraphic());
+        tab.setClosable(false);
+        tabPane.getTabs().addFirst(tab);
+    }
+
+    private void loadChatViewModel() {
+        chatViewModel = new ChatPreferencesViewModel();
+
+        var tuple = FluentViewLoader.fxmlView(ChatPreferencesView.class)
+                .viewModel(chatViewModel)
+                .resourceBundle(Resources.getResourceBundle())
+                .load();
+
+        var view = tuple.getView();
+        var codeBehind = tuple.getCodeBehind();
+
+        var tab = new Tab(codeBehind.getName(), view);
+        tab.setGraphic(codeBehind.getGraphic());
+        tab.setClosable(false);
+        tabPane.getTabs().add(tab);
     }
 
     private void loadFilterViewModel() {
@@ -131,50 +137,6 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         tabPane.getTabs().add(tab);
     }
 
-    private void initThemeComboBox() {
-        themeChoiceBox.getItems().setAll(ThemeManager.getInstance().getThemes());
-        themeChoiceBox.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(Theme object) {
-                return object == null ? "null" : object.getName();
-            }
-
-            @Override
-            public Theme fromString(String string) {
-                return themeChoiceBox.getItems()
-                        .stream()
-                        .filter(t -> t.getName().equalsIgnoreCase(string))
-                        .findFirst()
-                        .orElse(null);
-            }
-        });
-        themeChoiceBox.valueProperty().addListener((ob, o, n) -> {
-            ThemeManager.getInstance().setTheme(n);
-        });
-    }
-
-    private void initFontComboBox() {
-        fontComboBox.setDisable(true);
-        defaultPreviewLabel.setDisable(true);
-        previewLabel.setDisable(true);
-
-        fontComboBox.setConverter(new FontStringConverter(fontComboBox.getItems()));
-        fontComboBox.setCellFactory(param -> new FontComboBoxCell());
-
-        var fontLoader = FXTask.task(() -> {
-            TimeUnit.MILLISECONDS.sleep(400);
-            return Font.getFamilies().stream().map(ChatFont::new).toList();
-        });
-        fontLoader.setOnSucceeded(e -> {
-            fontComboBox.getItems().addAll(fontLoader.getValue());
-
-            fontComboBox.setDisable(false);
-            defaultPreviewLabel.setDisable(false);
-            previewLabel.setDisable(false);
-        });
-        TaskWorker.getInstance().submit(fontLoader);
-    }
-
     private void initButtons() {
         ButtonBar.setButtonData(enterButton, ButtonBar.ButtonData.OK_DONE);
         ButtonBar.setButtonData(cancelButton, ButtonBar.ButtonData.CANCEL_CLOSE);
@@ -185,21 +147,16 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         resetButton.setVisible(false);
 
         cancelButton.setOnAction(e -> {
-            ThemeManager.getInstance().setTheme(initialTheme);
+            ThemeManager.getInstance().setTheme(generalViewModel.getDefaultTheme());
             modalPane.hide();
         });
         enterButton.setOnAction(e -> save());
     }
 
     private void save() {
-        var prefs = AppPreferences.getInstance();
-        prefs.setTheme(themeChoiceBox.getValue());
-        prefs.setExperimental(experimentalSwitch.isSelected());
+        generalViewModel.sync();
 
-        var chatPrefs = prefs.getChatPreferences();
-        chatPrefs.setFont(fontComboBox.getValue());
-        chatPrefs.setShowUserName(showNameSwitch.isSelected());
-        chatPrefs.setShowBadges(showBadgeSwitch.isSelected());
+        chatViewModel.sync();
 
         filterViewModel.sync();
 
@@ -207,23 +164,6 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
 
         viewModel.saveAsync();
         modalPane.hide();
-    }
-
-    private Theme initialTheme;
-
-    private void initValues() {
-        var prefs = AppPreferences.getInstance();
-        initialTheme = prefs.getTheme();
-        themeChoiceBox.getSelectionModel().select(initialTheme);
-        experimentalSwitch.setSelected(prefs.isExperimental());
-
-        var chatPrefs = prefs.getChatPreferences();
-        fontComboBox.getSelectionModel().select(chatPrefs.getFont());
-        showNameSwitch.setSelected(chatPrefs.isShowUserName());
-        showBadgeSwitch.setSelected(chatPrefs.isShowBadges());
-
-        defaultPreviewLabel.fontProperty().bind(fontComboBox.valueProperty().map(ChatFont::getFont));
-        previewLabel.fontProperty().bind(fontComboBox.valueProperty().map(ChatFont::getFont));
     }
 
 //    private void exportPreferences() {

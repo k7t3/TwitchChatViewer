@@ -1,12 +1,9 @@
 package com.github.k7t3.tcv.domain.channel;
 
 import com.github.k7t3.tcv.domain.Twitch;
-import com.github.k7t3.tcv.domain.core.EventExecutorWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -16,7 +13,7 @@ import java.util.Map;
 /**
  * ロードしたチャンネルの情報を管理するリポジトリ
  */
-public class ChannelRepository implements Closeable {
+public class ChannelRepository {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ChannelRepository.class);
 
@@ -25,8 +22,6 @@ public class ChannelRepository implements Closeable {
     private boolean loaded = false;
 
     private final Twitch twitch;
-
-    private final EventExecutorWrapper eventExecutor = new EventExecutorWrapper();
 
     public ChannelRepository(Twitch twitch) {
         this.twitch = twitch;
@@ -53,7 +48,7 @@ public class ChannelRepository implements Closeable {
                     .findFirst()
                     .orElse(null);
 
-            var channel = new TwitchChannel(twitch, eventExecutor, broadcaster, stream);
+            var channel = new TwitchChannel(twitch, broadcaster, stream);
             channel.setFollowing(true);
             channel.updateEventSubs();
             channels.put(broadcaster, channel);
@@ -83,7 +78,7 @@ public class ChannelRepository implements Closeable {
             return channel;
         }
 
-        channel = new TwitchChannel(twitch, eventExecutor, broadcaster, stream);
+        channel = new TwitchChannel(twitch, broadcaster, stream);
         channel.updateEventSubs();
 
         channels.put(broadcaster, channel);
@@ -141,8 +136,4 @@ public class ChannelRepository implements Closeable {
         channels.clear();
     }
 
-    @Override
-    public void close() throws IOException {
-        eventExecutor.close();
-    }
 }

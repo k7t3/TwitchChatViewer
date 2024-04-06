@@ -9,7 +9,7 @@ import com.github.k7t3.tcv.domain.chat.ChatData;
 import com.github.k7t3.tcv.domain.chat.ChatRoom;
 import com.github.k7t3.tcv.domain.chat.ChatRoomListener;
 import com.github.k7t3.tcv.prefs.ChatFont;
-import com.github.k7t3.tcv.view.core.Resources;
+import com.github.k7t3.tcv.app.core.Resources;
 import javafx.application.Platform;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
@@ -24,7 +24,7 @@ public abstract class ChatRoomViewModel implements ChatRoomListener, TwitchChann
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ChatRoomViewModel.class);
 
-    private final IntegerProperty itemCountLimit = new SimpleIntegerProperty(256);
+    private final IntegerProperty chatCacheSize = new SimpleIntegerProperty(256);
 
     private final ObservableList<ChatDataViewModel> chatDataList = FXCollections.observableArrayList(new LinkedList<>());
 
@@ -62,7 +62,7 @@ public abstract class ChatRoomViewModel implements ChatRoomListener, TwitchChann
         this.definedChatColors = definedChatColors;
         this.containerViewModel = containerViewModel;
 
-        itemCountLimit.addListener((ob, o, n) -> itemCountLimitChanged(n.intValue()));
+        chatCacheSize.addListener((ob, o, n) -> itemCountLimitChanged(n.intValue()));
     }
 
     public void popOutAsFloatableStage() {
@@ -123,7 +123,7 @@ public abstract class ChatRoomViewModel implements ChatRoomListener, TwitchChann
             chat.fontProperty().bind(font);
 
             // 上限制限
-            if (getItemCountLimit() <= chatDataList.size()) {
+            if (getChatCacheSize() <= chatDataList.size()) {
                 chatDataList.removeFirst();
             }
             chatDataList.add(chat);
@@ -187,14 +187,12 @@ public abstract class ChatRoomViewModel implements ChatRoomListener, TwitchChann
     }
 
     @Override
-    public void onUserSubscribed(ChatRoom chatRoom, String userName) {
-        var message = "%s subscribed.".formatted(userName);
-        var chatData = ChatData.createSystemData(message);
-
+    public void onUserSubscribed(ChatRoom chatRoom, ChatData chatData) {
         var channel = getChannel(chatRoom.getChannel());
 
         var viewModel = createChatDataViewModel(channel, chatData);
         viewModel.fontProperty().bind(font);
+        viewModel.setSubs(true);
 
         addChat(viewModel);
     }
@@ -208,15 +206,16 @@ public abstract class ChatRoomViewModel implements ChatRoomListener, TwitchChann
 
         var viewModel = createChatDataViewModel(channel, chatData);
         viewModel.fontProperty().bind(font);
+        viewModel.setSystem(true);
 
         addChat(viewModel);
     }
 
     // ******************** PROPERTIES ********************
 
-    public IntegerProperty itemCountLimitProperty() { return itemCountLimit; }
-    public int getItemCountLimit() { return itemCountLimit.get(); }
-    public void setItemCountLimit(int itemCountLimit) { this.itemCountLimit.set(itemCountLimit); }
+    public IntegerProperty chatCacheSizeProperty() { return chatCacheSize; }
+    public int getChatCacheSize() { return chatCacheSize.get(); }
+    public void setChatCacheSize(int chatCacheSize) { this.chatCacheSize.set(chatCacheSize); }
 
     public BooleanProperty autoScrollProperty() { return autoScroll; }
     public boolean isAutoScroll() { return autoScroll.get(); }

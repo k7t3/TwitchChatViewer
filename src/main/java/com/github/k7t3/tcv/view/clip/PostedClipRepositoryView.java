@@ -6,7 +6,7 @@ import com.github.k7t3.tcv.app.clip.EstimatedClipURL;
 import com.github.k7t3.tcv.app.clip.PostedClipRepository;
 import com.github.k7t3.tcv.app.clip.PostedClipViewModel;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
-import com.github.k7t3.tcv.view.core.Resources;
+import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.view.web.BrowserController;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
@@ -25,7 +25,6 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 
 import java.net.URL;

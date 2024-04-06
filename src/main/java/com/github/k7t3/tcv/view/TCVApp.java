@@ -3,10 +3,10 @@ package com.github.k7t3.tcv.view;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.LoggerInitializer;
 import com.github.k7t3.tcv.prefs.AppPreferences;
-import com.github.k7t3.tcv.view.core.Resources;
+import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.view.core.StageBoundsListener;
 import com.github.k7t3.tcv.view.core.ThemeManager;
-import com.github.k7t3.tcv.view.core.WindowEventHelper;
+import com.github.k7t3.tcv.view.core.JavaFXHelper;
 import com.github.k7t3.tcv.view.main.MainView;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import javafx.application.Application;
@@ -60,14 +60,14 @@ public class TCVApp extends Application {
         // テーマ
         var tm = ThemeManager.getInstance();
         tm.setScene(scene);
-        tm.setTheme(preferences.getTheme());
+        tm.setTheme(preferences.getGeneralPreferences().getTheme());
 
         primaryStage.setTitle("Twitch Chat Viewer");
         primaryStage.getIcons().setAll(Resources.getIcons());
 
         // 画面が表示されたら認証画面を表示する(おそらくModalPaneの仕様的に
         // シーングラフが表示されてからじゃないと動作しないため)
-        WindowEventHelper.shownOnce(primaryStage, e ->
+        JavaFXHelper.shownOnce(primaryStage, e ->
                 codeBehind.startMainView());
 
         // ウインドウを閉じるときのイベント

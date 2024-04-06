@@ -9,7 +9,7 @@ import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
-public class UserChatMessageFilterViewModel implements ViewModel {
+public class UserChatMessageFilterViewModel implements PreferencesViewModelBase {
 
     private final ObservableList<HideUserViewModel> users = FXCollections.observableArrayList();
 

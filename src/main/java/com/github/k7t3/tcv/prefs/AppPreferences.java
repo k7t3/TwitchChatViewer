@@ -20,11 +20,6 @@ public class AppPreferences extends PreferencesBase {
     private static final Logger LOGGER = LoggerFactory.getLogger(AppPreferences.class);
 
     /**
-     * このアプリケーションに適用されるAtlantaFXのテーマの名称
-     */
-    private static final String THEME = "theme";
-
-    /**
      * このアプリケーションで使用する実験的な機能の有効化
      */
     private static final String EXPERIMENTAL = "experimental";
@@ -32,6 +27,8 @@ public class AppPreferences extends PreferencesBase {
     private final Preferences preferences;
 
     private final Map<String, WindowPreferences> windowPrefs = new HashMap<>();
+
+    private final GeneralPreferences generalPreferences;
 
     private BooleanProperty experimental;
 
@@ -45,21 +42,12 @@ public class AppPreferences extends PreferencesBase {
 
     private AppPreferences() {
         super(Preferences.userNodeForPackage(AppPreferences.class), new HashMap<>());
-        defaults.put(THEME, ThemeManager.DEFAULT_THEME.getName());
         defaults.put(EXPERIMENTAL, Boolean.FALSE);
 
         preferences = Preferences.userNodeForPackage(getClass());
+        generalPreferences = new GeneralPreferences(preferences, defaults);
 
         LOGGER.info("preferences initialized");
-    }
-
-    public void setTheme(Theme theme) {
-        preferences.put(THEME, theme.getName());
-    }
-
-    public Theme getTheme() {
-        var name = preferences.get(THEME, (String) defaults.get(THEME));
-        return ThemeManager.getInstance().findTheme(name).orElseThrow();
     }
 
     public void clear() {
@@ -130,6 +118,10 @@ public class AppPreferences extends PreferencesBase {
         } catch (BackingStoreException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public GeneralPreferences getGeneralPreferences() {
+        return generalPreferences;
     }
 
     public KeyActionPreferences getKeyActionPreferences() {

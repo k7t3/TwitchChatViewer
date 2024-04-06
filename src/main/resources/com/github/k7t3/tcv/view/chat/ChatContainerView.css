@@ -1,0 +1,23 @@
+.chat-data-cell {
+/*
+  -fx-border-width: 0 0 1 0;
+  -fx-border-color: -color-border-default;
+*/
+}
+
+.chat-data-cell: subscribe {
+  -fx-border-width: 0 0 0 10;
+  -fx-border-color: -color-success-fg;
+  -fx-background-color: -color-success-subtle;
+  -fx-padding: 10;
+}
+
+.chat-data-cell: system {
+  -fx-border-width: 0 0 0 10;
+  -fx-border-color: -color-fg-default;
+  -fx-background-color: -color-neutral-subtle;
+  -fx-padding: 10;
+}
+
+.chat-subs-text {
+}

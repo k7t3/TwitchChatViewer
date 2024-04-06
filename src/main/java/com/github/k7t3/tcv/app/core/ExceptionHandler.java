@@ -1,8 +1,6 @@
 package com.github.k7t3.tcv.app.core;
 
 import com.github.k7t3.tcv.domain.exception.InvalidCredentialException;
-import com.github.k7t3.tcv.view.core.Resources;
-import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.scene.control.TextArea;
 import javafx.stage.Stage;

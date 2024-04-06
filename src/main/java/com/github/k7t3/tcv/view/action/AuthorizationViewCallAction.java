@@ -4,7 +4,7 @@ import atlantafx.base.controls.ModalPane;
 import com.github.k7t3.tcv.app.core.ExceptionHandler;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.view.auth.AuthenticatorView;
-import com.github.k7t3.tcv.view.core.Resources;
+import com.github.k7t3.tcv.app.core.Resources;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.geometry.Side;

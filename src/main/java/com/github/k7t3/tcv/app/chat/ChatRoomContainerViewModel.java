@@ -47,6 +47,8 @@ public class ChatRoomContainerViewModel implements ViewModel {
 
     private final DefinedChatColors definedChatColors = new DefinedChatColors();
 
+    private final IntegerProperty chatCacheSize = new SimpleIntegerProperty();
+
     private final BooleanProperty showUserName = new SimpleBooleanProperty(true);
 
     private final BooleanProperty showBadges = new SimpleBooleanProperty(true);
@@ -79,7 +81,9 @@ public class ChatRoomContainerViewModel implements ViewModel {
 
         // Preferencesと同期
         var prefs = AppPreferences.getInstance();
+        var generalPrefs = prefs.getGeneralPreferences();
         var chatPrefs = prefs.getChatPreferences();
+        chatCacheSize.bind(generalPrefs.chatCacheSizeProperty());
         showUserName.bind(chatPrefs.showUserNameProperty());
         showBadges.bind(chatPrefs.showBadgesProperty());
         font.bind(chatPrefs.fontProperty());
@@ -107,6 +111,45 @@ public class ChatRoomContainerViewModel implements ViewModel {
         TaskWorker.getInstance().submit(task);
 
         return task;
+    }
+
+    public void registerAll(List<TwitchChannel> channels) {
+        if (!loaded.get()) throw new IllegalStateException("not loaded yet");
+
+        // すでに登録済みのチャンネルは除外する
+        var filtered = channels.stream()
+                .filter(c -> chatRoomList.stream().noneMatch(c2 -> c2.hasChannel(c)))
+                .filter(c -> floatingChatRoomList.stream().noneMatch(c2 -> c2.hasChannel(c)))
+                .toList();
+
+        if (filtered.isEmpty()) {
+            return;
+        }
+
+        // 対象のチャンネルが一つのときは通常の登録フロー
+        if (filtered.size() == 1) {
+            register(filtered.getFirst());
+            return;
+        }
+
+        var chatRooms = filtered.stream().map(c -> {
+            var channel = new SingleChatRoomViewModel(this, globalBadgeStore, chatEmoteStore, definedChatColors, c);
+            channel.getChannel().getChatRoomListeners().addAll(defaultChatRoomListeners);
+            return channel;
+        }).toList();
+
+        var merged = new MergedChatRoomViewModel(
+                globalBadgeStore,
+                chatEmoteStore,
+                definedChatColors,
+                chatRooms,
+                this
+        );
+
+        chatRooms.forEach(SingleChatRoomViewModel::joinChatAsync);
+
+        bindChatRoomProperties(merged);
+        chatRoomList.add(merged);
     }
 
     public ChatRoomViewModel register(TwitchChannel channel) {
@@ -141,6 +184,7 @@ public class ChatRoomContainerViewModel implements ViewModel {
     }
 
     private void bindChatRoomProperties(ChatRoomViewModel viewModel) {
+        viewModel.chatCacheSizeProperty().bind(chatCacheSize);
         viewModel.showNameProperty().bind(showUserName);
         viewModel.showBadgesProperty().bind(showBadges);
         viewModel.fontProperty().bind(font);

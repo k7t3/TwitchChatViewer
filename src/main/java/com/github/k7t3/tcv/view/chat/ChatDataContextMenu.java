@@ -3,7 +3,7 @@ package com.github.k7t3.tcv.view.chat;
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.chat.filter.UserChatMessageFilter;
 import com.github.k7t3.tcv.prefs.AppPreferences;
-import com.github.k7t3.tcv.view.core.Resources;
+import com.github.k7t3.tcv.app.core.Resources;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
@@ -23,7 +23,7 @@ public class ChatDataContextMenu extends ContextMenu {
 
         setHideOnEscape(true);
 
-        if (viewModel.getChatData().isSystemMessage())
+        if (viewModel.isSystem())
             return;
 
         var prefs = AppPreferences.getInstance().getMessageFilterPreferences();

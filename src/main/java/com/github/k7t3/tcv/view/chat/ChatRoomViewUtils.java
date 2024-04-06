@@ -99,6 +99,7 @@ public class ChatRoomViewUtils {
 
         var pop = new Popover(vbox);
         pop.titleProperty().bind(channel.observableUserName());
+        pop.setCloseButtonEnabled(false);
         pop.setHeaderAlwaysVisible(true);
         pop.setDetachable(false);
         pop.setArrowLocation(Popover.ArrowLocation.TOP_LEFT);

@@ -6,10 +6,10 @@ import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.chat.SingleChatRoomViewModel;
 import com.github.k7t3.tcv.domain.chat.ChatRoomState;
+import com.github.k7t3.tcv.view.core.JavaFXHelper;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.collections.SetChangeListener;
-import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
@@ -146,8 +146,7 @@ public class SingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, In
 
         selectedMenuItem.selectedProperty().bindBidirectional(viewModel.selectedProperty());
         selectedCheckBox.selectedProperty().bindBidirectional(viewModel.selectedProperty());
-        viewModel.selectedProperty().addListener((ob, o, n) ->
-                headerPane.pseudoClassStateChanged(PseudoClass.getPseudoClass("selected"), n));
+        JavaFXHelper.registerPseudoClass(headerPane, "selected", viewModel.selectedProperty());
         chatRoomControlsContainer.visibleProperty().bind(viewModel.selectModeProperty().not());
         chatRoomControlsContainer.managedProperty().bind(viewModel.selectModeProperty().not());
 

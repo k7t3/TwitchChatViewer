@@ -2,7 +2,7 @@ package com.github.k7t3.tcv.view.clip;
 
 import atlantafx.base.theme.Styles;
 import com.github.k7t3.tcv.app.clip.PostedClipViewModel;
-import com.github.k7t3.tcv.view.core.Resources;
+import com.github.k7t3.tcv.app.core.Resources;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;

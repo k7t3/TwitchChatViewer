@@ -2,13 +2,12 @@ package com.github.k7t3.tcv.app.prefs;
 
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.prefs.ChatMessageFilterPreferences;
-import de.saxsys.mvvmfx.ViewModel;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
 import java.util.ArrayList;
 
-public class ChatMessageFilterViewModel implements ViewModel {
+public class ChatMessageFilterViewModel implements PreferencesViewModelBase {
 
     private final ObservableList<String> filters;
 

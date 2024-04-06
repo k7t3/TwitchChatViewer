@@ -1,18 +1,18 @@
 package com.github.k7t3.tcv.view.channel;
 
 import atlantafx.base.controls.CustomTextField;
-import com.github.k7t3.tcv.app.channel.FollowChannelViewModel;
 import com.github.k7t3.tcv.app.channel.FollowChannelsViewModel;
+import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
+import com.github.k7t3.tcv.app.core.Resources;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.ContentDisplay;
-import javafx.scene.control.ListView;
-import javafx.scene.control.ToggleButton;
+import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
@@ -31,7 +31,7 @@ public class FollowChannelsView implements FxmlView<FollowChannelsViewModel>, In
     private Pane root;
 
     @FXML
-    private ListView<FollowChannelViewModel> channels;
+    private ListView<TwitchChannelViewModel> channels;
 
     @FXML
     private CustomTextField searchField;
@@ -55,26 +55,31 @@ public class FollowChannelsView implements FxmlView<FollowChannelsViewModel>, In
         // 認証されていないときはrootから無効化
         root.disableProperty().bind(helper.authorizedProperty().not());
 
-        //channels.setCellFactory(CachedViewModelCellFactory.createForJavaView(FollowChannelView.class));
-        channels.setCellFactory(param -> new FollowChannelListCell());
+        channels.setCellFactory(param -> new FollowChannelListCell(viewModel.visibleFullyProperty()));
         channels.disableProperty().bind(viewModel.loadedProperty().not());
-        channels.setItems(viewModel.getFollowBroadcasters());
+        channels.setItems(viewModel.getFollowChannels());
+
+        // チャンネルは複数選択することが可能
+        channels.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 
         // 選択しているブロードキャスターはView → ViewModelの一方向のみ
-        viewModel.selectedBroadcasterProperty().bind(channels.getSelectionModel().selectedItemProperty());
+        Bindings.bindContent(viewModel.getSelectedChannels(), channels.getSelectionModel().getSelectedItems());
 
         // ENTERキーの入力でチャットを開く
         channels.addEventHandler(KeyEvent.KEY_PRESSED, e -> {
             if (e.getCode() != KeyCode.ENTER) return;
-            viewModel.joinChat();
+            openChats();
         });
 
         // ダブルクリックでチャットを開く
         channels.addEventHandler(MouseEvent.MOUSE_PRESSED, e -> {
             if (e.getButton() != MouseButton.PRIMARY) return;
             if (e.getClickCount() != 2) return;
-            viewModel.joinChat();
+            openChats();
         });
+
+        // Viewが選択している要素をバインド
+        Bindings.bindContent(viewModel.getSelectedChannels(), channels.getSelectionModel().getSelectedItems());
 
         var clearIcon = new FontIcon(Feather.X);
         clearIcon.setOnMouseClicked(e -> viewModel.setFilter(null));
@@ -103,6 +108,28 @@ public class FollowChannelsView implements FxmlView<FollowChannelsViewModel>, In
 
         root.prefWidthProperty().bind(state.map(s -> s == ViewState.OPEN ? 250 : 60));
         drawLeftToggle.prefWidthProperty().bind(state.map(s -> s == ViewState.OPEN ? ToggleButton.USE_COMPUTED_SIZE : 60));
+    }
+
+    private void openChats() {
+        var selected = viewModel.getSelectedChannels();
+
+        if (selected.isEmpty())
+            return;
+
+        // 選択数が多いときは本当に開くか確認する
+        if (5 < selected.size()) {
+            var content = Resources.getString("container.confirm.open.content.format").formatted(selected.size());
+            var dialog = new Alert(Alert.AlertType.CONFIRMATION, content, ButtonType.YES, ButtonType.NO);
+            dialog.initOwner(AppHelper.getInstance().getPrimaryStage());
+            dialog.setTitle("CONFIRMATION");
+            dialog.setHeaderText(Resources.getString("container.confirm.open.header"));
+            var result = dialog.showAndWait().orElse(ButtonType.NO);
+            if (result != ButtonType.YES) {
+                return;
+            }
+        }
+
+        viewModel.joinChat();
     }
 
 }

@@ -14,7 +14,7 @@ public interface ChatRoomListener {
 
     void onRaidReceived(ChatRoom chatRoom, String raiderName, int viewerCount);
 
-    void onUserSubscribed(ChatRoom chatRoom, String userName);
+    void onUserSubscribed(ChatRoom chatRoom, ChatData chatData);
 
     void onUserGiftedSubscribe(ChatRoom chatRoom, String giverName, String userName);
 
@@ -44,7 +44,7 @@ public interface ChatRoomListener {
         }
 
         @Override
-        public void onUserSubscribed(ChatRoom chatRoom, String userName) {
+        public void onUserSubscribed(ChatRoom chatRoom, ChatData chatData) {
         }
 
         @Override

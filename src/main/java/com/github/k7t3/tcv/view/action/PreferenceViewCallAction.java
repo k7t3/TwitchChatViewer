@@ -2,7 +2,7 @@ package com.github.k7t3.tcv.view.action;
 
 import atlantafx.base.controls.ModalPane;
 import atlantafx.base.util.Animations;
-import com.github.k7t3.tcv.view.core.Resources;
+import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.view.prefs.PreferencesView;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import javafx.geometry.Side;

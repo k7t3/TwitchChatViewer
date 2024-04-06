@@ -3,7 +3,7 @@ package com.github.k7t3.tcv.view.channel;
 import atlantafx.base.controls.Spacer;
 import atlantafx.base.theme.Styles;
 import com.github.k7t3.tcv.app.channel.FoundChannelViewModel;
-import com.github.k7t3.tcv.view.core.Resources;
+import com.github.k7t3.tcv.app.core.Resources;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Insets;
