@@ -104,7 +104,7 @@ public class FollowChannelsViewModel implements ViewModel {
             var channels = repository.getChannels().stream()
                     .map(TwitchChannelViewModel::new)
                     .toList();
-            channels.forEach(c -> c.getChannelListeners().add(new TwitchChannelStreamListener(c)));
+            channels.forEach(c -> c.getChannel().addListener(new TwitchChannelStreamListener(c)));
             return channels;
         });
         FXTask.setOnSucceeded(task, e -> {
