@@ -23,8 +23,6 @@
       <ChoiceBox fx:id="themeChoiceBox" GridPane.columnIndex="1" />
       <Label text="%prefs.behavior.open.multi" GridPane.rowIndex="1" />
       <ComboBox fx:id="openTypeComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-      <Label text="%prefs.chat.cache.size" GridPane.rowIndex="2" />
-      <ComboBox fx:id="chatCacheSizeComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="2" />
    </children>
    <padding>
       <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />

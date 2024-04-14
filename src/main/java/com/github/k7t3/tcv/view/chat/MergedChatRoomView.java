@@ -140,6 +140,12 @@ public class MergedChatRoomView implements FxmlView<MergedChatRoomViewModel>, In
 
         ChatRoomViewUtils.installStreamInfoPopOver(channel, imageView);
 
+        if (channel.isLive()) {
+            imageView.setEffect(null);
+        } else {
+            imageView.setEffect(new SepiaTone());
+        }
+
         channel.liveProperty().addListener((ob, o, n) -> {
             if (n) {
                 imageView.setEffect(null);

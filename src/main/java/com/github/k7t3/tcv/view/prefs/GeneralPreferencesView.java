@@ -2,8 +2,8 @@ package com.github.k7t3.tcv.view.prefs;
 
 import atlantafx.base.theme.Theme;
 import com.github.k7t3.tcv.app.channel.MultipleChatOpenType;
-import com.github.k7t3.tcv.app.prefs.GeneralPreferencesViewModel;
 import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.app.prefs.GeneralPreferencesViewModel;
 import com.github.k7t3.tcv.view.core.ThemeManager;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.fxml.FXML;
@@ -15,24 +15,16 @@ import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.net.URL;
-import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
 
 public class GeneralPreferencesView implements PreferencesTabView<GeneralPreferencesViewModel> {
-
-    private static final List<Integer> CHAT_CACHE_SIZES = List.of(
-            32, 64, 128, 256, 512, 1024, 2048
-    );
 
     @FXML
     private ChoiceBox<Theme> themeChoiceBox;
 
     @FXML
     private ComboBox<MultipleChatOpenType> openTypeComboBox;
-
-    @FXML
-    private ComboBox<Integer> chatCacheSizeComboBox;
 
     @InjectViewModel
     private GeneralPreferencesViewModel viewModel;
@@ -48,7 +40,6 @@ public class GeneralPreferencesView implements PreferencesTabView<GeneralPrefere
 
         initThemeChoiceBox();
         initOpenTypeComboBox();
-        initChatCacheSizeComboBox();
     }
 
     private void initOpenTypeComboBox() {
@@ -93,12 +84,6 @@ public class GeneralPreferencesView implements PreferencesTabView<GeneralPrefere
         themeChoiceBox.valueProperty().addListener((ob, o, n) -> ThemeManager.getInstance().setTheme(n));
         themeChoiceBox.getSelectionModel().select(viewModel.getTheme());
         viewModel.themeProperty().bind(themeChoiceBox.valueProperty());
-    }
-
-    private void initChatCacheSizeComboBox() {
-        chatCacheSizeComboBox.getItems().setAll(CHAT_CACHE_SIZES);
-        chatCacheSizeComboBox.getSelectionModel().select((Integer) viewModel.getChatCacheSize());
-        viewModel.chatCacheSizeProperty().bind(chatCacheSizeComboBox.valueProperty());
     }
 
     @Override

@@ -18,14 +18,11 @@ public class GeneralPreferencesViewModel implements PreferencesViewModelBase {
 
     private final ObjectProperty<MultipleChatOpenType> chatOpenType;
 
-    private final IntegerProperty chatCacheSize;
-
     public GeneralPreferencesViewModel() {
         this.prefs = AppPreferences.getInstance().getGeneralPreferences();
         defaultTheme = new ReadOnlyObjectWrapper<>(prefs.getTheme());
         theme = new SimpleObjectProperty<>(prefs.getTheme());
         chatOpenType = new SimpleObjectProperty<>(prefs.getMultipleOpenType());
-        chatCacheSize = new SimpleIntegerProperty(prefs.getChatCacheSize());
     }
 
     public void sync() {
@@ -37,11 +34,6 @@ public class GeneralPreferencesViewModel implements PreferencesViewModelBase {
         var openType = getChatOpenType();
         if (openType != prefs.getMultipleOpenType()) {
             prefs.setMultipleOpenType(openType);
-        }
-
-        var cacheSize = getChatCacheSize();
-        if (cacheSize != prefs.getChatCacheSize()) {
-            prefs.setChatCacheSize(cacheSize);
         }
     }
 
@@ -58,7 +50,4 @@ public class GeneralPreferencesViewModel implements PreferencesViewModelBase {
     public MultipleChatOpenType getChatOpenType() { return chatOpenType.get(); }
     public void setChatOpenType(MultipleChatOpenType chatOpenType) { this.chatOpenType.set(chatOpenType); }
 
-    public IntegerProperty chatCacheSizeProperty() { return chatCacheSize; }
-    public int getChatCacheSize() { return chatCacheSize.get(); }
-    public void setChatCacheSize(int chatCacheSize) { this.chatCacheSize.set(chatCacheSize); }
 }

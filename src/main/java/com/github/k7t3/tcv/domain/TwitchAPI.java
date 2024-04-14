@@ -42,6 +42,8 @@ public class TwitchAPI implements Closeable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TwitchAPI.class);
 
+    private static final int INTERRUPT_THRESHOLD = 8;
+
     private final Twitch twitch;
 
     private final Lock lock = new ReentrantLock(true);
@@ -56,8 +58,11 @@ public class TwitchAPI implements Closeable {
             .jitter(false)
             .build();
 
+    private final InterruptionStrategy interruptionStrategy;
+
     public TwitchAPI(Twitch twitch) {
         this.twitch = twitch;
+        interruptionStrategy = new InterruptionStrategy();
     }
 
     public List<Broadcaster> getFollowChannelOwners() {
@@ -226,24 +231,38 @@ public class TwitchAPI implements Closeable {
 
         try {
 
-            retryStrategy.reset();
-
             var helix = twitch.getClient().getHelix();
             var command = function.apply(helix);
-            return command.execute();
+            var result = command.execute();
+
+            retryStrategy.reset();
+            interruptionStrategy.reset();
+
+            return result;
 
         } catch (HystrixRuntimeException e) {
 
-            if (e.getCause() instanceof UnauthorizedException) {
+            interruptionStrategy.retry();
 
+            if (e.getCause() instanceof UnauthorizedException) {
                 // トークンが無効になっていると判断してリフレッシュ
                 refreshAccessToken();
+                return hystrixCommandWrapper(function);
+            }
+
+            if (e.getCause() instanceof TimeoutException) {
+
+                LOGGER.warn(e.getMessage());
+
+                retryStrategy.sleep();
 
                 return hystrixCommandWrapper(function);
 
             }
 
             if (e.getCause() instanceof FeignException fe) {
+
+                LOGGER.warn(e.getMessage());
 
                 // リトライしてみる
                 if (500 <= fe.status() && fe.status() <= 599) {
@@ -320,6 +339,21 @@ public class TwitchAPI implements Closeable {
     @Override
     public void close() throws IOException {
         channelListener.close();
+    }
+
+    private static class InterruptionStrategy {
+        private int counter = 0;
+
+        public void retry() {
+            if (INTERRUPT_THRESHOLD < ++counter) {
+                throw new IllegalStateException();
+            }
+        }
+
+        public void reset() {
+            counter = 0;
+        }
+
     }
 
     // TwitchClientHelperより

@@ -1,6 +1,7 @@
 package com.github.k7t3.tcv.prefs;
 
 import javafx.beans.property.*;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.function.Function;
@@ -45,6 +46,15 @@ public abstract class PreferencesBase {
         return property;
     }
 
+    protected <T> ObjectProperty<T> createBytesObjectProperty(
+            String key,
+            Function<byte[], T> fromBytes,
+            Function<T, byte[]> toBytes) {
+        var property = new SimpleObjectProperty<>(fromBytes.apply(getByteArray(key)));
+        property.addListener((ob, o, n) -> preferences.putByteArray(key, toBytes.apply(n)));
+        return property;
+    }
+
     protected <T> ObjectProperty<T> createObjectProperty(
             String key,
             Function<String, T> fromString,
@@ -56,23 +66,48 @@ public abstract class PreferencesBase {
     }
 
     protected String get(String key) {
-        return preferences.get(key, (String) defaults.get(key));
+        try {
+            return preferences.get(key, (String) defaults.get(key));
+        } catch (Exception e) {
+            LoggerFactory.getLogger(getClass()).warn(e.getMessage(), e);
+            return (String) defaults.get(key);
+        }
     }
 
     protected int getInt(String key) {
-        return preferences.getInt(key, (Integer) defaults.get(key));
+        try {
+            return preferences.getInt(key, (Integer) defaults.get(key));
+        } catch (Exception e) {
+            LoggerFactory.getLogger(getClass()).warn(e.getMessage(), e);
+            return (Integer) defaults.get(key);
+        }
     }
 
     protected double getDouble(String key) {
-        return preferences.getDouble(key, (Double) defaults.get(key));
+        try {
+            return preferences.getDouble(key, (Double) defaults.get(key));
+        } catch (Exception e) {
+            LoggerFactory.getLogger(getClass()).warn(e.getMessage(), e);
+            return (Double) defaults.get(key);
+        }
     }
 
     protected boolean getBoolean(String key) {
-        return preferences.getBoolean(key, (Boolean) defaults.get(key));
+        try {
+            return preferences.getBoolean(key, (Boolean) defaults.get(key));
+        } catch (Exception e) {
+            LoggerFactory.getLogger(getClass()).warn(e.getMessage(), e);
+            return (Boolean) defaults.get(key);
+        }
     }
 
     protected byte[] getByteArray(String key) {
-        return preferences.getByteArray(key, (byte[]) defaults.get(key));
+        try {
+            return preferences.getByteArray(key, (byte[]) defaults.get(key));
+        } catch (Exception e) {
+            LoggerFactory.getLogger(getClass()).warn(e.getMessage(), e);
+            return (byte[]) defaults.get(key);
+        }
     }
 
 }

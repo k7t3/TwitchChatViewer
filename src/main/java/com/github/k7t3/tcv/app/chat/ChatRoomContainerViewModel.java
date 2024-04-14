@@ -8,7 +8,7 @@ import com.github.k7t3.tcv.domain.channel.TwitchChannel;
 import com.github.k7t3.tcv.domain.chat.ChatRoomListener;
 import com.github.k7t3.tcv.domain.chat.GlobalChatBadges;
 import com.github.k7t3.tcv.prefs.AppPreferences;
-import com.github.k7t3.tcv.prefs.ChatFont;
+import com.github.k7t3.tcv.view.chat.ChatFont;
 import de.saxsys.mvvmfx.ViewModel;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
@@ -81,9 +81,8 @@ public class ChatRoomContainerViewModel implements ViewModel {
 
         // Preferencesと同期
         var prefs = AppPreferences.getInstance();
-        var generalPrefs = prefs.getGeneralPreferences();
         var chatPrefs = prefs.getChatPreferences();
-        chatCacheSize.bind(generalPrefs.chatCacheSizeProperty());
+        chatCacheSize.bind(chatPrefs.chatCacheSizeProperty());
         showUserName.bind(chatPrefs.showUserNameProperty());
         showBadges.bind(chatPrefs.showBadgesProperty());
         font.bind(chatPrefs.fontProperty());

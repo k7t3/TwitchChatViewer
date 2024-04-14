@@ -3,7 +3,7 @@ package com.github.k7t3.tcv.app.chat;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.domain.chat.ChatData;
 import com.github.k7t3.tcv.domain.chat.ChatMessage;
-import com.github.k7t3.tcv.prefs.ChatFont;
+import com.github.k7t3.tcv.view.chat.ChatFont;
 import de.saxsys.mvvmfx.ViewModel;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;

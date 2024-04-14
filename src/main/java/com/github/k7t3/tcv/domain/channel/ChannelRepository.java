@@ -49,7 +49,7 @@ public class ChannelRepository {
                     .orElse(null);
 
             var channel = new TwitchChannel(twitch, broadcaster, stream);
-            channel.setFollowing(true);
+            channel.setPersistent(true);
             channel.updateEventSubs();
             channels.put(broadcaster, channel);
         }
@@ -112,7 +112,7 @@ public class ChannelRepository {
         if (!loaded) return;
 
         // フォローしているチャンネルは開放しない
-        if (!channel.isFollowing()) {
+        if (!channel.isPersistent()) {
 
             var api = twitch.getTwitchAPI();
 

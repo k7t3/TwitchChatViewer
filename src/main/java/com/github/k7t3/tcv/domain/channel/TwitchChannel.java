@@ -35,7 +35,7 @@ public class TwitchChannel {
 
     private final CopyOnWriteArraySet<TwitchChannelListener> listeners = new CopyOnWriteArraySet<>();
 
-    private boolean following = false;
+    private boolean persistent = false;
 
     public TwitchChannel(
             Twitch twitch,
@@ -169,7 +169,7 @@ public class TwitchChannel {
         chatRoom.leave();
 
         // フォローされていないチャンネルはチャットを使い終わった時点でクリアする
-        if (!isFollowing()) {
+        if (!isPersistent()) {
 
             var repository = twitch.getChannelRepository();
             repository.releaseChannel(this);
@@ -212,12 +212,12 @@ public class TwitchChannel {
         return streamRef.get() != null;
     }
 
-    public void setFollowing(boolean following) {
-        this.following = following;
+    public void setPersistent(boolean persistent) {
+        this.persistent = persistent;
     }
 
-    public boolean isFollowing() {
-        return following;
+    public boolean isPersistent() {
+        return persistent;
     }
 
     public Optional<String> getBadgeUrl(ChatBadge badge) {

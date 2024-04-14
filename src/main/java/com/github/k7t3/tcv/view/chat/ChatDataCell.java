@@ -3,8 +3,8 @@ package com.github.k7t3.tcv.view.chat;
 import atlantafx.base.theme.Styles;
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.core.Resources;
-import com.github.k7t3.tcv.prefs.ChatFont;
 import com.github.k7t3.tcv.view.core.JavaFXHelper;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.Insets;
@@ -264,9 +264,18 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
     private Node createBadgeNode(Image image) {
         var imageView = new ImageView(image);
         imageView.getStyleClass().add(IMAGE_STYLE_VIEW);
-        imageView.setFitWidth(BADGE_IMAGE_WIDTH);
-        imageView.setFitHeight(BADGE_IMAGE_HEIGHT);
         imageView.setPreserveRatio(true);
+
+        var imageWidth = Bindings.multiply(
+                Bindings.selectDouble(font.map(ChatFont::getFontScale)),
+                BADGE_IMAGE_WIDTH
+        );
+        var imageHeight = Bindings.multiply(
+                Bindings.selectDouble(font.map(ChatFont::getFontScale)),
+                BADGE_IMAGE_HEIGHT
+        );
+        imageView.fitWidthProperty().bind(imageWidth);
+        imageView.fitHeightProperty().bind(imageHeight);
 
         var node = new Label(null, imageView);
         node.setPadding(new Insets(0, 1, 0, 1));
@@ -279,9 +288,18 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
     private Node createEmoteNode(Image image) {
         var imageView = new ImageView(image);
         imageView.getStyleClass().add(IMAGE_STYLE_VIEW);
-        imageView.setFitWidth(EMOTE_IMAGE_WIDTH);
-        imageView.setFitHeight(EMOTE_IMAGE_HEIGHT);
         imageView.setPreserveRatio(true);
+
+        var imageWidth = Bindings.multiply(
+                Bindings.selectDouble(font.map(ChatFont::getFontScale)),
+                EMOTE_IMAGE_WIDTH
+        );
+        var imageHeight = Bindings.multiply(
+                Bindings.selectDouble(font.map(ChatFont::getFontScale)),
+                EMOTE_IMAGE_HEIGHT
+        );
+        imageView.fitWidthProperty().bind(imageWidth);
+        imageView.fitHeightProperty().bind(imageHeight);
 
         var node = new Label(null, imageView);
         node.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);

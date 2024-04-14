@@ -8,7 +8,7 @@ import com.github.k7t3.tcv.domain.channel.TwitchChannelListener;
 import com.github.k7t3.tcv.domain.chat.ChatData;
 import com.github.k7t3.tcv.domain.chat.ChatRoom;
 import com.github.k7t3.tcv.domain.chat.ChatRoomListener;
-import com.github.k7t3.tcv.prefs.ChatFont;
+import com.github.k7t3.tcv.view.chat.ChatFont;
 import com.github.k7t3.tcv.app.core.Resources;
 import javafx.application.Platform;
 import javafx.beans.property.*;
