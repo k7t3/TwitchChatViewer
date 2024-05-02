@@ -162,11 +162,7 @@ public class TwitchAPI implements Closeable {
         ).toList();
     }
 
-    public Optional<StreamInfo> getStream(String userId) {
-        return getStreams(List.of(userId)).stream().findFirst();
-    }
-
-    public List<StreamInfo> getStreams(List<String> userIds) {
+    private List<Stream> getTwitchStreams(List<String> userIds) {
         if (100 < userIds.size()) {
             throw new IllegalArgumentException("too large list");
         }
@@ -184,7 +180,18 @@ public class TwitchAPI implements Closeable {
                 null)
         );
 
-        return result.getStreams().stream().map(StreamInfo::of).toList();
+        return result.getStreams();
+    }
+
+    public Optional<StreamInfo> getStream(String userId) {
+        return getStreams(List.of(userId)).stream().findFirst();
+    }
+
+    public List<StreamInfo> getStreams(List<String> userIds) {
+        return getTwitchStreams(userIds)
+                .stream().filter(s -> !s.getType().isEmpty())
+                .map(StreamInfo::of)
+                .toList();
     }
 
     public List<ChatBadgeSet> getGlobalBadgeSet() {

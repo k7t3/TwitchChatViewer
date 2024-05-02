@@ -111,7 +111,7 @@ public class ChannelRepository {
         LOGGER.info("release channel ({})", channel);
         if (!loaded) return;
 
-        // フォローしているチャンネルは開放しない
+        // 永続化しているチャンネルは開放しない
         if (!channel.isPersistent()) {
 
             var api = twitch.getTwitchAPI();

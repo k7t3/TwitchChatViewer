@@ -6,6 +6,10 @@ import java.util.Optional;
 
 /**
  * チャットに含まれるクリップ情報
+ * <p>
+ *     Twitch APIの仕様なのか、取得できないIDのクリップは
+ *     尽く取得できないので{@link ClipChatMessage#getClip()}はNullableを返す。
+ * </p>
  */
 public class ClipChatMessage {
 

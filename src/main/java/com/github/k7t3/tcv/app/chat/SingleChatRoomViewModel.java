@@ -34,10 +34,10 @@ public class SingleChatRoomViewModel extends ChatRoomViewModel implements ViewMo
             GlobalChatBadgeStore globalChatBadgeStore,
             ChatEmoteStore emoteStore,
             DefinedChatColors definedChatColors,
-            TwitchChannel channel
+            TwitchChannelViewModel channel
     ) {
         super(globalChatBadgeStore, emoteStore, definedChatColors, containerViewModel);
-        this.channel = new ReadOnlyObjectWrapper<>(new TwitchChannelViewModel(channel));
+        this.channel = new ReadOnlyObjectWrapper<>(channel);
 
         var channelViewModel = getChannel();
         channelViewModel.getChannelListeners().add(this);
@@ -62,9 +62,9 @@ public class SingleChatRoomViewModel extends ChatRoomViewModel implements ViewMo
     }
 
     @Override
-    boolean hasChannel(TwitchChannel channel) {
+    boolean hasChannel(TwitchChannelViewModel channel) {
         var viewModel = getChannel();
-        return Objects.equals(viewModel.getChannel(), channel);
+        return Objects.equals(viewModel, channel);
     }
 
     @Override

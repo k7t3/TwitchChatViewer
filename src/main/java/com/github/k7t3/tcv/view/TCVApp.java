@@ -71,7 +71,7 @@ public class TCVApp extends Application {
                 codeBehind.startMainView());
 
         // ウインドウを閉じるときのイベント
-        primaryStage.setOnHiding(this::onHiding);
+        primaryStage.setOnHidden(this::onHidden);
 
         // ウインドウの境界を追跡
         var boundsListener = new StageBoundsListener();
@@ -103,7 +103,7 @@ public class TCVApp extends Application {
         helper.close();
     }
 
-    private void onHiding(WindowEvent e) {
+    private void onHidden(WindowEvent e) {
         // JavaFX Applicationの終了
         Platform.exit();
     }

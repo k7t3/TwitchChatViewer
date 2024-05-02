@@ -1,23 +1,19 @@
 package com.github.k7t3.tcv.view.clip;
 
-import com.github.k7t3.tcv.app.clip.EstimatedClipURL;
-import com.github.k7t3.tcv.app.clip.PostedClipRepository;
+import com.github.k7t3.tcv.app.clip.EstimatedClipViewModel;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.view.web.BrowserController;
 import javafx.scene.control.*;
 import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.javafx.FontIcon;
 
-public class EstimatedClipURLCell extends ListCell<EstimatedClipURL> {
+public class EstimatedClipURLCell extends ListCell<EstimatedClipViewModel> {
 
     private Hyperlink hyperlink = null;
 
-    private final PostedClipRepository repository;
-
     private final BrowserController controller;
 
-    public EstimatedClipURLCell(PostedClipRepository repository, BrowserController controller) {
-        this.repository = repository;
+    public EstimatedClipURLCell(BrowserController controller) {
         this.controller = controller;
         setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
     }
@@ -27,7 +23,7 @@ public class EstimatedClipURLCell extends ListCell<EstimatedClipURL> {
 
         hyperlink = new Hyperlink();
         hyperlink.setOnAction(e -> {
-            controller.load(getItem().url());
+            controller.load(getItem().getUrl());
             controller.show();
         });
 
@@ -35,20 +31,19 @@ public class EstimatedClipURLCell extends ListCell<EstimatedClipURL> {
                 Resources.getString("clip.open.browser"),
                 FontIcon.of(Feather.GLOBE)
         );
-        openBrowser.setOnAction(e -> getItem().openBrowser());
+        openBrowser.setOnAction(e -> getItem().openClipPageOnBrowser());
 
         var copyURL = new MenuItem(
                 Resources.getString("clip.copy.link"),
                 FontIcon.of(Feather.COPY)
         );
-        copyURL.setOnAction(e -> getItem().copyURL());
+        copyURL.setOnAction(e -> getItem().copyClipURL());
 
         var removeMenuItem = new MenuItem(
                 Resources.getString("clip.remove"),
                 FontIcon.of(Feather.TRASH)
         );
-        removeMenuItem.setOnAction(e ->
-                repository.getEstimatedClipURLs().remove(getItem()));
+        removeMenuItem.setOnAction(e -> getItem().remove());
 
         hyperlink.setContextMenu(new ContextMenu(
                 openBrowser,
@@ -59,7 +54,7 @@ public class EstimatedClipURLCell extends ListCell<EstimatedClipURL> {
     }
 
     @Override
-    protected void updateItem(EstimatedClipURL s, boolean b) {
+    protected void updateItem(EstimatedClipViewModel s, boolean b) {
         super.updateItem(s, b);
 
         if (s == null || b) {
@@ -71,7 +66,7 @@ public class EstimatedClipURLCell extends ListCell<EstimatedClipURL> {
             initGraphic();
         }
 
-        hyperlink.setText(s.url());
+        hyperlink.setText(s.getUrl());
         hyperlink.setVisited(false);
         setGraphic(hyperlink);
     }

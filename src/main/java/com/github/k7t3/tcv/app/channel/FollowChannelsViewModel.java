@@ -133,7 +133,7 @@ public class FollowChannelsViewModel implements ViewModel {
         // 選択が一つだけならそのまま開いて終わり
         if (selectedChannels.size() == 1) {
             var channel = selectedChannels.getFirst();
-            chatContainerViewModel.register(channel.getChannel());
+            chatContainerViewModel.register(channel);
             return;
         }
 
@@ -144,12 +144,11 @@ public class FollowChannelsViewModel implements ViewModel {
 
             // まとめて開く
             case MERGED -> {
-                var channels = selectedChannels.stream().map(TwitchChannelViewModel::getChannel).toList();
-                chatContainerViewModel.registerAll(channels);
+                chatContainerViewModel.registerAll(selectedChannels);
             }
 
             // それぞれを分離して開く
-            case SEPARATED -> selectedChannels.forEach(channel -> chatContainerViewModel.register(channel.getChannel()));
+            case SEPARATED -> selectedChannels.forEach(channel -> chatContainerViewModel.register(channel));
 
         }
     }

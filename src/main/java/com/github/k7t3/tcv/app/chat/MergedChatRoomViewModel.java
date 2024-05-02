@@ -183,9 +183,9 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
     }
 
     @Override
-    boolean hasChannel(TwitchChannel channel) {
+    boolean hasChannel(TwitchChannelViewModel channel) {
         for (var channelViewModel : channels.keySet()) {
-            if (channelViewModel.getChannel().equals(channel))
+            if (channelViewModel.equals(channel))
                 return true;
         }
         return false;

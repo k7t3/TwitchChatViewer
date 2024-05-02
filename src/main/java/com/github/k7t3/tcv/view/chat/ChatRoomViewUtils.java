@@ -20,6 +20,9 @@ import org.fxmisc.flowless.VirtualFlow;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 
@@ -54,12 +57,25 @@ public class ChatRoomViewUtils {
         });
     }
 
+    private static String computeHash(String identity) {
+        try {
+            var digest = MessageDigest.getInstance("md5");
+            var bytes = identity.getBytes(StandardCharsets.UTF_8);
+            bytes = digest.digest(bytes);
+            return new String(bytes);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public static void initializeFloatableStage(FloatableStage stage, ChatRoomViewModel chatRoom) {
         // ウインドウの座標設定を取り出す
         var prefs = AppPreferences.getInstance();
 
         // チャットにおける識別子を使用して設定を取り出す
-        var windowPrefs = prefs.getWindowPreferences(chatRoom.getIdentity());
+        var identity = computeHash(chatRoom.getIdentity());
+
+        var windowPrefs = prefs.getWindowPreferences(identity);
 
         // 保存されている座標を割り当て
         var bounds = windowPrefs.getStageBounds();

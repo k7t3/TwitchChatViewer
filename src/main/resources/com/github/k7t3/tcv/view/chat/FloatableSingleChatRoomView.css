@@ -1,3 +1,5 @@
+@import "ChatContainerView.css";
+
 .chat-room-view {
     -fx-border-color: transparent -color-border-default transparent transparent;
     -fx-background-color: -color-bg-default;

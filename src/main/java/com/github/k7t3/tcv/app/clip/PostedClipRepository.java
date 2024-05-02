@@ -15,10 +15,15 @@ import java.util.List;
 
 public class PostedClipRepository implements ViewModel, ChatRoomListener {
 
+    /**
+     * クリップのIDをキーとするクリップのMap
+     */
     private final ObservableMap<String, PostedClipViewModel> postedClips = FXCollections.observableHashMap();
 
-    /** Twitch APIで取得に失敗したURL*/
-    private final ObservableSet<EstimatedClipURL> estimatedClipURLs = FXCollections.observableSet(new HashSet<>());
+    /**
+     * クリップのIDと思しき文字列をキーとするクリップと思しきもののMap
+     */
+    private final ObservableMap<String, EstimatedClipViewModel> estimatedClipURLs = FXCollections.observableHashMap();
 
     private ClipThumbnailStore thumbnailStore;
 
@@ -41,7 +46,7 @@ public class PostedClipRepository implements ViewModel, ChatRoomListener {
         return postedClips;
     }
 
-    public ObservableSet<EstimatedClipURL> getEstimatedClipURLs() {
+    public ObservableMap<String, EstimatedClipViewModel> getEstimatedClipURLs() {
         return estimatedClipURLs;
     }
 
@@ -60,11 +65,12 @@ public class PostedClipRepository implements ViewModel, ChatRoomListener {
     @Override
     public void onClipPosted(ChatRoom chatRoom, ClipChatMessage clipChatMessage) {
 
+        var broadcaster = chatRoom.getBroadcaster();
+
         if (clipChatMessage.getClip().isPresent()) {
 
             var clip = clipChatMessage.getClip().get();
             Platform.runLater(() -> {
-                var broadcaster = chatRoom.getBroadcaster();
                 var posted = postedClips.get(clip.id());
                 if (posted == null) {
                     posted = new PostedClipViewModel(clip, broadcaster, this);
@@ -75,8 +81,15 @@ public class PostedClipRepository implements ViewModel, ChatRoomListener {
             });
 
         } else {
-            var estimatedClipURL = new EstimatedClipURL(clipChatMessage.getEstimatedURL());
-            Platform.runLater(() -> estimatedClipURLs.add(estimatedClipURL));
+            Platform.runLater(() -> {
+                var url = estimatedClipURLs.get(clipChatMessage.getEstimatedURL());
+                if (url == null) {
+                    url = new EstimatedClipViewModel(this, clipChatMessage);
+                    estimatedClipURLs.put(clipChatMessage.getEstimatedURL(), url);
+                } else {
+                    url.onPosted(broadcaster);
+                }
+            });
         }
     }
 

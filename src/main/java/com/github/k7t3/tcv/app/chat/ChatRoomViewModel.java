@@ -94,7 +94,7 @@ public abstract class ChatRoomViewModel implements ChatRoomListener, TwitchChann
      */
     public abstract String getIdentity();
 
-    abstract boolean hasChannel(TwitchChannel channel);
+    abstract boolean hasChannel(TwitchChannelViewModel channel);
 
     @SuppressWarnings("UnusedReturnValue")
     public abstract FXTask<?> joinChatAsync();

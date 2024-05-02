@@ -1,5 +1,6 @@
 package com.github.k7t3.tcv.app.chat;
 
+import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.filter.ChatMessageFilter;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.service.FXTask;
@@ -112,7 +113,7 @@ public class ChatRoomContainerViewModel implements ViewModel {
         return task;
     }
 
-    public void registerAll(List<TwitchChannel> channels) {
+    public void registerAll(List<TwitchChannelViewModel> channels) {
         if (!loaded.get()) throw new IllegalStateException("not loaded yet");
 
         // すでに登録済みのチャンネルは除外する
@@ -134,6 +135,7 @@ public class ChatRoomContainerViewModel implements ViewModel {
         var chatRooms = filtered.stream().map(c -> {
             var channel = new SingleChatRoomViewModel(this, globalBadgeStore, chatEmoteStore, definedChatColors, c);
             channel.getChannel().getChatRoomListeners().addAll(defaultChatRoomListeners);
+            bindChatRoomProperties(channel);
             return channel;
         }).toList();
 
@@ -151,7 +153,7 @@ public class ChatRoomContainerViewModel implements ViewModel {
         chatRoomList.add(merged);
     }
 
-    public ChatRoomViewModel register(TwitchChannel channel) {
+    public ChatRoomViewModel register(TwitchChannelViewModel channel) {
         if (!loaded.get()) throw new IllegalStateException("not loaded yet");
 
         var exist = chatRoomList.stream().filter(vm -> vm.hasChannel(channel)).findFirst();

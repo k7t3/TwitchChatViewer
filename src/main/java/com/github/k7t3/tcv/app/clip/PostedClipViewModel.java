@@ -13,15 +13,9 @@ import javafx.scene.input.DataFormat;
 import java.awt.*;
 import java.net.URI;
 import java.time.LocalDateTime;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
-public class PostedClipViewModel implements ViewModel {
-
-    private final ReadOnlyIntegerWrapper times = new ReadOnlyIntegerWrapper(0);
-
-    private final Set<Broadcaster> postedChannels = new HashSet<>();
+public class PostedClipViewModel extends AbstractPostedClip implements ViewModel {
 
     private final ReadOnlyObjectWrapper<VideoClip> clip = new ReadOnlyObjectWrapper<>();
 
@@ -31,7 +25,7 @@ public class PostedClipViewModel implements ViewModel {
 
     private final ReadOnlyStringWrapper thumbnailUrl = new ReadOnlyStringWrapper();
 
-    private final ReadOnlyObjectWrapper<LocalDateTime> lastPostedAt = new ReadOnlyObjectWrapper<>();
+    private final ReadOnlyObjectWrapper<LocalDateTime> createdAt = new ReadOnlyObjectWrapper<>();
 
     private final PostedClipRepository repository;
 
@@ -42,28 +36,17 @@ public class PostedClipViewModel implements ViewModel {
         this.title.set(clip.title());
         this.creator.set(clip.creatorName());
         this.thumbnailUrl.set(clip.thumbnailUrl());
-        lastPostedAt.set(LocalDateTime.now());
+        this.createdAt.set(clip.createdAt());
+        this.lastPostedAt.set(LocalDateTime.now());
         this.repository = repository;
     }
 
+    @Override
     public void remove() {
         repository.getPostedClips().remove(clip.get().id());
     }
 
-    public void onPosted(Broadcaster broadcaster) {
-        postedChannels.add(broadcaster);
-        lastPostedAt.set(LocalDateTime.now());
-        times.set(times.get() + 1);
-    }
-
-    Set<Broadcaster> getPostedChannels() {
-        return postedChannels;
-    }
-
-    public boolean isPosted(Broadcaster broadcaster) {
-        return postedChannels.contains(broadcaster);
-    }
-
+    @Override
     public FXTask<Boolean> openClipPageOnBrowser() {
         var clip = getClip();
 
@@ -82,6 +65,7 @@ public class PostedClipViewModel implements ViewModel {
         return task;
     }
 
+    @Override
     public void copyClipURL() {
         var clip = getClip();
 
@@ -95,11 +79,11 @@ public class PostedClipViewModel implements ViewModel {
 
     // ******************** PROPERTIES ********************
 
-    public ReadOnlyIntegerProperty timesProperty() { return times.getReadOnlyProperty(); }
-    public int getTimes() { return times.get(); }
-
     public ReadOnlyObjectProperty<VideoClip> clipProperty() { return clip.getReadOnlyProperty(); }
     public VideoClip getClip() { return clip.get(); }
+
+    public ReadOnlyObjectProperty<LocalDateTime> createdAtProperty() { return createdAt.getReadOnlyProperty(); }
+    public LocalDateTime getCreatedAt() { return createdAt.get(); }
 
     public ReadOnlyObjectProperty<LocalDateTime> lastPostedAtProperty() { return lastPostedAt.getReadOnlyProperty(); }
     public LocalDateTime getLastPostedAt() { return lastPostedAt.get(); }

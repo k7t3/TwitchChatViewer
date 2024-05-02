@@ -2,6 +2,7 @@ package com.github.k7t3.tcv.domain.channel;
 
 import com.github.twitch4j.helix.domain.Stream;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
@@ -14,6 +15,7 @@ public record StreamInfo(
         List<String> tags,
         int viewerCount,
         LocalDateTime startedAt,
+        Duration uptime,
         String language,
         String thumbnailURL
 ) {
@@ -28,6 +30,7 @@ public record StreamInfo(
                 stream.getTags(),
                 stream.getViewerCount(),
                 dateTime,
+                stream.getUptime(),
                 stream.getLanguage(),
                 stream.getThumbnailUrl()
         );

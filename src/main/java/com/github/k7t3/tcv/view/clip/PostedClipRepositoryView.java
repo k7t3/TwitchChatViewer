@@ -2,7 +2,7 @@ package com.github.k7t3.tcv.view.clip;
 
 import atlantafx.base.controls.Popover;
 import atlantafx.base.theme.Styles;
-import com.github.k7t3.tcv.app.clip.EstimatedClipURL;
+import com.github.k7t3.tcv.app.clip.EstimatedClipViewModel;
 import com.github.k7t3.tcv.app.clip.PostedClipRepository;
 import com.github.k7t3.tcv.app.clip.PostedClipViewModel;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
@@ -13,7 +13,6 @@ import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.collections.FXCollections;
 import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
-import javafx.collections.SetChangeListener;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
@@ -45,7 +44,7 @@ public class PostedClipRepositoryView implements FxmlView<PostedClipRepository>,
     private Node helpIcon;
 
     @FXML
-    private ListView<EstimatedClipURL> estimatedClipURLs;
+    private ListView<EstimatedClipViewModel> estimatedClipURLs;
 
     @InjectViewModel
     private PostedClipRepository repository;
@@ -55,23 +54,17 @@ public class PostedClipRepositoryView implements FxmlView<PostedClipRepository>,
     private ObservableList<PostedClipViewModel> postedClips;
     private FilteredList<PostedClipViewModel> filteredClips;
 
+    private ObservableList<EstimatedClipViewModel> estimatedClips;
+
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         postedClips = FXCollections.observableArrayList();
         postedClips.addAll(repository.getPostedClips().values());
         repository.getPostedClips().addListener(this::onPostedClipChanged);
 
-        estimatedClipURLs.getItems().setAll(repository.getEstimatedClipURLs());
-        estimatedClipURLs.setCellFactory(p -> new EstimatedClipURLCell(repository, browserController));
-
-        repository.getEstimatedClipURLs().addListener((SetChangeListener<? super EstimatedClipURL>) c -> {
-            if (c.wasAdded()) {
-                estimatedClipURLs.getItems().add(c.getElementAdded());
-            }
-            if (c.wasRemoved()) {
-                estimatedClipURLs.getItems().remove(c.getElementRemoved());
-            }
-        });
+        estimatedClips = FXCollections.observableArrayList();
+        estimatedClips.addAll(repository.getEstimatedClipURLs().values());
+        repository.getEstimatedClipURLs().addListener(this::onPostedEstimatedClipChanged);
 
         initializeButtons();
         installHelpMessage();
@@ -94,6 +87,9 @@ public class PostedClipRepositoryView implements FxmlView<PostedClipRepository>,
             }
         });
 
+        estimatedClipURLs.setItems(estimatedClips);
+        estimatedClipURLs.setCellFactory(p -> new EstimatedClipURLCell(browserController));
+
         root.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
         root.parentProperty().addListener((ob, o, n) -> {
             if (n == null) return;
@@ -108,6 +104,15 @@ public class PostedClipRepositoryView implements FxmlView<PostedClipRepository>,
         }
         if (change.wasRemoved()) {
             postedClips.remove(change.getValueRemoved());
+        }
+    }
+
+    private void onPostedEstimatedClipChanged(MapChangeListener.Change<? extends String, ? extends EstimatedClipViewModel> change) {
+        if (change.wasAdded()) {
+            estimatedClips.add(change.getValueAdded());
+        }
+        if (change.wasRemoved()) {
+            estimatedClips.remove(change.getValueRemoved());
         }
     }
 

@@ -74,7 +74,10 @@ public class FoundChannelViewModel implements ViewModel {
         var channelRepository = helper.getTwitch().getChannelRepository();
 
         var broadcaster = getBroadcaster();
-        var task = FXTask.task(() -> channelRepository.registerBroadcaster(broadcaster));
+        var task = FXTask.task(() -> {
+            var channel = channelRepository.registerBroadcaster(broadcaster);
+            return new TwitchChannelViewModel(channel);
+        });
 
         FXTask.setOnSucceeded(task, e -> chatContainer.register(task.getValue()));
         TaskWorker.getInstance().submit(task);
