@@ -23,6 +23,10 @@ public class FollowChannelsViewModel implements ViewModel {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FollowChannelsViewModel.class);
 
+    /**
+     * フォローしているチャンネルのComparator
+     * 視聴者数の降順でログインしている人を優先
+     */
     private static final Comparator<TwitchChannelViewModel> DEFAULT_COMPARATOR =
             Comparator.comparing(TwitchChannelViewModel::getViewerCount).reversed()
                     .thenComparing(TwitchChannelViewModel::getUserLogin);
@@ -34,7 +38,7 @@ public class FollowChannelsViewModel implements ViewModel {
             );
 
     /** 並べ替え、フィルタ*/
-    private final SortedList<TwitchChannelViewModel> transformedChannels;
+    private final FilteredList<TwitchChannelViewModel> transformedChannels;
 
     /** ライブ中のみ*/
     private final BooleanProperty onlyLive = new SimpleBooleanProperty(false);
@@ -51,11 +55,11 @@ public class FollowChannelsViewModel implements ViewModel {
     private ChatRoomContainerViewModel chatContainerViewModel;
 
     public FollowChannelsViewModel() {
-        var filtered = new FilteredList<>(followChannels);
-        filtered.predicateProperty().bind(Bindings.createObjectBinding(() -> this::test, filter, onlyLive));
+        var sorted = new SortedList<>(followChannels);
+        sorted.setComparator(DEFAULT_COMPARATOR);
 
-        transformedChannels = new SortedList<>(filtered);
-        transformedChannels.setComparator(DEFAULT_COMPARATOR);
+        transformedChannels = new FilteredList<>(sorted);
+        transformedChannels.predicateProperty().bind(Bindings.createObjectBinding(() -> this::filter, filter, onlyLive));
 
         initialize();
     }
@@ -72,7 +76,7 @@ public class FollowChannelsViewModel implements ViewModel {
         });
     }
 
-    private boolean test(TwitchChannelViewModel channel) {
+    private boolean filter(TwitchChannelViewModel channel) {
         var keyword = getFilter() == null ? "" : getFilter().trim().toLowerCase();
         if (keyword.isEmpty())
             return !isOnlyLive() || channel.isLive();
@@ -84,40 +88,45 @@ public class FollowChannelsViewModel implements ViewModel {
                 gameTitle.toLowerCase().contains(keyword);
     }
 
+    public void setFollowChannels(List<TwitchChannelViewModel> channels) {
+        this.followChannels.setAll(channels);
+        loaded.set(true);
+    }
+
     public ObservableList<TwitchChannelViewModel> getFollowChannels() {
         return transformedChannels;
     }
 
-    public FXTask<List<TwitchChannelViewModel>> loadAsync() {
-        if (isLoaded()) {
-            throw new RuntimeException("already loaded");
-        }
-
-        LOGGER.info("start loadAsync");
-
-        var helper = AppHelper.getInstance();
-        var twitch = helper.getTwitch();
-        var repository = twitch.getChannelRepository();
-
-        var task = FXTask.task(() -> {
-            repository.loadAllFollowBroadcasters();
-            var channels = repository.getChannels().stream()
-                    .map(TwitchChannelViewModel::new)
-                    .toList();
-            channels.forEach(c -> c.getChannel().addListener(new TwitchChannelStreamListener(c)));
-            return channels;
-        });
-        FXTask.setOnSucceeded(task, e -> {
-            LOGGER.info("succeeded to get all followed channel");
-
-            followChannels.setAll(task.getValue());
-
-            loaded.set(true);
-        });
-        TaskWorker.getInstance().submit(task);
-
-        return task;
-    }
+//    public FXTask<List<TwitchChannelViewModel>> loadAsync() {
+//        if (isLoaded()) {
+//            throw new RuntimeException("already loaded");
+//        }
+//
+//        LOGGER.info("start loadAsync");
+//
+//        var helper = AppHelper.getInstance();
+//        var twitch = helper.getTwitch();
+//        var repository = twitch.getChannelRepository();
+//
+//        var task = FXTask.task(() -> {
+//            repository.loadAllRelatedChannels();
+//            var channels = repository.getChannels().stream()
+//                    .map(TwitchChannelViewModel::new)
+//                    .toList();
+//            channels.forEach(c -> c.getChannel().addListener(new TwitchChannelStreamListener(c)));
+//            return channels;
+//        });
+//        FXTask.setOnSucceeded(task, e -> {
+//            LOGGER.info("succeeded to get all followed channel");
+//
+//            followChannels.setAll(task.getValue());
+//
+//            loaded.set(true);
+//        });
+//        TaskWorker.getInstance().submit(task);
+//
+//        return task;
+//    }
 
     public void installChatContainerViewModel(ChatRoomContainerViewModel chatContainerViewModel) {
         this.chatContainerViewModel = chatContainerViewModel;

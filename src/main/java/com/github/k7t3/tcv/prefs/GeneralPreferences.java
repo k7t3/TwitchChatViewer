@@ -2,8 +2,10 @@ package com.github.k7t3.tcv.prefs;
 
 import atlantafx.base.theme.Theme;
 import com.github.k7t3.tcv.app.channel.MultipleChatOpenType;
+import com.github.k7t3.tcv.app.core.OS;
 import com.github.k7t3.tcv.view.core.ThemeManager;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.StringProperty;
 
 import java.util.Map;
 import java.util.prefs.Preferences;
@@ -21,17 +23,25 @@ public class GeneralPreferences extends PreferencesBase {
     private static final String MULTIPLE_OPEN_TYPE = "multiple.open.type";
 
     /**
-     * チャンネルごとにチャットをキャッシュする数
+     * ユーザーデータを格納するファイルのパス
      */
-    private static final String CHAT_CACHE_SIZE = "chat.cache.size";
+    private static final String USER_DATA_FILE_PATH = "user.data.file";
+
+    private static final String USER_DATA_FILE_NAME = "userdata.db";
 
     private ObjectProperty<MultipleChatOpenType> multipleOpenType;
+
+    private StringProperty userDataFilePath;
 
     GeneralPreferences(Preferences preferences, Map<String, Object> defaults) {
         super(preferences, defaults);
 
         defaults.put(THEME, ThemeManager.DEFAULT_THEME.getName());
         defaults.put(MULTIPLE_OPEN_TYPE, MultipleChatOpenType.MERGED.name());
+        defaults.put(USER_DATA_FILE_PATH, OS.current().getApplicationDirectory()
+                .toAbsolutePath()
+                .resolve(USER_DATA_FILE_NAME)
+                .toString());
     }
 
     public void setTheme(Theme theme) {
@@ -57,6 +67,11 @@ public class GeneralPreferences extends PreferencesBase {
             }
         } catch (IllegalArgumentException ignored) {
         }
+
+        var userDataFilePath = get(USER_DATA_FILE_PATH);
+        if (!userDataFilePath.equalsIgnoreCase(getUserDataFilePath())) {
+            setUserDataFilePath(userDataFilePath);
+        }
     }
 
     @Override
@@ -76,5 +91,12 @@ public class GeneralPreferences extends PreferencesBase {
     }
     public MultipleChatOpenType getMultipleOpenType() { return multipleOpenTypeProperty().get(); }
     public void setMultipleOpenType(MultipleChatOpenType multipleOpenType) { multipleOpenTypeProperty().set(multipleOpenType); }
+
+    public StringProperty userDataFilePathProperty() {
+        if (userDataFilePath == null) userDataFilePath = createStringProperty(USER_DATA_FILE_PATH);
+        return userDataFilePath;
+    }
+    public String getUserDataFilePath() { return userDataFilePathProperty().get(); }
+    public void setUserDataFilePath(String userDataFilePath) { userDataFilePathProperty().set(userDataFilePath); }
 
 }

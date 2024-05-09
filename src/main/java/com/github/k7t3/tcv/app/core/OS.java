@@ -1,5 +1,7 @@
 package com.github.k7t3.tcv.app.core;
 
+import java.nio.file.Path;
+
 public enum OS {
 
     LINUX,
@@ -22,6 +24,23 @@ public enum OS {
                 os = MAC;
         }
         return os;
+    }
+
+    private Path applicationDirectory = null;
+
+    public Path getApplicationDirectory() {
+        if (applicationDirectory == null) {
+            var parent = switch (this) {
+                case LINUX -> Path.of(System.getProperty("user.home"), ".config");
+                case WINDOWS -> Path.of(System.getProperty("user.home"), "AppData", "Roaming");
+                case MAC -> Path.of(System.getProperty("user.home"), "Library", "Application Support");
+            };
+            applicationDirectory = parent.resolve("com")
+                    .resolve("github")
+                    .resolve("k7t3")
+                    .resolve("tcv");
+        }
+        return applicationDirectory;
     }
 
     public static boolean isLinux() {

@@ -3,6 +3,7 @@ package com.github.k7t3.tcv.view.prefs;
 import atlantafx.base.controls.ModalPane;
 import com.github.k7t3.tcv.app.prefs.*;
 import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.view.core.ThemeManager;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
@@ -70,7 +71,8 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
     }
 
     private void loadGeneralViewModel() {
-        generalViewModel = new GeneralPreferencesViewModel();
+        var prefs = AppPreferences.getInstance();
+        generalViewModel = new GeneralPreferencesViewModel(prefs.getGeneralPreferences());
 
         var tuple = FluentViewLoader.fxmlView(GeneralPreferencesView.class)
                 .viewModel(generalViewModel)
@@ -165,44 +167,5 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         viewModel.saveAsync();
         modalPane.hide();
     }
-
-//    private void exportPreferences() {
-//        var selector = new FileChooser();
-//        selector.getExtensionFilters().addFirst(new FileChooser.ExtensionFilter("XML file", "*.xml"));
-//        selector.setInitialFileName("twitch-chat-viewer.xml");
-//
-//        var window = root.getScene().getWindow();
-//
-//        var file = selector.showSaveDialog(window);
-//        if (file == null)
-//            return;
-//
-//        root.setDisable(true);
-//        var task = viewModel.exportAsync(file.toPath());
-//        FXTask.setOnFinished(task, e -> root.setDisable(false));
-//    }
-//
-//    public void importPreferences() {
-//        var selector = new FileChooser();
-//        selector.getExtensionFilters().addFirst(new FileChooser.ExtensionFilter("XML file", "*.xml"));
-//        selector.setInitialFileName("twitch-chat-viewer.xml");
-//
-//        var window = root.getScene().getWindow();
-//
-//        var file = selector.showOpenDialog(window);
-//        if (file == null)
-//            return;
-//
-//        root.setDisable(true);
-//        var task = viewModel.importAsync(file.toPath());
-//        FXTask.setOnFinished(task, e -> root.setDisable(false));
-//    }
-//
-//    private void clearPreferences() {
-//        root.setDisable(true);
-//        var task = viewModel.clearAsync();
-//        FXTask.setOnFinished(task, e -> root.setDisable(false));
-//        FXTask.setOnSucceeded(task, e -> modalPane.hide());
-//    }
 
 }

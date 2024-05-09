@@ -44,8 +44,11 @@ public class TwitchChannelViewModel {
 
     private ChatRoom chatRoom;
 
-    public TwitchChannelViewModel(TwitchChannel channel) {
+    private final ChannelViewModelRepository repository;
+
+    public TwitchChannelViewModel(TwitchChannel channel, ChannelViewModelRepository repository) {
         this.channel = channel;
+        this.repository = repository;
         broadcaster = new ReadOnlyObjectWrapper<>(channel.getBroadcaster());
         chatBadgeStore = new ChannelChatBadgeStore(channel);
 
@@ -102,11 +105,11 @@ public class TwitchChannelViewModel {
     }
 
     public FXTask<ChatRoom> joinChatAsync() {
-        if (isChatJoined()) return FXTask.of(channel.getChatRoom());
+        if (isChatJoined()) return FXTask.of(channel.getOrJoinChatRoom());
 
         var task = FXTask.task(() -> {
             channel.loadBadgesIfNotLoaded();
-            return channel.getChatRoom();
+            return channel.getOrJoinChatRoom();
         });
         FXTask.setOnSucceeded(task, e -> {
             chatRoom = task.getValue();
@@ -133,7 +136,10 @@ public class TwitchChannelViewModel {
         }
 
         var task = FXTask.task(() -> {
+            // leave
             channel.leaveChat();
+
+            repository.releaseChannel(this);
 
             if (chatRoomListeners != null) {
                 chatRoomListeners.forEach(chatRoom::removeListener);
@@ -142,10 +148,9 @@ public class TwitchChannelViewModel {
             if (channelListeners != null) {
                 channelListeners.forEach(channel::removeListener);
             }
-
         });
-        FXTask.setOnSucceeded(task, e -> chatRoom = null);
-        TaskWorker.getInstance().submit(task);
+        task.setSucceeded(() -> chatRoom = null);
+        task.runAsync();
 
         return task;
     }

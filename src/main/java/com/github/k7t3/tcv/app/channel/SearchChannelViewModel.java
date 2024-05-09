@@ -40,6 +40,8 @@ public class SearchChannelViewModel implements ViewModel, SceneLifecycle {
 
     private Twitch twitch;
 
+    private ChannelViewModelRepository channelRepository;
+
     public SearchChannelViewModel() {
         init();
     }
@@ -79,7 +81,9 @@ public class SearchChannelViewModel implements ViewModel, SceneLifecycle {
 
     @Override
     public void onViewAdded() {
-        twitch = AppHelper.getInstance().getTwitch();
+        var helper = AppHelper.getInstance();
+        twitch = helper.getTwitch();
+        channelRepository = helper.getChannelRepository();
     }
 
     @Override
@@ -135,7 +139,7 @@ public class SearchChannelViewModel implements ViewModel, SceneLifecycle {
 
                     var finder = new ChannelFinder(twitch);
                     return finder.search(keyword, onlyLive).stream()
-                            .map(c -> new FoundChannelViewModel(chatContainerViewModel, c))
+                            .map(c -> new FoundChannelViewModel(channelRepository, chatContainerViewModel, c))
                             .toList();
                 }
             };

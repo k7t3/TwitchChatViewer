@@ -1,10 +1,16 @@
 package com.github.k7t3.tcv.app.core;
 
+import com.github.k7t3.tcv.app.channel.ChannelViewModelRepository;
 import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
 import com.github.k7t3.tcv.app.clip.PostedClipRepository;
+import com.github.k7t3.tcv.app.group.ChannelGroupRepository;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
+import com.github.k7t3.tcv.app.user.UserDataFile;
 import com.github.k7t3.tcv.domain.Twitch;
+import com.github.k7t3.tcv.domain.channel.ChannelRepository;
+import com.github.k7t3.tcv.entity.service.ChannelGroupService;
+import com.github.k7t3.tcv.prefs.AppPreferences;
 import javafx.beans.property.*;
 import javafx.stage.Stage;
 
@@ -24,6 +30,12 @@ public class AppHelper implements Closeable {
 
     private ChatRoomContainerViewModel containerViewModel;
 
+    private ChannelViewModelRepository channelRepository;
+
+    private UserDataFile userDataFile;
+
+    private ChannelGroupRepository channelGroupRepository;
+
     private AppHelper() {
         userId.bind(twitch.map(Twitch::getUserId));
         userName.bind(twitch.map(Twitch::getUserName));
@@ -41,13 +53,46 @@ public class AppHelper implements Closeable {
         return clipRepository;
     }
 
+    public ChannelViewModelRepository getChannelRepository() {
+        if (channelRepository == null) {
+            channelRepository = new ChannelViewModelRepository(new ChannelRepository(getTwitch()));
+        }
+        return channelRepository;
+    }
+
+    public UserDataFile getUserDataFile() {
+        if (userDataFile == null) {
+            var prefs = AppPreferences.getInstance();
+            var generalPrefs = prefs.getGeneralPreferences();
+            userDataFile = new UserDataFile(generalPrefs.getUserDataFilePath());
+        }
+        return userDataFile;
+    }
+
+    public ChannelGroupRepository getChannelGroupRepository() {
+        if (channelGroupRepository == null) {
+            var userDataFile = getUserDataFile();
+            var groupService = new ChannelGroupService(userDataFile.getConnector());
+            var channelRepository = getChannelRepository();
+            channelGroupRepository = new ChannelGroupRepository(groupService, channelRepository);
+        }
+        return channelGroupRepository;
+    }
+
     public FXTask<Void> logout() {
         if (!isAuthorized()) return FXTask.empty();
 
         var task = FXTask.task(() -> getTwitch().logout());
-        FXTask.setOnSucceeded(task, e -> setTwitch(null));
+        FXTask.setOnSucceeded(task, e -> onLogout());
         TaskWorker.getInstance().submit(task);
         return task;
+    }
+
+    private void onLogout() {
+        if (channelRepository != null) {
+            channelRepository.clear();
+        }
+        setTwitch(null);
     }
 
     @Override
@@ -55,6 +100,10 @@ public class AppHelper implements Closeable {
         var container = containerViewModel;
         if (container != null) {
             container.clearAll();
+        }
+
+        if (userDataFile != null) {
+            userDataFile.closeDatabase();
         }
 
         var twitch = getTwitch();

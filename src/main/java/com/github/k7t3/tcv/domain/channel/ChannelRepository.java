@@ -4,20 +4,23 @@ import com.github.k7t3.tcv.domain.Twitch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.locks.ReentrantLock;
 
 
 /**
  * ロードしたチャンネルの情報を管理するリポジトリ
+ * <p>
+ *     スレッドセーフ
+ * </p>
  */
 public class ChannelRepository {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ChannelRepository.class);
 
-    private final Map<Broadcaster, TwitchChannel> channels = new HashMap<>();
+    private final Map<String, TwitchChannel> channels = new HashMap<>();
+
+    private final ReentrantLock channelLock = new ReentrantLock(true);
 
     private boolean loaded = false;
 
@@ -27,11 +30,23 @@ public class ChannelRepository {
         this.twitch = twitch;
     }
 
-    public Collection<TwitchChannel> getChannels() {
-        return Collections.unmodifiableCollection(channels.values());
+    /**
+     * ロードしているすべてのチャンネルを取得する
+     * @return ロードしているすべてのチャンネル
+     */
+    public Collection<TwitchChannel> getOrLoadChannels() {
+        channelLock.lock();
+        try {
+            return Collections.unmodifiableCollection(channels.values());
+        } finally {
+            channelLock.unlock();
+        }
     }
 
-    public void loadAllFollowBroadcasters() {
+    /**
+     * フォローしているすべてのチャンネルをロードする
+     */
+    public void loadAllRelatedChannels() {
         LOGGER.info("load all follows");
         if (loaded) return;
 
@@ -41,99 +56,168 @@ public class ChannelRepository {
         var userIds = broadcasters.stream().map(Broadcaster::getUserId).toList();
         var streams = api.getStreams(userIds);
 
-        for (var broadcaster : broadcasters) {
+        channelLock.lock();
+        try {
 
-            var stream = streams.stream()
-                    .filter(s -> s.userId().equalsIgnoreCase(broadcaster.getUserId()))
-                    .findFirst()
-                    .orElse(null);
+            for (var broadcaster : broadcasters) {
 
-            var channel = new TwitchChannel(twitch, broadcaster, stream);
-            channel.setPersistent(true);
-            channel.updateEventSubs();
-            channels.put(broadcaster, channel);
+                var stream = streams.stream()
+                        .filter(s -> s.userId().equalsIgnoreCase(broadcaster.getUserId()))
+                        .findFirst()
+                        .orElse(null);
+
+                var channel = new TwitchChannel(twitch, broadcaster, stream);
+                channel.setFollowing(true);
+                channel.setPersistent(true);
+                channel.updateEventSubs();
+                channels.put(broadcaster.getUserId(), channel);
+            }
+
+            // Stream GoLive/GoOffline/GameChange/TitleChange
+            channels.values()
+                    .stream()
+                    .map(TwitchChannel::getBroadcaster)
+                    .forEach(api::enableStreamEventListener);
+
+        } finally {
+            channelLock.unlock();
         }
-
-        // Stream GoLive/GoOffline/GameChange/TitleChange
-        channels.values()
-                .stream()
-                .map(TwitchChannel::getBroadcaster)
-                .forEach(api::enableStreamEventListener);
 
         loaded = true;
     }
 
-    public void updateAllEventListeners() {
-        channels.values().forEach(TwitchChannel::updateEventSubs);
-    }
-
-    public TwitchChannel registerBroadcaster(Broadcaster broadcaster, StreamInfo stream) {
-        if (!loaded) throw new IllegalStateException("not loaded yet");
-        if (stream != null && !stream.userId().equalsIgnoreCase(broadcaster.getUserId()))
-            throw new IllegalArgumentException("broadcaster and streamer users are different");
-
-        var channel = channels.get(broadcaster);
-        if (channel != null) {
-            LOGGER.info("return existed value");
-            return channel;
-        }
-
-        channel = new TwitchChannel(twitch, broadcaster, stream);
-        channel.updateEventSubs();
-
-        channels.put(broadcaster, channel);
-
-        var api = twitch.getTwitchAPI();
-
-        // Stream 監視イベントを有効化
-        api.enableStreamEventListener(channel.getBroadcaster());
-
-        return channel;
-    }
-
-    public TwitchChannel registerBroadcaster(Broadcaster broadcaster) {
-        LOGGER.info("add channel ({})", broadcaster);
+    public List<TwitchChannel> getOrLoadChannels(Collection<String> userIds) {
+        LOGGER.info("load channels ({})", userIds);
         if (!loaded) throw new IllegalStateException("not loaded yet");
 
-        var channel = channels.get(broadcaster);
-        if (channel != null) {
-            LOGGER.info("return existed value");
-            return channel;
+        var list = new ArrayList<TwitchChannel>();
+        var loadIds = new ArrayList<String>();
+
+        channelLock.lock();
+        try {
+            for (var userId : userIds) {
+                var channel = channels.get(userId);
+
+                // すでにロードされているインスタンスがあればそれを使用する
+                if (channel != null) {
+                    list.add(channel);
+                    continue;
+                }
+                loadIds.add(userId);
+            }
+
+            var api = twitch.getTwitchAPI();
+            var broadcasters = api.getBroadcasters(loadIds);
+            var streams = api.getStreams(loadIds);
+
+            for (var broadcaster : broadcasters) {
+                var stream = streams.stream()
+                        .filter(s -> s.userId().equalsIgnoreCase(broadcaster.getUserId()))
+                        .findFirst()
+                        .orElse(null);
+
+                var channel = new TwitchChannel(twitch, broadcaster, stream);
+                channel.updateEventSubs();
+                channels.put(broadcaster.getUserId(), channel);
+
+                // Stream 監視イベントを有効化
+                api.enableStreamEventListener(channel.getBroadcaster());
+
+                list.add(channel);
+            }
+        } finally {
+            channelLock.unlock();
         }
 
-        var api = twitch.getTwitchAPI();
-        var stream = api.getStream(broadcaster.getUserId()).orElse(null);
-
-        return registerBroadcaster(broadcaster, stream);
+        return list;
     }
 
+    /**
+     * チャンネルをロードする
+     * <p>
+     *     チャンネルがすでにロードされている場合はそれを返す
+     * </p>
+     * @param broadcaster ロードするBroadcaster
+     * @return チャンネル
+     */
+    public TwitchChannel getOrLoadChannel(Broadcaster broadcaster) {
+        LOGGER.info("load channel ({})", broadcaster);
+        if (!loaded) throw new IllegalStateException("not loaded yet");
+
+        channelLock.lock();
+        try {
+
+            var channel = channels.get(broadcaster.getUserId());
+            if (channel != null) {
+                LOGGER.info("return existed value");
+                return channel;
+            }
+
+            var api = twitch.getTwitchAPI();
+            var stream = api.getStream(broadcaster.getUserId()).orElse(null);
+
+            channel = new TwitchChannel(twitch, broadcaster, stream);
+            channel.updateEventSubs();
+
+            channels.put(broadcaster.getUserId(), channel);
+
+            // Stream 監視イベントを有効化
+            api.enableStreamEventListener(channel.getBroadcaster());
+
+            return channel;
+
+        } finally {
+            channelLock.unlock();
+        }
+    }
+
+    /**
+     * 使用済みのチャンネルのリソースを開放する
+     * <p>
+     *     {@link TwitchChannel#isPersistent()}が有効ならそのインスタンスは破棄されず、
+     *     {@link ChannelRepository#getOrLoadChannel(Broadcaster)}はそのインスタンスを返す。
+     * </p>
+     * @param channel 開放するチャンネル
+     */
     public void releaseChannel(TwitchChannel channel) {
         LOGGER.info("release channel ({})", channel);
         if (!loaded) return;
 
         // 永続化しているチャンネルは開放しない
-        if (!channel.isPersistent()) {
+        if (channel.isPersistent()) return;
 
-            var api = twitch.getTwitchAPI();
+        var api = twitch.getTwitchAPI();
 
-            // Stream 監視イベントを無効化
-            api.disableStreamEventListener(channel.getBroadcaster());
+        // Stream 監視イベントを無効化
+        api.disableStreamEventListener(channel.getBroadcaster());
 
-            channels.remove(channel.getBroadcaster());
+        channelLock.lock();
+        try {
+            channels.remove(channel.getBroadcaster().getUserId());
+        } finally {
+            channelLock.unlock();
         }
     }
 
+    /**
+     * ロードしているチャンネルをすべてクリアする
+     */
     public void clear() {
         var api = twitch.getTwitchAPI();
 
-        for (var channel : channels.values()) {
+        channelLock.lock();
+        try {
+            for (var channel : channels.values()) {
 
-            channel.clear();
-            api.disableStreamEventListener(channel.getBroadcaster());
+                channel.clear();
+                api.disableStreamEventListener(channel.getBroadcaster());
 
+            }
+
+            channels.clear();
+        } finally {
+            channelLock.unlock();
         }
-
-        channels.clear();
     }
 
 }

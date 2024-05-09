@@ -243,7 +243,7 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
         // ConcurrentModificationExceptionが内部で起こり得る？
         channels.entrySet()
                 .stream()
-                .filter(entry -> entry.getKey().getChannel().isChatJoined() && entry.getKey().getChannel().getChatRoom().equals(chatRoom))
+                .filter(entry -> entry.getKey().getChannel().isChatJoined() && entry.getKey().getChannel().getOrJoinChatRoom().equals(chatRoom))
                 .findFirst()
                 .map(Map.Entry::getValue)
                 .ifPresent(chatRoomViewModel -> chatRoomViewModel.onStateUpdated(chatRoom, roomState, active));

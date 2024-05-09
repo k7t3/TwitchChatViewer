@@ -35,9 +35,11 @@ public class TwitchChannel {
 
     private final CopyOnWriteArraySet<TwitchChannelListener> listeners = new CopyOnWriteArraySet<>();
 
+    private boolean following = false;
+
     private boolean persistent = false;
 
-    public TwitchChannel(
+    TwitchChannel(
             Twitch twitch,
             Broadcaster broadcaster,
             StreamInfo stream
@@ -130,6 +132,21 @@ public class TwitchChannel {
             eventExecutor.submit(() -> listener.onOnline(this, stream));
     }
 
+    void clear() {
+        // チャットを使用している場合は退出
+        if (chatRoom != null) {
+            chatRoom.leave();
+        }
+
+        // チャンネル監視イベントをクリア
+        clearEventSubs();
+
+        listeners.clear();
+    }
+
+
+    // ******************** Public API ********************
+
     public void addListener(TwitchChannelListener listener) {
         listeners.add(listener);
     }
@@ -138,6 +155,12 @@ public class TwitchChannel {
         listeners.remove(listener);
     }
 
+    /**
+     * チャンネルで使用するバッジをロードする
+     * <p>
+     *     すでにロード済みであった場合は何もしない
+     * </p>
+     */
     public void loadBadgesIfNotLoaded() {
         if (badgeLoaded.get()) return;
 
@@ -149,11 +172,22 @@ public class TwitchChannel {
 
     private ChatRoom chatRoom;
 
+    /**
+     * このチャンネルのチャットルームに参加しているかを返す
+     * @return このチャンネルのチャットルームに参加しているか
+     */
     public boolean isChatJoined() {
         return chatRoom != null;
     }
 
-    public ChatRoom getChatRoom() {
+    /**
+     * チャットルームに参加する
+     * <p>
+     *     すでに参加済みであればそのインスタンスを返す
+     * </p>
+     * @return チャットルーム
+     */
+    public ChatRoom getOrJoinChatRoom() {
         if (chatRoom != null) return chatRoom;
         LOGGER.info("{} chat room created", getChannelName());
 
@@ -163,6 +197,12 @@ public class TwitchChannel {
         return chatRoom;
     }
 
+    /**
+     * チャットルームから退出する
+     * <p>
+     *     参加済みでなければ何もしない
+     * </p>
+     */
     public void leaveChat() {
         if (chatRoom == null) return;
 
@@ -178,18 +218,6 @@ public class TwitchChannel {
         }
 
         chatRoom = null;
-    }
-
-    void clear() {
-        // チャットを使用している場合は退出
-        if (chatRoom != null) {
-            chatRoom.leave();
-        }
-
-        // チャンネル監視イベントをクリア
-        clearEventSubs();
-
-        listeners.clear();
     }
 
     public Broadcaster getBroadcaster() {
@@ -208,6 +236,14 @@ public class TwitchChannel {
         return streamRef.get();
     }
 
+    public boolean isFollowing() {
+        return following;
+    }
+
+    public void setFollowing(boolean following) {
+        this.following = following;
+    }
+
     public boolean isStreaming() {
         return streamRef.get() != null;
     }
@@ -220,6 +256,14 @@ public class TwitchChannel {
         return persistent;
     }
 
+    /**
+     * バッジのURLを取得する
+     * <p>
+     *     {@link TwitchChannel#loadBadgesIfNotLoaded()}を事前に実行しておく必要がある
+     * </p>
+     * @param badge URLを取得したいバッジ
+     * @return バッジのイメージURL
+     */
     public Optional<String> getBadgeUrl(ChatBadge badge) {
         if (!badgeLoaded.get()) throw new IllegalStateException("badges have not been loaded");
 

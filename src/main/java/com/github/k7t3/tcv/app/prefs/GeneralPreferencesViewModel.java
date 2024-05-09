@@ -18,11 +18,14 @@ public class GeneralPreferencesViewModel implements PreferencesViewModelBase {
 
     private final ObjectProperty<MultipleChatOpenType> chatOpenType;
 
-    public GeneralPreferencesViewModel() {
-        this.prefs = AppPreferences.getInstance().getGeneralPreferences();
+    private final StringProperty userDataFilePath;
+
+    public GeneralPreferencesViewModel(GeneralPreferences prefs) {
+        this.prefs = prefs;
         defaultTheme = new ReadOnlyObjectWrapper<>(prefs.getTheme());
         theme = new SimpleObjectProperty<>(prefs.getTheme());
         chatOpenType = new SimpleObjectProperty<>(prefs.getMultipleOpenType());
+        userDataFilePath = new SimpleStringProperty(prefs.getUserDataFilePath());
     }
 
     public void sync() {
@@ -34,6 +37,11 @@ public class GeneralPreferencesViewModel implements PreferencesViewModelBase {
         var openType = getChatOpenType();
         if (openType != prefs.getMultipleOpenType()) {
             prefs.setMultipleOpenType(openType);
+        }
+
+        var userData = getUserDataFilePath();
+        if (!Objects.equals(userData, prefs.getUserDataFilePath())) {
+            prefs.setUserDataFilePath(userData);
         }
     }
 
@@ -49,5 +57,9 @@ public class GeneralPreferencesViewModel implements PreferencesViewModelBase {
     public ObjectProperty<MultipleChatOpenType> chatOpenTypeProperty() { return chatOpenType; }
     public MultipleChatOpenType getChatOpenType() { return chatOpenType.get(); }
     public void setChatOpenType(MultipleChatOpenType chatOpenType) { this.chatOpenType.set(chatOpenType); }
+
+    public StringProperty userDataFilePathProperty() { return userDataFilePath; }
+    public String getUserDataFilePath() { return userDataFilePath.get(); }
+    public void setUserDataFilePath(String userDataFilePath) { userDataFilePathProperty().set(userDataFilePath); }
 
 }

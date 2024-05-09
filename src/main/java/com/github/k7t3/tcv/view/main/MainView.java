@@ -3,6 +3,7 @@ package com.github.k7t3.tcv.view.main;
 import atlantafx.base.controls.ModalPane;
 import atlantafx.base.theme.Styles;
 import atlantafx.base.util.Animations;
+import com.github.k7t3.tcv.app.channel.ChannelViewModelRepository;
 import com.github.k7t3.tcv.app.channel.FollowChannelsViewModel;
 import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
@@ -196,7 +197,12 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         modalPane.hide(true);
 
         // フォローしているチャンネルを初期化
-        channelsViewModel.loadAsync();
+        var channelRepository = AppHelper.getInstance().getChannelRepository();
+        var channelLoadTask = channelRepository.loadAllAsync();
+        channelLoadTask.setSucceeded(() -> {
+            var followings = channelRepository.getFollowingChannels();
+            channelsViewModel.setFollowChannels(followings);
+        });
 
         // チャットコンテナを初期化
         chatContainerViewModel.loadAsync();

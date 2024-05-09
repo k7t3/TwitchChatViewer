@@ -50,6 +50,9 @@ public class TCVApp extends Application {
         var helper = AppHelper.getInstance();
         helper.setPrimaryStage(primaryStage);
 
+        // ユーザーファイルの接続タスク
+        var userFileTask = helper.getUserDataFile().connectDatabaseAsync();
+
         var tuple = FluentViewLoader.fxmlView(MainView.class)
                 .resourceBundle(Resources.getResourceBundle()).load();
         var view = tuple.getView();
@@ -68,7 +71,7 @@ public class TCVApp extends Application {
         // 画面が表示されたら認証画面を表示する(おそらくModalPaneの仕様的に
         // シーングラフが表示されてからじゃないと動作しないため)
         JavaFXHelper.shownOnce(primaryStage, e ->
-                codeBehind.startMainView());
+                userFileTask.setSucceeded(codeBehind::startMainView));
 
         // ウインドウを閉じるときのイベント
         primaryStage.setOnHidden(this::onHidden);

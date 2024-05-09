@@ -1,0 +1,158 @@
+package com.github.k7t3.tcv.entity.service;
+
+import com.github.k7t3.tcv.database.DBConnector;
+import com.github.k7t3.tcv.entity.ChannelGroupEntity;
+import com.github.k7t3.tcv.entity.SaveType;
+
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * チャンネルグループに関するサービス
+ */
+public class ChannelGroupService {
+
+    /**
+     * チャンネルグループを永続化するDBのコネクタ
+     */
+    private final DBConnector connector;
+
+    public ChannelGroupService(DBConnector connector) {
+        this.connector = connector;
+    }
+
+    public List<ChannelGroupEntity> retrieveAll() {
+        var query = """
+                select
+                  g.id,
+                  g.name,
+                  g.created_at,
+                  g.updated_at,
+                  u.user_id
+                from
+                  group_users u
+                left join
+                  groups g
+                on
+                  u.group_id = g.id
+                order by
+                  g.updated_at desc;
+                """;
+        var list = new ArrayList<ChannelGroupEntity>();
+        connector.query(query, rs -> {
+
+            ChannelGroupEntity entity = null;
+            while (rs.next()) {
+                var id = rs.getString("id");
+                var name = rs.getString("name");
+                var createdAt = rs.getTimestamp("created_at").toLocalDateTime();
+                var updatedAt = rs.getTimestamp("updated_at").toLocalDateTime();
+                var userId = rs.getString("user_id");
+
+                var uuid = UUID.fromString(id);
+
+                if (entity == null || !entity.id().equals(uuid)) {
+                    var ids = new HashSet<String>();
+                    ids.add(userId);
+                    entity = new ChannelGroupEntity(uuid, name, createdAt, updatedAt, ids);
+                    list.add(entity);
+                } else {
+                    entity.channelIds().add(userId);
+                }
+            }
+        });
+
+        return list;
+    }
+
+    public void save(SaveType saveType, ChannelGroupEntity entity) {
+        switch (saveType) {
+            case INSERT -> insert(entity);
+            case UPDATE -> update(entity);
+        }
+    }
+
+    private void insert(ChannelGroupEntity entity) {
+        var groupInsert = "insert into groups values(?, ?, ?, ?);";
+
+        connector.prepared(groupInsert, stmt -> {
+            int i = 0;
+            stmt.setString(++i, entity.id().toString());
+            stmt.setString(++i, entity.name());
+            stmt.setTimestamp(++i, Timestamp.valueOf(entity.createdAt()));
+            stmt.setTimestamp(++i, Timestamp.valueOf(entity.updatedAt()));
+            stmt.executeUpdate();
+        });
+
+        var groupUserInsert = "insert into group_users values(?, ?);";
+
+        connector.prepared(groupUserInsert, stmt -> {
+            for (var userId : entity.channelIds()) {
+                int i = 0;
+                stmt.setString(++i, entity.id().toString());
+                stmt.setString(++i, userId);
+                stmt.executeUpdate();
+            }
+        });
+
+        connector.commit();
+    }
+
+    private void update(ChannelGroupEntity entity) {
+        var groupUpdate = """
+                update groups
+                set
+                  name = ?,
+                  updated_at = ?
+                where
+                  id = ?;
+                """;
+        connector.prepared(groupUpdate, stmt -> {
+            int i = 0;
+            stmt.setString(++i, entity.name());
+            stmt.setTimestamp(++i, Timestamp.valueOf(entity.updatedAt()));
+            stmt.setString(++i, entity.id().toString());
+            stmt.executeUpdate();
+        });
+
+        var deleteGroupUsers = """
+                delete from group_users where group_id = ?;
+                """;
+        connector.prepared(deleteGroupUsers, stmt -> {
+            stmt.setString(1, entity.id().toString());
+            stmt.executeUpdate();
+        });
+
+        var groupUserInsert = "insert into group_users values(?, ?);";
+
+        connector.prepared(groupUserInsert, stmt -> {
+            for (var userId : entity.channelIds()) {
+                int i = 0;
+                stmt.setString(++i, entity.id().toString());
+                stmt.setString(++i, userId);
+                stmt.executeUpdate();
+            }
+        });
+
+        connector.commit();
+    }
+
+    public void remove(ChannelGroupEntity entity) {
+        delete(entity);
+    }
+
+    private void delete(ChannelGroupEntity entity) {
+        // グループユーザーはカスケード削除
+        var deleteGroup = "delete from groups where id = ?;";
+        connector.prepared(deleteGroup, stmt -> {
+            stmt.setString(1, entity.id().toString());
+            stmt.executeUpdate();
+        });
+
+        connector.commit();
+    }
+
+}
