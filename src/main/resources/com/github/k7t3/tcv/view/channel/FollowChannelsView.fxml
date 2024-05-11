@@ -3,7 +3,6 @@
 <?import atlantafx.base.controls.CustomTextField?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.ListView?>
-<?import javafx.scene.control.ToggleButton?>
 <?import javafx.scene.layout.BorderPane?>
 
 <BorderPane fx:id="root" styleClass="follow-channels-view" stylesheets="@FollowChannelsView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.channel.FollowChannelsView">
@@ -15,9 +14,6 @@
                   <Insets right="4.0" />
                </BorderPane.margin></CustomTextField>
          </center>
-         <left>
-            <ToggleButton fx:id="drawLeftToggle" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Drawer" BorderPane.alignment="CENTER" />
-         </left>
       </BorderPane>
    </top>
    <center>

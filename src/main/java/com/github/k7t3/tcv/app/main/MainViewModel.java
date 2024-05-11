@@ -40,7 +40,7 @@ public class MainViewModel implements ViewModel {
                 return;
 
             if (list.size() == 1) {
-                setFooter(list.getFirst().getTitle());
+                setFooter(list.getFirst().getStreamTitle());
                 return;
             }
 
@@ -52,7 +52,7 @@ public class MainViewModel implements ViewModel {
     }
 
     private String normTitle(TwitchChannelViewModel channel) {
-        var title = channel.getTitle();
+        var title = channel.getStreamTitle();
 
         if (title.length() <= NORM_STREAM_TITLE_LENGTH) {
             return title;

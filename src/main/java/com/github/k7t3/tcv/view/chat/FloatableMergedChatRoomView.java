@@ -6,10 +6,13 @@ import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.chat.MergedChatRoomViewModel;
 import com.github.k7t3.tcv.app.chat.SingleChatRoomViewModel;
+import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.view.core.FloatableStage;
+import com.github.k7t3.tcv.view.group.menu.ChannelGroupMenu;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
+import javafx.collections.FXCollections;
 import javafx.collections.MapChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -25,6 +28,7 @@ import org.fxmisc.flowless.VirtualizedScrollPane;
 
 import java.net.URL;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
 
@@ -77,6 +81,13 @@ public class FloatableMergedChatRoomView implements FxmlView<MergedChatRoomViewM
         var prefs = AppPreferences.getInstance().getChatPreferences();
 
         menuButton.getStyleClass().addAll(Tweaks.NO_ARROW, Styles.BUTTON_ICON);
+
+        // チャンネルグループに関するメニュー
+        var repository = AppHelper.getInstance().getChannelGroupRepository();
+        menuButton.getItems().addAll(0, List.of(
+                new ChannelGroupMenu(repository, FXCollections.observableArrayList(viewModel.getChannels().keySet())),
+                new SeparatorMenuItem()
+        ));
 
         // 閉じるボタン
         closeMenuItem.setOnAction(e -> {

@@ -5,16 +5,18 @@ import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.entity.ChannelGroupEntity;
 import com.github.k7t3.tcv.entity.service.ChannelGroupService;
 import com.github.k7t3.tcv.entity.SaveType;
+import de.saxsys.mvvmfx.ViewModel;
 import javafx.beans.Observable;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class ChannelGroupRepository {
+public class ChannelGroupRepository implements ViewModel {
 
     private final ChannelGroupService service;
 
@@ -38,7 +40,7 @@ public class ChannelGroupRepository {
             var entities = service.retrieveAll();
 
             // すべてのグループに関するチャンネルを取得する
-            var channelIds = entities.stream().flatMap(e -> e.channelIds().stream()).toList();
+            var channelIds = entities.stream().flatMap(e -> e.channelIds().stream()).distinct().toList();
             var channels = repository.getChannelsAsync(channelIds)
                     .get()
                     .stream()
@@ -80,12 +82,16 @@ public class ChannelGroupRepository {
         if (group == null) throw new IllegalArgumentException("group is null");
 
         SaveType saveType;
+        var now = LocalDateTime.now();
         if (group.getId() == null) {
             saveType = SaveType.INSERT;
             group.generateId();
+            group.setCreatedAt(now);
+            group.setUpdatedAt(now);
             groups.add(group);
         } else {
             saveType = SaveType.UPDATE;
+            group.setUpdatedAt(now);
         }
 
         var t = FXTask.task(() -> {

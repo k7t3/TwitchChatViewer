@@ -15,6 +15,7 @@ public class ChannelGroup {
 
     private UUID id;
     private final StringProperty name = new SimpleStringProperty();
+    private StringProperty comment;
     private final ObservableList<TwitchChannelViewModel> channels = FXCollections.observableArrayList();
     private final ObjectProperty<LocalDateTime> createdAt = new SimpleObjectProperty<>();
     private final ObjectProperty<LocalDateTime> updatedAt = new SimpleObjectProperty<>();
@@ -53,5 +54,12 @@ public class ChannelGroup {
     public String getName() { return name.get(); }
     public void setName(String name) { this.name.set(name); }
 
-
+    public StringProperty commentProperty() {
+        if (comment == null) {
+            comment = new SimpleStringProperty("");
+        }
+        return comment;
+    }
+    public String getComment() { return comment == null ? "" : comment.get(); }
+    public void setComment(String comment) { commentProperty().set(comment); }
 }

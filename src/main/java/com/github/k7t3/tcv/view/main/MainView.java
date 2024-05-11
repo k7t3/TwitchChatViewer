@@ -3,11 +3,11 @@ package com.github.k7t3.tcv.view.main;
 import atlantafx.base.controls.ModalPane;
 import atlantafx.base.theme.Styles;
 import atlantafx.base.util.Animations;
-import com.github.k7t3.tcv.app.channel.ChannelViewModelRepository;
 import com.github.k7t3.tcv.app.channel.FollowChannelsViewModel;
 import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.app.event.EventBus;
 import com.github.k7t3.tcv.app.main.MainViewModel;
 import com.github.k7t3.tcv.prefs.KeyActionRepository;
 import com.github.k7t3.tcv.view.action.*;
@@ -70,7 +70,16 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
     private Pane headerPane;
 
     @FXML
+    private ToggleButton followerToggle;
+
+    @FXML
+    private Button groupCallerButton;
+
+    @FXML
     private StackPane followersContainer;
+
+    @FXML
+    private StackPane groupContainer;
 
     @FXML
     private SplitPane mainContainer;
@@ -94,6 +103,10 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         keyActionRepository = new KeyActionRepository();
         loadChatContainerView();
         loadFollowersView();
+
+        // フォロワービューは対応するトグルボタンが選択されているときのみ可視化
+        followersContainer.visibleProperty().bind(followerToggle.selectedProperty());
+        followersContainer.managedProperty().bind(followerToggle.selectedProperty());
 
         var helper = AppHelper.getInstance();
         helper.setContainerViewModel(chatContainerViewModel);
@@ -127,8 +140,13 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
             }
         });
 
-        initKeyActions(helper);
+        initEventListeners();
+
         initMenuItems();
+    }
+
+    private void initEventListeners() {
+        var eventBus = EventBus.getInstance();
     }
 
     private void initKeyActions(AppHelper helper) {
@@ -143,6 +161,11 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         prefsMenuItem.acceleratorProperty().bind(prefViewCallAction.combinationProperty());
         prefsMenuItem.disableProperty().bind(prefViewCallAction.disableProperty());
         keyActionRepository.addAction(prefViewCallAction);
+
+        var channelGroupViewCallAction = new ChannelGroupListViewCallAction(modalPane);
+        channelGroupViewCallAction.disableProperty().bind(modalPane.displayProperty());
+        groupCallerButton.setOnAction(channelGroupViewCallAction);
+        keyActionRepository.addAction(channelGroupViewCallAction);
 
         var clipViewCallAction = new VideoClipListViewCallAction(modalPane, getBrowserController());
         clipViewCallAction.disableProperty().bind(viewModel.clipCountProperty().lessThan(1));
@@ -196,12 +219,19 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         // ModalPaneを非表示にする
         modalPane.hide(true);
 
+        var helper = AppHelper.getInstance();
+
         // フォローしているチャンネルを初期化
-        var channelRepository = AppHelper.getInstance().getChannelRepository();
+        var channelRepository = helper.getChannelRepository();
         var channelLoadTask = channelRepository.loadAllAsync();
+        // チャンネルをロードしたときのイベント
         channelLoadTask.setSucceeded(() -> {
             var followings = channelRepository.getFollowingChannels();
             channelsViewModel.setFollowChannels(followings);
+            // グループはチャンネルがロードされたら有効にする
+            groupCallerButton.setDisable(false);
+            // キーアクション
+            initKeyActions(helper);
         });
 
         // チャットコンテナを初期化

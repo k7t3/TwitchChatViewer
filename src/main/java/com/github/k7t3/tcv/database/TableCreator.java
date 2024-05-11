@@ -8,7 +8,7 @@ public interface TableCreator {
         connector.execute("""
                 create table if not exists groups (
                     id text primary key,
-                    name text not null unique,
+                    name text not null,
                     created_at datetime not null,
                     updated_at datetime not null
                 );

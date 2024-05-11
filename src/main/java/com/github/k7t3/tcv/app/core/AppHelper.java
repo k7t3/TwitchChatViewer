@@ -75,6 +75,7 @@ public class AppHelper implements Closeable {
             var groupService = new ChannelGroupService(userDataFile.getConnector());
             var channelRepository = getChannelRepository();
             channelGroupRepository = new ChannelGroupRepository(groupService, channelRepository);
+            channelGroupRepository.loadAll();
         }
         return channelGroupRepository;
     }

@@ -1,0 +1,15 @@
+.channel-group-list-view {
+    -fx-background-color: -color-bg-default;
+    -fx-max-width: 800;
+}
+
+.channel-group-tile {
+    -fx-padding: 2 10;
+    -fx-min-width: 250;
+    -fx-max-width: 300;
+}
+
+.channel-group-cell .title {
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-danger-fg;
+}

@@ -5,16 +5,16 @@ import atlantafx.base.theme.Tweaks;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.chat.SingleChatRoomViewModel;
+import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.view.core.FloatableStage;
+import com.github.k7t3.tcv.view.group.menu.ChannelGroupMenu;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
+import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.CheckMenuItem;
-import javafx.scene.control.MenuButton;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.Slider;
+import javafx.scene.control.*;
 import javafx.scene.effect.SepiaTone;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
@@ -23,6 +23,7 @@ import org.fxmisc.flowless.VirtualFlow;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 
 import java.net.URL;
+import java.util.List;
 import java.util.ResourceBundle;
 
 public class FloatableSingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, Initializable {
@@ -91,6 +92,13 @@ public class FloatableSingleChatRoomView implements FxmlView<SingleChatRoomViewM
         var prefs = AppPreferences.getInstance().getChatPreferences();
 
         menuButton.getStyleClass().addAll(Tweaks.NO_ARROW, Styles.BUTTON_ICON);
+
+        // チャンネルグループに関するメニューを追加
+        var repository = AppHelper.getInstance().getChannelGroupRepository();
+        menuButton.getItems().addAll(0, List.of(
+                new ChannelGroupMenu(repository, FXCollections.observableArrayList(channel)),
+                new SeparatorMenuItem()
+        ));
 
         // 閉じるボタン
         closeMenuItem.setOnAction(e -> {

@@ -5,6 +5,8 @@ import javafx.beans.value.ObservableValue;
 import javafx.css.PseudoClass;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
+import javafx.scene.Scene;
+import javafx.scene.layout.Pane;
 import javafx.stage.Window;
 import javafx.stage.WindowEvent;
 
@@ -39,6 +41,45 @@ public class JavaFXHelper {
             }
         };
         window.showingProperty().addListener(listener);
+    }
+
+    private static final String INNER_DIALOG_STYLE_CLASS = "inner-dialog-view";
+
+    public static void initAsInnerDialogView(Pane root, double widthRate, double heightRate) {
+        if ((widthRate < 0 || 1 < widthRate) && (heightRate < 0 || 1 < heightRate)) {
+            throw new IllegalArgumentException();
+        }
+
+        // 内部ダイアログのスタイルクラスを追加
+        root.getStyleClass().add(INNER_DIALOG_STYLE_CLASS);
+
+        // 幅
+        if (0 <= widthRate) {
+            root.sceneProperty()
+                    .when(root.sceneProperty().isNotNull())
+                    .map(Scene::widthProperty)
+                    .subscribe(p -> {
+                        if (p != null) {
+                            root.maxWidthProperty().bind(p.multiply(widthRate));
+                        } else {
+                            root.maxWidthProperty().unbind();
+                        }
+                    });
+        }
+
+        // 高さ
+        if (0 <= heightRate) {
+            root.sceneProperty()
+                    .when(root.sceneProperty().isNotNull())
+                    .map(Scene::heightProperty)
+                    .subscribe(p -> {
+                        if (p != null) {
+                            root.maxHeightProperty().bind(p.multiply(heightRate));
+                        } else {
+                            root.maxHeightProperty().unbind();
+                        }
+                    });
+        }
     }
 
 }

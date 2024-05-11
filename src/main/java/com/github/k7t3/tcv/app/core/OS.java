@@ -35,10 +35,7 @@ public enum OS {
                 case WINDOWS -> Path.of(System.getProperty("user.home"), "AppData", "Roaming");
                 case MAC -> Path.of(System.getProperty("user.home"), "Library", "Application Support");
             };
-            applicationDirectory = parent.resolve("com")
-                    .resolve("github")
-                    .resolve("k7t3")
-                    .resolve("tcv");
+            applicationDirectory = parent.resolve("com.github.k7t3.tcv");
         }
         return applicationDirectory;
     }

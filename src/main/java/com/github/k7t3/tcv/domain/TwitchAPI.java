@@ -145,6 +145,9 @@ public class TwitchAPI implements Closeable {
         if (100 < userIds.size()) {
             throw new IllegalArgumentException("too large userIds");
         }
+        if (userIds.isEmpty()) {
+            return List.of();
+        }
 
         var set = hystrixCommandWrapper(helix -> helix.getUsers(
                 twitch.getAccessToken(),

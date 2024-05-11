@@ -5,21 +5,17 @@ import com.github.k7t3.tcv.app.channel.FollowChannelsViewModel;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.view.group.menu.ChannelGroupMenu;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseButton;
-import javafx.scene.input.MouseEvent;
+import javafx.scene.input.*;
 import javafx.scene.layout.Pane;
 import org.kordamp.ikonli.feather.Feather;
-import org.kordamp.ikonli.fontawesome5.FontAwesomeRegular;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.net.URL;
@@ -36,20 +32,13 @@ public class FollowChannelsView implements FxmlView<FollowChannelsViewModel>, In
     @FXML
     private CustomTextField searchField;
 
-    @FXML
-    private ToggleButton drawLeftToggle;
-
     @InjectViewModel
     private FollowChannelsViewModel viewModel;
 
-    private enum ViewState { OPEN, CLOSE }
-
-    private ObjectProperty<ViewState> state;
+    private ContextMenu contextMenu;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        state = new SimpleObjectProperty<>(ViewState.OPEN);
-
         var helper = AppHelper.getInstance();
 
         // 認証されていないときはrootから無効化
@@ -78,6 +67,21 @@ public class FollowChannelsView implements FxmlView<FollowChannelsViewModel>, In
             openChats();
         });
 
+        // コンテキストメニュー
+        initContextMenu();
+
+        // チャンネルグループに関するメニューは遅延初期化
+        channels.setOnContextMenuRequested(e -> {
+            var repository = AppHelper.getInstance().getChannelGroupRepository();
+            groupMenu = new ChannelGroupMenu(repository, viewModel.getSelectedChannels());
+            groupMenu.disableProperty().bind(Bindings.isEmpty(viewModel.getSelectedChannels()));
+            groupMenu.refreshItems();
+            contextMenu.getItems().add(groupMenu);
+
+            // イベントを削除
+            channels.setOnContextMenuRequested(null);
+        });
+
         // Viewが選択している要素をバインド
         Bindings.bindContent(viewModel.getSelectedChannels(), channels.getSelectionModel().getSelectedItems());
 
@@ -88,26 +92,18 @@ public class FollowChannelsView implements FxmlView<FollowChannelsViewModel>, In
         searchField.disableProperty().bind(viewModel.loadedProperty().not());
         searchField.setRight(clearIcon);
         searchField.setLeft(new FontIcon(Feather.SEARCH));
-        searchField.visibleProperty().bind(state.isEqualTo(ViewState.OPEN));
-        searchField.managedProperty().bind(state.isEqualTo(ViewState.OPEN));
+    }
 
-        var closeIcon = new FontIcon(FontAwesomeRegular.CARET_SQUARE_LEFT);
-        var openIcon = new FontIcon(FontAwesomeRegular.CARET_SQUARE_RIGHT);
-        drawLeftToggle.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
-        drawLeftToggle.setGraphic(closeIcon);
-        drawLeftToggle.selectedProperty().addListener((ob, o, n) -> {
-            if (n) {
-                state.set(ViewState.CLOSE);
-                drawLeftToggle.setGraphic(openIcon);
-            } else {
-                state.set(ViewState.OPEN);
-                drawLeftToggle.setGraphic(closeIcon);
-            }
-        });
-        viewModel.visibleFullyProperty().bind(drawLeftToggle.selectedProperty().not());
+    private ChannelGroupMenu groupMenu;
 
-        root.prefWidthProperty().bind(state.map(s -> s == ViewState.OPEN ? 250 : 60));
-        drawLeftToggle.prefWidthProperty().bind(state.map(s -> s == ViewState.OPEN ? ToggleButton.USE_COMPUTED_SIZE : 60));
+    private void initContextMenu() {
+        var open = new MenuItem(Resources.getString("channel.list.open"));
+        open.setOnAction(e -> openChats());
+        open.disableProperty().bind(Bindings.isEmpty(viewModel.getSelectedChannels()));
+
+        contextMenu = new ContextMenu(open);
+
+        channels.setContextMenu(contextMenu);
     }
 
     private void openChats() {

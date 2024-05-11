@@ -19,9 +19,13 @@ import javafx.collections.ObservableSet;
 import javafx.collections.SetChangeListener;
 import javafx.scene.image.Image;
 
+import java.awt.*;
+import java.net.URI;
 import java.util.HashSet;
 
 public class TwitchChannelViewModel {
+
+    private static final String CHANNEL_URL_FORMAT = "https://www.twitch.tv/%s";
 
     private final ReadOnlyObjectWrapper<Broadcaster> broadcaster;
 
@@ -104,6 +108,27 @@ public class TwitchChannelViewModel {
         }
     }
 
+    /**
+     * チャンネルのページをブラウザで開く。
+     * <p>
+     *     開かれるブラウザはAWTの実装に基づく。
+     * </p>
+     */
+    public void openChannelPageOnBrowser() {
+        var login = getBroadcaster().getUserLogin();
+
+        var t = FXTask.task(() -> {
+            var desktop = Desktop.getDesktop();
+            if (!desktop.isSupported(Desktop.Action.BROWSE)) {
+                return false;
+            }
+
+            desktop.browse(new URI(CHANNEL_URL_FORMAT.formatted(login)));
+            return true;
+        });
+        t.runAsync();
+    }
+
     public FXTask<ChatRoom> joinChatAsync() {
         if (isChatJoined()) return FXTask.of(channel.getOrJoinChatRoom());
 
@@ -170,8 +195,8 @@ public class TwitchChannelViewModel {
     public ObservableValue<String> observableUserName() { return broadcaster.map(Broadcaster::getUserName); }
     public String getUserName() { return broadcaster.get().getUserName(); }
 
-    public ObservableValue<String> observableTitle() { return streamInfoWrapper().map(StreamInfo::title).orElse(""); }
-    public String getTitle() { return streamInfo == null ? "" : observableTitle().getValue(); }
+    public ObservableValue<String> observableStreamTitle() { return streamInfoWrapper().map(StreamInfo::title).orElse(""); }
+    public String getStreamTitle() { return streamInfo == null ? "" : observableStreamTitle().getValue(); }
 
     public ObservableValue<Integer> observableViewerCount() { return streamInfoWrapper().map(StreamInfo::viewerCount).orElse(-1); }
     public int getViewerCount() { return streamInfo == null ? -1 : observableViewerCount().getValue(); }

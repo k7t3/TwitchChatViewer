@@ -50,14 +50,16 @@ public class ChannelRepository {
         LOGGER.info("load all follows");
         if (loaded) return;
 
-        var api = twitch.getTwitchAPI();
-
-        var broadcasters = api.getFollowChannelOwners();
-        var userIds = broadcasters.stream().map(Broadcaster::getUserId).toList();
-        var streams = api.getStreams(userIds);
+        loaded = true;
 
         channelLock.lock();
         try {
+
+            var api = twitch.getTwitchAPI();
+
+            var broadcasters = api.getFollowChannelOwners();
+            var userIds = broadcasters.stream().map(Broadcaster::getUserId).toList();
+            var streams = api.getStreams(userIds);
 
             for (var broadcaster : broadcasters) {
 
@@ -82,13 +84,14 @@ public class ChannelRepository {
         } finally {
             channelLock.unlock();
         }
-
-        loaded = true;
     }
 
     public List<TwitchChannel> getOrLoadChannels(Collection<String> userIds) {
         LOGGER.info("load channels ({})", userIds);
         if (!loaded) throw new IllegalStateException("not loaded yet");
+        if (userIds.isEmpty()) {
+            return List.of();
+        }
 
         var list = new ArrayList<TwitchChannel>();
         var loadIds = new ArrayList<String>();

@@ -43,19 +43,6 @@ public class SQLiteDBConnector extends AbstractDBConnector {
         this.tableCreator = creator;
     }
 
-    private void initFile() {
-        if (Files.exists(filePath)) return;
-        Path parent = filePath.getParent();
-        if (parent != null && !Files.exists(parent)) {
-            try {
-                Files.createDirectories(parent);
-            } catch (IOException e) {
-                throw new IllegalStateException(e);
-            }
-        }
-        createTable();
-    }
-
     private void createTable() {
         this.tableCreator.create(this);
     }
@@ -77,13 +64,13 @@ public class SQLiteDBConnector extends AbstractDBConnector {
 
     @Override
     public void connect() {
+        // メモリモードのときか、対象のファイルが存在しないとき
+        boolean empty = (filePath == null || !Files.exists(filePath));
+
         super.connect();
 
-        if (filePath == null) {
-            // ファイルパスが空のときはインメモリモード
+        if (empty) {
             createTable();
-        } else {
-            initFile();
         }
 
         // デフォルトでAutoCommitはFalse

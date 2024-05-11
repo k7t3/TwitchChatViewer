@@ -93,6 +93,10 @@ public class ChannelViewModelRepository {
      * @return チャンネル
      */
     public FXTask<List<TwitchChannelViewModel>> getChannelsAsync(List<String> userIds) {
+        if (userIds.isEmpty()) {
+            return FXTask.of(List.of());
+        }
+
         FXTask<List<TwitchChannelViewModel>> t = FXTask.task(() -> {
             var list = new ArrayList<TwitchChannelViewModel>();
             var loadIds = new ArrayList<String>();

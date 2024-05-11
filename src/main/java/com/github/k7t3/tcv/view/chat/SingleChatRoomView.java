@@ -5,10 +5,13 @@ import atlantafx.base.theme.Tweaks;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.chat.SingleChatRoomViewModel;
+import com.github.k7t3.tcv.app.core.AppHelper;
+import com.github.k7t3.tcv.view.group.menu.ChannelGroupMenu;
 import com.github.k7t3.tcv.domain.chat.ChatRoomState;
 import com.github.k7t3.tcv.view.core.JavaFXHelper;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
+import javafx.collections.FXCollections;
 import javafx.collections.SetChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -96,6 +99,10 @@ public class SingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, In
         actionsMenuButton.getStyleClass().addAll(Styles.FLAT, Tweaks.NO_ARROW);
         closeMenuItem.setOnAction(e -> viewModel.leaveChatAsync());
 
+        // チャンネルグループに関するメニュー
+        var repository = AppHelper.getInstance().getChannelGroupRepository();
+        actionsMenuButton.getItems().add(1, new ChannelGroupMenu(repository, FXCollections.observableArrayList(channel)));
+
         popoutMenuItem.setOnAction(e -> viewModel.popOutAsFloatableStage());
 
         virtualFlow = VirtualFlow.createVertical(viewModel.getChatDataList(), ChatDataCell::of);
@@ -129,7 +136,7 @@ public class SingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, In
         ChatRoomViewUtils.installStreamInfoPopOver(channel, profileImageView);
 
         streamTitleLabel.visibleProperty().bind(channel.liveProperty());
-        streamTitleLabel.textProperty().bind(channel.observableTitle());
+        streamTitleLabel.textProperty().bind(channel.observableStreamTitle());
         streamTitleLabel.getStyleClass().addAll(Styles.TEXT_MUTED, Styles.TEXT_SMALL);
 
         var titleTooltip = new Tooltip();

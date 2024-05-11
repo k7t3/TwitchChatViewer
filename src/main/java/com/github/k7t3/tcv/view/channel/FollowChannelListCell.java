@@ -141,7 +141,7 @@ public class FollowChannelListCell extends ListCell<TwitchChannelViewModel> {
         );
         live.bind(viewModel.liveProperty());
 
-        var title = viewModel.getTitle();
+        var title = viewModel.getStreamTitle();
         if (title != null) {
             tooltip.setText(title);
             setTooltip(tooltip);

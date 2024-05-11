@@ -15,6 +15,18 @@
     -fx-border-color: transparent transparent -color-border-default transparent;
 }
 
+.left-side-bar {
+    -fx-border-color: transparent -color-border-default transparent transparent;
+}
+
+.inner-dialog-view {
+    -fx-background-color: -color-bg-default;
+}
+
+.group-container {
+    -fx-background-color: -color-bg-default;
+}
+
 .search-button {
     -color-button-bg: -color-bg-default;
     -color-button-border: -color-border-default;

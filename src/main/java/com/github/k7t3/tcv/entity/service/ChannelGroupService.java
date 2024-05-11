@@ -3,6 +3,8 @@ package com.github.k7t3.tcv.entity.service;
 import com.github.k7t3.tcv.database.DBConnector;
 import com.github.k7t3.tcv.entity.ChannelGroupEntity;
 import com.github.k7t3.tcv.entity.SaveType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -14,6 +16,8 @@ import java.util.UUID;
  * チャンネルグループに関するサービス
  */
 public class ChannelGroupService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ChannelGroupService.class);
 
     /**
      * チャンネルグループを永続化するDBのコネクタ
@@ -65,6 +69,8 @@ public class ChannelGroupService {
             }
         });
 
+        LOGGER.info("{} groups retrieved", list.size());
+
         return list;
     }
 
@@ -99,6 +105,8 @@ public class ChannelGroupService {
         });
 
         connector.commit();
+
+        LOGGER.info("{} inserted", entity);
     }
 
     private void update(ChannelGroupEntity entity) {
@@ -138,6 +146,8 @@ public class ChannelGroupService {
         });
 
         connector.commit();
+
+        LOGGER.info("{} updated", entity);
     }
 
     public void remove(ChannelGroupEntity entity) {
@@ -153,6 +163,8 @@ public class ChannelGroupService {
         });
 
         connector.commit();
+
+        LOGGER.info("{} removed", entity);
     }
 
 }
