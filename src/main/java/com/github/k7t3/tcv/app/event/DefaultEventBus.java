@@ -2,6 +2,8 @@
 
 package com.github.k7t3.tcv.app.event;
 
+import javafx.application.Platform;
+
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -18,7 +20,7 @@ import java.util.function.Consumer;
  * <p>You can use the default event bus instance {@link #getInstance}, which is a singleton,
  * or you can create one or multiple instances of {@link DefaultEventBus}.
  * <p>
- * <a href="https://github.com/mkpaz/atlantafx/blob/master/sampler/src/main/java/atlantafx/sampler/event/DefaultEventBus.java">コピー元</a>
+ * <a href="https://github.com/mkpaz/atlantafx/blob/master/sampler/src/main/java/atlantafx/sampler/event/DefaultEventBus.java">参考</a>
  */
 @SuppressWarnings({"unchecked", "rawtypes"})
 final class DefaultEventBus implements EventBus {
@@ -61,13 +63,21 @@ final class DefaultEventBus implements EventBus {
 
     @Override
     public <E extends Event> void publish(E event) {
+        if (Platform.isFxApplicationThread()) {
+            publishImpl(event);
+        } else {
+            Platform.runLater(() -> publishImpl(event));
+        }
+    }
+
+    public <E extends Event> void publishImpl(E event) {
         Objects.requireNonNull(event);
 
         Class<?> eventType = event.getClass();
         subscribers.keySet().stream()
-            .filter(type -> type.isAssignableFrom(eventType))
-            .flatMap(type -> subscribers.get(type).stream())
-            .forEach(subscriber -> publish(event, subscriber));
+                .filter(type -> type.isAssignableFrom(eventType))
+                .flatMap(type -> subscribers.get(type).stream())
+                .forEach(subscriber -> publish(event, subscriber));
     }
 
     private <E extends Event> void publish(E event, Consumer<E> subscriber) {

@@ -1,10 +1,9 @@
 package com.github.k7t3.tcv.app.channel;
 
-import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
-import com.github.k7t3.tcv.app.core.AppHelper;
-import com.github.k7t3.tcv.app.service.FXTask;
-import com.github.k7t3.tcv.app.service.TaskWorker;
-import com.github.k7t3.tcv.prefs.AppPreferences;
+import com.github.k7t3.tcv.app.event.ChatOpeningEvent;
+import com.github.k7t3.tcv.app.event.EventBus;
+import com.github.k7t3.tcv.app.event.LogoutEvent;
+import com.github.k7t3.tcv.prefs.GeneralPreferences;
 import de.saxsys.mvvmfx.ViewModel;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
@@ -52,27 +51,21 @@ public class FollowChannelsViewModel implements ViewModel {
 
     private final BooleanProperty visibleFully = new SimpleBooleanProperty(true);
 
-    private ChatRoomContainerViewModel chatContainerViewModel;
+    private final GeneralPreferences generalPrefs;
 
-    public FollowChannelsViewModel() {
+    public FollowChannelsViewModel(GeneralPreferences generalPrefs) {
+        this.generalPrefs = generalPrefs;
         var sorted = new SortedList<>(followChannels);
         sorted.setComparator(DEFAULT_COMPARATOR);
 
         transformedChannels = new FilteredList<>(sorted);
         transformedChannels.predicateProperty().bind(Bindings.createObjectBinding(() -> this::filter, filter, onlyLive));
 
-        initialize();
-    }
-
-    private void initialize() {
-        var helper = AppHelper.getInstance();
-
-        // 認証が解除されたらクリア
-        helper.authorizedProperty().addListener((ob, o, n) -> {
-            if (!n) {
-                followChannels.clear();
-                loaded.set(false);
-            }
+        var eventBus = EventBus.getInstance();
+        eventBus.subscribe(LogoutEvent.class, e -> {
+            // ログアウトしたときはクリアする
+            followChannels.clear();
+            loaded.set(false);
         });
     }
 
@@ -97,69 +90,27 @@ public class FollowChannelsViewModel implements ViewModel {
         return transformedChannels;
     }
 
-//    public FXTask<List<TwitchChannelViewModel>> loadAsync() {
-//        if (isLoaded()) {
-//            throw new RuntimeException("already loaded");
-//        }
-//
-//        LOGGER.info("start loadAsync");
-//
-//        var helper = AppHelper.getInstance();
-//        var twitch = helper.getTwitch();
-//        var repository = twitch.getChannelRepository();
-//
-//        var task = FXTask.task(() -> {
-//            repository.loadAllRelatedChannels();
-//            var channels = repository.getChannels().stream()
-//                    .map(TwitchChannelViewModel::new)
-//                    .toList();
-//            channels.forEach(c -> c.getChannel().addListener(new TwitchChannelStreamListener(c)));
-//            return channels;
-//        });
-//        FXTask.setOnSucceeded(task, e -> {
-//            LOGGER.info("succeeded to get all followed channel");
-//
-//            followChannels.setAll(task.getValue());
-//
-//            loaded.set(true);
-//        });
-//        TaskWorker.getInstance().submit(task);
-//
-//        return task;
-//    }
-
-    public void installChatContainerViewModel(ChatRoomContainerViewModel chatContainerViewModel) {
-        this.chatContainerViewModel = chatContainerViewModel;
-    }
-
     public void joinChat() {
-        if (chatContainerViewModel == null)
-            throw new IllegalStateException();
-
         var selectedChannels = getSelectedChannels();
         if (selectedChannels.isEmpty()) return;
+
+        // チャットを開くイベント
+        ChatOpeningEvent openingEvent;
 
         // 選択が一つだけならそのまま開いて終わり
         if (selectedChannels.size() == 1) {
             var channel = selectedChannels.getFirst();
-            chatContainerViewModel.register(channel);
-            return;
+            // チャットを開くイベントを発行
+            openingEvent = new ChatOpeningEvent(channel);
+        } else {
+            // 開くときの動作を取得
+            var openType = generalPrefs.getMultipleOpenType();
+            openingEvent = new ChatOpeningEvent(openType, getSelectedChannels());
         }
 
-        var prefs = AppPreferences.getInstance().getGeneralPreferences();
-
-        // 開くときの動作
-        switch (prefs.getMultipleOpenType()) {
-
-            // まとめて開く
-            case MERGED -> {
-                chatContainerViewModel.registerAll(selectedChannels);
-            }
-
-            // それぞれを分離して開く
-            case SEPARATED -> selectedChannels.forEach(channel -> chatContainerViewModel.register(channel));
-
-        }
+        // イベントを発行
+        var eventBus = EventBus.getInstance();
+        eventBus.publish(openingEvent);
     }
 
     public ObservableList<TwitchChannelViewModel> getSelectedChannels() {

@@ -1,6 +1,8 @@
 package com.github.k7t3.tcv.app.channel;
 
 import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
+import com.github.k7t3.tcv.app.event.ChatOpeningEvent;
+import com.github.k7t3.tcv.app.event.EventBus;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
@@ -27,20 +29,16 @@ public class FoundChannelViewModel implements ViewModel {
 
     private final ReadOnlyStringWrapper gameName;
 
-    private final ChatRoomContainerViewModel chatContainer;
-
     private final ChannelViewModelRepository channelRepository;
 
     public FoundChannelViewModel(
             ChannelViewModelRepository channelRepository,
-            ChatRoomContainerViewModel chatContainer,
             FoundChannel channel
     ) {
         broadcaster = new ReadOnlyObjectWrapper<>();
         profileImage = new ReadOnlyObjectWrapper<>();
         live = new ReadOnlyBooleanWrapper();
         gameName = new ReadOnlyStringWrapper();
-        this.chatContainer = chatContainer;
         this.channelRepository = channelRepository;
         update(channel);
     }
@@ -73,7 +71,14 @@ public class FoundChannelViewModel implements ViewModel {
     public FXTask<?> joinChatAsync() {
         var broadcaster = getBroadcaster();
         var t = channelRepository.getChannelAsync(broadcaster);
-        t.setSucceeded(() -> chatContainer.register(t.getValue()));
+        t.setSucceeded(() -> {
+            var channel = t.getValue();
+
+            // チャットを開くイベントを発行
+            var opening = new ChatOpeningEvent(channel);
+            var eventBus = EventBus.getInstance();
+            eventBus.publish(opening);
+        });
         t.runAsync();
         return t;
     }

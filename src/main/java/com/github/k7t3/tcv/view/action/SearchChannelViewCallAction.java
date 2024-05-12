@@ -1,7 +1,6 @@
 package com.github.k7t3.tcv.view.action;
 
 import atlantafx.base.controls.ModalPane;
-import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
 import com.github.k7t3.tcv.view.channel.SearchChannelView;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import javafx.application.Platform;
@@ -16,15 +15,9 @@ public class SearchChannelViewCallAction extends AbstractKeyAction {
 
     private final ModalPane modalPane;
 
-    private final ChatRoomContainerViewModel chatContainerViewModel;
-
-    public SearchChannelViewCallAction(
-            ModalPane modalPane,
-            ChatRoomContainerViewModel chatContainerViewModel
-    ) {
+    public SearchChannelViewCallAction(ModalPane modalPane) {
         super(DEFAULT);
         this.modalPane = modalPane;
-        this.chatContainerViewModel = chatContainerViewModel;
     }
 
     @Override
@@ -32,8 +25,6 @@ public class SearchChannelViewCallAction extends AbstractKeyAction {
         var loader = FluentViewLoader.fxmlView(SearchChannelView.class);
         var tuple = loader.load();
         var view = tuple.getView();
-        var viewModel = tuple.getViewModel();
-        viewModel.setChatContainerViewModel(chatContainerViewModel);
 
         modalPane.usePredefinedTransitionFactories(Side.TOP);
         modalPane.setPersistent(false);

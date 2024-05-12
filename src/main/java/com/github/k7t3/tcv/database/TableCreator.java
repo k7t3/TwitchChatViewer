@@ -9,6 +9,7 @@ public interface TableCreator {
                 create table if not exists groups (
                     id text primary key,
                     name text not null,
+                    comment text,
                     created_at datetime not null,
                     updated_at datetime not null
                 );

@@ -2,7 +2,6 @@ package com.github.k7t3.tcv.app.channel;
 
 import com.github.k7t3.tcv.domain.Twitch;
 import com.github.k7t3.tcv.domain.channel.ChannelFinder;
-import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.ExceptionHandler;
 import de.saxsys.mvvmfx.SceneLifecycle;
@@ -36,8 +35,6 @@ public class SearchChannelViewModel implements ViewModel, SceneLifecycle {
 
     private final SearchChannelService searchService = new SearchChannelService();
 
-    private ChatRoomContainerViewModel chatContainerViewModel;
-
     private Twitch twitch;
 
     private ChannelViewModelRepository channelRepository;
@@ -61,10 +58,6 @@ public class SearchChannelViewModel implements ViewModel, SceneLifecycle {
 
     public void search(TimeUnit unit, long amount) {
         searchService.search(unit.toMillis(amount), getKeyword(), isOnlyLive());
-    }
-
-    public void setChatContainerViewModel(ChatRoomContainerViewModel chatContainerViewModel) {
-        this.chatContainerViewModel = chatContainerViewModel;
     }
 
     public ObservableList<FoundChannelViewModel> getChannels() {
@@ -139,7 +132,7 @@ public class SearchChannelViewModel implements ViewModel, SceneLifecycle {
 
                     var finder = new ChannelFinder(twitch);
                     return finder.search(keyword, onlyLive).stream()
-                            .map(c -> new FoundChannelViewModel(channelRepository, chatContainerViewModel, c))
+                            .map(c -> new FoundChannelViewModel(channelRepository, c))
                             .toList();
                 }
             };

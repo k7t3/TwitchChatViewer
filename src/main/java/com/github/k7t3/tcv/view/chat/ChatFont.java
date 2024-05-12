@@ -1,6 +1,5 @@
 package com.github.k7t3.tcv.view.chat;
 
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.*;
 import javafx.beans.value.ObservableDoubleValue;
 import javafx.scene.text.Font;
@@ -13,7 +12,7 @@ public class ChatFont {
 
     public static final ChatFont DEFAULT = new ChatFont();
 
-    private static final double DEFAULT_FONT_SIZE = DEFAULT.getFont().getSize();
+    private static final double DEFAULT_FONT_SIZE = Font.getDefault().getSize();
 
     private final ReadOnlyStringWrapper family;
 
@@ -24,10 +23,6 @@ public class ChatFont {
     private final ReadOnlyDoubleWrapper size;
 
     private final ObservableDoubleValue fontScale;
-
-    public ChatFont(String family) {
-        this(family, DEFAULT_FONT_SIZE);
-    }
 
     public ChatFont(String family, double size) {
         this.family = new ReadOnlyStringWrapper(family);

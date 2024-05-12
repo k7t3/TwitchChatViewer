@@ -33,6 +33,7 @@ public class ChannelGroupService {
                 select
                   g.id,
                   g.name,
+                  g.comment,
                   g.created_at,
                   g.updated_at,
                   u.user_id
@@ -52,6 +53,7 @@ public class ChannelGroupService {
             while (rs.next()) {
                 var id = rs.getString("id");
                 var name = rs.getString("name");
+                var comment = rs.getString("comment");
                 var createdAt = rs.getTimestamp("created_at").toLocalDateTime();
                 var updatedAt = rs.getTimestamp("updated_at").toLocalDateTime();
                 var userId = rs.getString("user_id");
@@ -61,7 +63,7 @@ public class ChannelGroupService {
                 if (entity == null || !entity.id().equals(uuid)) {
                     var ids = new HashSet<String>();
                     ids.add(userId);
-                    entity = new ChannelGroupEntity(uuid, name, createdAt, updatedAt, ids);
+                    entity = new ChannelGroupEntity(uuid, name, comment, createdAt, updatedAt, ids);
                     list.add(entity);
                 } else {
                     entity.channelIds().add(userId);
@@ -82,12 +84,13 @@ public class ChannelGroupService {
     }
 
     private void insert(ChannelGroupEntity entity) {
-        var groupInsert = "insert into groups values(?, ?, ?, ?);";
+        var groupInsert = "insert into groups values(?, ?, ?, ?, ?);";
 
         connector.prepared(groupInsert, stmt -> {
             int i = 0;
             stmt.setString(++i, entity.id().toString());
             stmt.setString(++i, entity.name());
+            stmt.setString(++i, entity.comment());
             stmt.setTimestamp(++i, Timestamp.valueOf(entity.createdAt()));
             stmt.setTimestamp(++i, Timestamp.valueOf(entity.updatedAt()));
             stmt.executeUpdate();
@@ -114,6 +117,7 @@ public class ChannelGroupService {
                 update groups
                 set
                   name = ?,
+                  comment = ?,
                   updated_at = ?
                 where
                   id = ?;
@@ -121,6 +125,7 @@ public class ChannelGroupService {
         connector.prepared(groupUpdate, stmt -> {
             int i = 0;
             stmt.setString(++i, entity.name());
+            stmt.setString(++i, entity.comment());
             stmt.setTimestamp(++i, Timestamp.valueOf(entity.updatedAt()));
             stmt.setString(++i, entity.id().toString());
             stmt.executeUpdate();

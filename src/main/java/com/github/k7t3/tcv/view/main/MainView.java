@@ -7,8 +7,8 @@ import com.github.k7t3.tcv.app.channel.FollowChannelsViewModel;
 import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.Resources;
-import com.github.k7t3.tcv.app.event.EventBus;
 import com.github.k7t3.tcv.app.main.MainViewModel;
+import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.prefs.KeyActionRepository;
 import com.github.k7t3.tcv.view.action.*;
 import com.github.k7t3.tcv.view.channel.FollowChannelsView;
@@ -100,6 +100,16 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        var helper = AppHelper.getInstance();
+        var prefs = AppPreferences.getInstance();
+
+        chatContainerViewModel = new ChatRoomContainerViewModel(
+                helper.getClipRepository(),
+                prefs.getChatPreferences(),
+                prefs.getMessageFilterPreferences()
+        );
+        helper.setContainerViewModel(chatContainerViewModel);
+
         keyActionRepository = new KeyActionRepository();
         loadChatContainerView();
         loadFollowersView();
@@ -107,9 +117,6 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         // フォロワービューは対応するトグルボタンが選択されているときのみ可視化
         followersContainer.visibleProperty().bind(followerToggle.selectedProperty());
         followersContainer.managedProperty().bind(followerToggle.selectedProperty());
-
-        var helper = AppHelper.getInstance();
-        helper.setContainerViewModel(chatContainerViewModel);
 
         followersContainer.disableProperty().bind(helper.authorizedProperty().not());
         chatContainer.disableProperty().bind(helper.authorizedProperty().not());
@@ -140,17 +147,11 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
             }
         });
 
-        initEventListeners();
-
         initMenuItems();
     }
 
-    private void initEventListeners() {
-        var eventBus = EventBus.getInstance();
-    }
-
     private void initKeyActions(AppHelper helper) {
-        var searchViewCallAction = new SearchChannelViewCallAction(modalPane, chatContainerViewModel);
+        var searchViewCallAction = new SearchChannelViewCallAction(modalPane);
         searchViewCallAction.disableProperty().bind(helper.authorizedProperty());
         searchChannelButton.setOnAction(searchViewCallAction);
         keyActionRepository.addAction(searchViewCallAction);
@@ -189,12 +190,13 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
     }
 
     private void loadFollowersView() {
-        var loader = FluentViewLoader.fxmlView(FollowChannelsView.class);
-        loader.resourceBundle(Resources.getResourceBundle());
-        var tuple = loader.load();
+        var prefs = AppPreferences.getInstance();
+        channelsViewModel = new FollowChannelsViewModel(prefs.getGeneralPreferences());
 
-        channelsViewModel = tuple.getViewModel();
-        channelsViewModel.installChatContainerViewModel(chatContainerViewModel);
+        var tuple = FluentViewLoader.fxmlView(FollowChannelsView.class)
+                .resourceBundle(Resources.getResourceBundle())
+                .viewModel(channelsViewModel)
+                .load();
 
         viewModel.installFollowChannelsViewModel(channelsViewModel);
 
@@ -202,9 +204,10 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
     }
 
     private void loadChatContainerView() {
-        var loader = FluentViewLoader.fxmlView(ChatContainerView.class);
-        loader.resourceBundle(Resources.getResourceBundle());
-        var tuple = loader.load();
+        var tuple = FluentViewLoader.fxmlView(ChatContainerView.class)
+                .resourceBundle(Resources.getResourceBundle())
+                .viewModel(chatContainerViewModel)
+                .load();
 
         chatContainerViewModel = tuple.getViewModel();
         chatContainer.getChildren().add(tuple.getView());

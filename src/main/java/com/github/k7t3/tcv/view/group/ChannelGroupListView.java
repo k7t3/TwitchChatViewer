@@ -5,6 +5,7 @@ import atlantafx.base.controls.ToggleSwitch;
 import atlantafx.base.theme.Styles;
 import com.github.k7t3.tcv.app.group.ChannelGroup;
 import com.github.k7t3.tcv.app.group.ChannelGroupListViewModel;
+import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.view.core.JavaFXHelper;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
@@ -67,8 +68,10 @@ public class ChannelGroupListView implements FxmlView<ChannelGroupListViewModel>
         descendingSwitch.selectedProperty().addListener((ob, o, n) -> filterUpdate());
         comparatorsComboBox.getSelectionModel().select(0);
 
+        var prefs = AppPreferences.getInstance();
+
         // VirtualFlow
-        virtualFlow = VirtualFlow.createVertical(viewModel.getChannelGroups(), g -> new ChannelGroupListCell(g, viewModel));
+        virtualFlow = VirtualFlow.createVertical(viewModel.getChannelGroups(), g -> new ChannelGroupListCell(prefs.getGeneralPreferences(), g, viewModel));
         channelGroupListContainer.getChildren().add(new VirtualizedScrollPane<>(virtualFlow));
 
         // ダイアログとして表示するための初期化

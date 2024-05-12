@@ -39,6 +39,7 @@ class ChannelGroupServiceTest {
         var inserted = new ChannelGroupEntity(
                 UUID.randomUUID(),
                 "test entity",
+                "comment",
                 LocalDateTime.now().withYear(1900).truncatedTo(ChronoUnit.MILLIS),
                 LocalDateTime.now().truncatedTo(ChronoUnit.MILLIS),
                 Set.of("first")
@@ -51,6 +52,7 @@ class ChannelGroupServiceTest {
         var updated = new ChannelGroupEntity(
                 inserted.id(),
                 "name updated",
+                "comment",
                 inserted.createdAt(),
                 LocalDateTime.now().truncatedTo(ChronoUnit.MILLIS),
                 Set.of("second", "first")
@@ -67,6 +69,7 @@ class ChannelGroupServiceTest {
         var inserted = new ChannelGroupEntity(
                 UUID.randomUUID(),
                 "test entity",
+                "comment",
                 LocalDateTime.now().withYear(1900).truncatedTo(ChronoUnit.MILLIS),
                 LocalDateTime.now().truncatedTo(ChronoUnit.MILLIS),
                 Set.of("first")

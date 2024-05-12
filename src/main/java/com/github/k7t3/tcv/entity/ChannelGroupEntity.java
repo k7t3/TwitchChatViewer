@@ -7,6 +7,7 @@ import java.util.UUID;
 public record ChannelGroupEntity(
         UUID id,
         String name,
+        String comment,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         Set<String> channelIds

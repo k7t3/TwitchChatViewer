@@ -1,23 +1,24 @@
 package com.github.k7t3.tcv.view.group;
 
 import atlantafx.base.controls.Card;
-import atlantafx.base.controls.Spacer;
 import atlantafx.base.controls.Tile;
 import atlantafx.base.theme.Styles;
 import atlantafx.base.theme.Tweaks;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
+import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.app.event.ChatOpeningEvent;
+import com.github.k7t3.tcv.app.event.EventBus;
 import com.github.k7t3.tcv.app.group.ChannelGroup;
 import com.github.k7t3.tcv.app.group.ChannelGroupListViewModel;
+import com.github.k7t3.tcv.prefs.GeneralPreferences;
+import com.github.k7t3.tcv.view.channel.menu.OpenChatMenuItem;
 import com.github.k7t3.tcv.view.control.EditableLabel;
-import com.github.k7t3.tcv.view.group.menu.OpenBrowserMenuItem;
+import com.github.k7t3.tcv.view.channel.menu.OpenBrowserMenuItem;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.MenuButton;
+import javafx.scene.control.*;
 import javafx.scene.effect.SepiaTone;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
@@ -26,7 +27,10 @@ import javafx.scene.layout.TilePane;
 import javafx.scene.shape.Rectangle;
 import org.fxmisc.flowless.Cell;
 import org.kordamp.ikonli.feather.Feather;
+import org.kordamp.ikonli.fontawesome5.FontAwesomeRegular;
 import org.kordamp.ikonli.javafx.FontIcon;
+
+import java.util.Comparator;
 
 public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Region> {
 
@@ -42,11 +46,18 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
 
     private final TilePane tilePane = new TilePane();
 
+    private final GeneralPreferences generalPrefs;
+
     private final ChannelGroup group;
 
     private final ChannelGroupListViewModel viewModel;
 
-    public ChannelGroupListCell(ChannelGroup group, ChannelGroupListViewModel viewModel) {
+    public ChannelGroupListCell(
+            GeneralPreferences generalPrefs,
+            ChannelGroup group,
+            ChannelGroupListViewModel viewModel
+    ) {
+        this.generalPrefs = generalPrefs;
         this.group = group;
         this.viewModel = viewModel;
         init();
@@ -61,15 +72,19 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
 
         header.getStyleClass().add(Styles.TITLE_3);
 
+        var openChatButton = new Button(Resources.getString("group.button.open.chat"), new FontIcon(FontAwesomeRegular.COMMENT_DOTS));
+        openChatButton.getStyleClass().add(Styles.ACCENT);
+        openChatButton.setOnAction(e -> {
+            e.consume();
+
+            var openType = generalPrefs.getMultipleOpenType();
+            var opening = new ChatOpeningEvent(openType, group.getChannels().stream().filter(TwitchChannelViewModel::isLive).toList());
+            var eventBus = EventBus.getInstance();
+            eventBus.publish(opening);
+        });
+
         var deleteButton = new Button(Resources.getString("group.button.delete"), new FontIcon(Feather.TRASH));
         deleteButton.getStyleClass().addAll(Styles.DANGER);
-
-        var footer = new HBox(deleteButton);
-        footer.setPadding(new Insets(4));
-        footer.setAlignment(Pos.CENTER_RIGHT);
-        footer.setSpacing(4);
-        setFooter(footer);
-
         deleteButton.setOnAction(e -> {
             e.consume();
 
@@ -88,6 +103,12 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
             var t = viewModel.delete(group);
             t.setFinally(() -> setDisable(false));
         });
+
+        var footer = new HBox(openChatButton, deleteButton);
+        footer.setPadding(new Insets(4));
+        footer.setAlignment(Pos.CENTER_RIGHT);
+        footer.setSpacing(4);
+        setFooter(footer);
 
         header.setOnEditCommit(e -> {
             setDisable(true);
@@ -120,6 +141,8 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
         tilePane.setVgap(2);
 
         group.getChannels().stream()
+                .sorted(Comparator.comparing(TwitchChannelViewModel::getUserName))
+                .sorted((c1, c2) -> Boolean.compare(c2.isLive(), c1.isLive()))
                 .map(this::createChannelNode)
                 .forEach(tilePane.getChildren()::add);
     }
@@ -131,9 +154,33 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
         tile.titleProperty().bind(channel.liveProperty().map(live -> live ? "LIVE" : null));
         tile.descriptionProperty().bind(channel.observableUserName());
 
+        // チャンネルページをブラウザで開く
+        var openPageMenuItem = new OpenBrowserMenuItem(channel);
+
+        // グループから削除
+        var removeMenuItem = new MenuItem(Resources.getString("group.button.remove"), new FontIcon(Feather.X));
+        removeMenuItem.setOnAction(e -> {
+            group.getChannels().remove(channel);
+            var repository = AppHelper.getInstance().getChannelGroupRepository();
+            setDisable(true);
+            var t = repository.saveAsync(group);
+            t.setSucceeded(() -> tilePane.getChildren().remove(tile));
+            t.setFinally(() -> setDisable(false));
+        });
+
+        // チャットを開く
+        var openChatMenuItem = new OpenChatMenuItem(channel);
+
+        // タイルのアクション(MenuButton)
         var menuButton = new MenuButton(null, new FontIcon(Feather.MORE_VERTICAL));
         menuButton.getStyleClass().addAll(Styles.BUTTON_ICON, Tweaks.NO_ARROW);
-        initChannelMenu(menuButton, channel);
+        menuButton.getItems().addAll(
+                openChatMenuItem,
+                new SeparatorMenuItem(),
+                removeMenuItem,
+                new SeparatorMenuItem(),
+                openPageMenuItem
+        );
         tile.setAction(menuButton);
 
         var imageView = new ImageView();
@@ -153,13 +200,6 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
         channel.liveProperty().addListener((ob, o, n) -> updateLiveEffect(imageView, n));
 
         return tile;
-    }
-
-    private void initChannelMenu(MenuButton menu, TwitchChannelViewModel channel) {
-        // チャンネルページをブラウザで開く
-        var openPageMenuItem = new OpenBrowserMenuItem(channel);
-
-        menu.getItems().addAll(openPageMenuItem);
     }
 
     private void updateLiveEffect(Node node, boolean live) {

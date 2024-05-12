@@ -52,6 +52,7 @@ public class ChannelGroupRepository implements ViewModel {
             for (var entity : entities) {
                 var group = new ChannelGroup(entity.id());
                 group.setName(entity.name());
+                group.setComment(entity.comment());
                 group.setCreatedAt(entity.createdAt());
                 group.setUpdatedAt(entity.updatedAt());
                 var groupChannels = entity.channelIds().stream().map(channels::get).toList();
@@ -102,6 +103,7 @@ public class ChannelGroupRepository implements ViewModel {
             var entity = new ChannelGroupEntity(
                     group.getId(),
                     group.getName(),
+                    group.getComment(),
                     group.getCreatedAt(),
                     group.getUpdatedAt(),
                     userIds
@@ -125,6 +127,7 @@ public class ChannelGroupRepository implements ViewModel {
             var entity = new ChannelGroupEntity(
                     group.getId(),
                     group.getName(),
+                    group.getComment(),
                     group.getCreatedAt(),
                     group.getUpdatedAt(),
                     Set.of()
