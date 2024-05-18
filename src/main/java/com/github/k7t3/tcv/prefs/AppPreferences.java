@@ -1,7 +1,5 @@
 package com.github.k7t3.tcv.prefs;
 
-import atlantafx.base.theme.Theme;
-import com.github.k7t3.tcv.view.core.ThemeManager;
 import javafx.beans.property.BooleanProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,7 +8,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.InvalidPreferencesFormatException;
 import java.util.prefs.Preferences;
@@ -25,8 +22,6 @@ public class AppPreferences extends PreferencesBase {
     private static final String EXPERIMENTAL = "experimental";
 
     private final Preferences preferences;
-
-    private final Map<String, WindowPreferences> windowPrefs = new HashMap<>();
 
     private final GeneralPreferences generalPreferences;
 
@@ -60,8 +55,6 @@ public class AppPreferences extends PreferencesBase {
 
     @Override
     protected void readFromPreferences() {
-        windowPrefs.values().forEach(PreferencesBase::readFromPreferences);
-
         if (keyActionPreferences != null)
             keyActionPreferences.readFromPreferences();
 
@@ -99,10 +92,6 @@ public class AppPreferences extends PreferencesBase {
         } catch (IOException | BackingStoreException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    public WindowPreferences getWindowPreferences(String windowName) {
-        return windowPrefs.computeIfAbsent(windowName, k -> new WindowPreferences(preferences, defaults, k));
     }
 
     // FIXME CredentialStorageにどうやって渡すか

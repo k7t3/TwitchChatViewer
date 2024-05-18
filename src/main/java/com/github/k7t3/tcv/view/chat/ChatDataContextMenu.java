@@ -2,8 +2,8 @@ package com.github.k7t3.tcv.view.chat;
 
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.chat.filter.UserChatMessageFilter;
-import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.prefs.AppPreferences;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
@@ -63,8 +63,8 @@ public class ChatDataContextMenu extends ContextMenu {
         var prefs = AppPreferences.getInstance().getMessageFilterPreferences();
 
         var message = viewModel.getMessage().getPlain();
-        var filter = prefs.getRegexChatMessageFilter();
-        filter.getRegexes().add(message);
+        var filter = prefs.getKeywordMessageFilter();
+        filter.getKeywords().add(message);
 
         // 非表示
         viewModel.setHidden(true);

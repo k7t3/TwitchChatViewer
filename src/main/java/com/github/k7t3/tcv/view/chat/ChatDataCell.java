@@ -102,24 +102,6 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
             getChildren().add(channelIcon);
         }
 
-        // システムメッセージ
-        if (viewModel.isSystem()) {
-            initForSystemMessage();
-            return;
-        }
-
-        // 削除済みのメッセージ
-        if (deleted.get()) {
-            disabledMessage("chat.message.deleted");
-            return;
-        }
-
-        // 非表示にしたメッセージ
-        if (hidden.get()) {
-            disabledMessage("chat.message.hidden");
-            return;
-        }
-
         // サブスクライブメッセージ
         if (viewModel.isSubs()) {
 
@@ -168,6 +150,23 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
 
         getChildren().addAll(userNameText, colon);
 
+        // システムメッセージ
+        if (viewModel.isSystem()) {
+            initForSystemMessage();
+            return;
+        }
+
+        // 削除済みのメッセージ
+        if (deleted.get()) {
+            disabledMessage("chat.message.deleted");
+            return;
+        }
+
+        // 非表示にしたメッセージ
+        if (hidden.get()) {
+            disabledMessage("chat.message.hidden");
+            return;
+        }
 
         // コンテキストメニュー
         setOnContextMenuRequested(e -> {

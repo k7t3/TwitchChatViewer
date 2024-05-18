@@ -4,9 +4,9 @@ import atlantafx.base.controls.Popover;
 import atlantafx.base.theme.Styles;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.ChatRoomViewModel;
-import com.github.k7t3.tcv.prefs.AppPreferences;
+import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.view.core.FloatableStage;
-import com.github.k7t3.tcv.view.core.StageBoundsListener;
+import com.github.k7t3.tcv.view.core.WindowBoundsListener;
 import javafx.beans.property.BooleanProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -70,25 +70,25 @@ public class ChatRoomViewUtils {
 
     public static void initializeFloatableStage(FloatableStage stage, ChatRoomViewModel chatRoom) {
         // ウインドウの座標設定を取り出す
-        var prefs = AppPreferences.getInstance();
+        var helper = AppHelper.getInstance();
 
         // チャットにおける識別子を使用して設定を取り出す
         var identity = computeHash(chatRoom.getIdentity());
 
-        var windowPrefs = prefs.getWindowPreferences(identity);
+        var windowService = helper.getWindowBoundsService();
 
         // 保存されている座標を割り当て
-        var bounds = windowPrefs.getStageBounds();
-        bounds.apply(stage);
+        windowService.getBoundsAsync(identity)
+                .onDone(bounds -> bounds.apply(stage));
 
         // 座標の追跡設定
-        var listener = new StageBoundsListener();
+        var listener = new WindowBoundsListener();
         listener.install(stage);
 
         // ウインドウを閉じるときに座標を記録
         stage.setOnHiding(e -> {
             var current = listener.getCurrent();
-            windowPrefs.setStageBounds(current);
+            windowService.saveBoundsAsync(identity, current);
         });
     }
 

@@ -26,9 +26,6 @@ public class ChatMessageFilterView implements PreferencesTabView<ChatMessageFilt
     private ListView<String> filters;
 
     @FXML
-    private Label guideLabel;
-
-    @FXML
     private Button plusButton;
 
     @FXML
@@ -40,7 +37,6 @@ public class ChatMessageFilterView implements PreferencesTabView<ChatMessageFilt
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         headerLabel.getStyleClass().addAll(Styles.TITLE_4);
-        guideLabel.getStyleClass().addAll(Styles.TEXT_MUTED);
 
         filters.setCellFactory(param -> new TextListCell());
         filters.setEditable(true);

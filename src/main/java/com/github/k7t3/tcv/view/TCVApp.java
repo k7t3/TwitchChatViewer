@@ -2,11 +2,11 @@ package com.github.k7t3.tcv.view;
 
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.LoggerInitializer;
-import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.app.core.Resources;
-import com.github.k7t3.tcv.view.core.StageBoundsListener;
-import com.github.k7t3.tcv.view.core.ThemeManager;
+import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.view.core.JavaFXHelper;
+import com.github.k7t3.tcv.view.core.ThemeManager;
+import com.github.k7t3.tcv.view.core.WindowBoundsListener;
 import com.github.k7t3.tcv.view.main.MainView;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import javafx.application.Application;
@@ -16,6 +16,8 @@ import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.ExecutionException;
 
 public class TCVApp extends Application {
 
@@ -27,10 +29,8 @@ public class TCVApp extends Application {
     public void init() throws Exception {
         super.init();
 
-        //
         // 暗黙的な終了を無効化
         // アプリケーションは明示的に終了する。
-        //
         Platform.setImplicitExit(false);
 
         // ロガーの初期化
@@ -43,15 +43,15 @@ public class TCVApp extends Application {
     }
 
     @Override
-    public void start(Stage primaryStage) {
+    public void start(Stage primaryStage) throws ExecutionException, InterruptedException {
 
         log.info("start application");
 
         var helper = AppHelper.getInstance();
         helper.setPrimaryStage(primaryStage);
 
-        // ユーザーファイルの接続タスク
-        var userFileTask = helper.getUserDataFile().connectDatabaseAsync();
+        // ユーザーファイルを接続
+        helper.getUserDataFile().connectDatabaseAsync().get();
 
         var tuple = FluentViewLoader.fxmlView(MainView.class)
                 .resourceBundle(Resources.getResourceBundle()).load();
@@ -70,24 +70,24 @@ public class TCVApp extends Application {
 
         // 画面が表示されたら認証画面を表示する(おそらくModalPaneの仕様的に
         // シーングラフが表示されてからじゃないと動作しないため)
-        JavaFXHelper.shownOnce(primaryStage, e ->
-                userFileTask.setSucceeded(codeBehind::startMainView));
+        JavaFXHelper.shownOnce(primaryStage, e -> codeBehind.startMainView());
 
         // ウインドウを閉じるときのイベント
         primaryStage.setOnHidden(this::onHidden);
 
         // ウインドウの境界を追跡
-        var boundsListener = new StageBoundsListener();
+        var boundsListener = new WindowBoundsListener();
         boundsListener.install(primaryStage);
 
         // ウインドウ境界を復元
-        var windowPrefs = preferences.getWindowPreferences("main");
-        var bounds = windowPrefs.getStageBounds();
-        bounds.apply(primaryStage);
+        var windowBoundsService = helper.getWindowBoundsService();
+        windowBoundsService.getBoundsAsync("main").get().apply(primaryStage);
 
         // ウインドウを閉じるときに境界を記録
-        primaryStage.setOnCloseRequest(e ->
-                windowPrefs.setStageBounds(boundsListener.getCurrent()));
+        primaryStage.addEventHandler(WindowEvent.WINDOW_HIDING, e -> {
+            var t = windowBoundsService.saveBoundsAsync("main", boundsListener.getCurrent());
+            t.waitForDone();
+        });
 
         primaryStage.setScene(scene);
         primaryStage.show();

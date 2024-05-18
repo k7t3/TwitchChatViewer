@@ -6,7 +6,8 @@ import javafx.event.EventHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.Callable;
+import java.util.concurrent.*;
+import java.util.function.Consumer;
 
 public abstract class FXTask<T> extends Task<T> {
 
@@ -17,6 +18,23 @@ public abstract class FXTask<T> extends Task<T> {
         super.failed();
 
         LOGGER.error("error occurred into task", getException());
+    }
+
+    public void onDone(Consumer<T> consumer) {
+        addEventHandler(WorkerStateEvent.WORKER_STATE_SUCCEEDED, e -> consumer.accept(getValue()));
+    }
+
+    public void onDone(Runnable runnable) {
+        addEventHandler(WorkerStateEvent.WORKER_STATE_SUCCEEDED, e -> runnable.run());
+    }
+
+    public void waitForDone() {
+        if (state() != Future.State.RUNNING)
+            return;
+        try {
+            get(1, TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException ignored) {
+        }
     }
 
     public void setSucceeded(Runnable runnable) {

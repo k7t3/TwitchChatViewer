@@ -316,7 +316,7 @@ public class ChatRoomContainerViewModel implements ViewModel {
 
         chatRooms.stream().map(ChatRoomViewModel::leaveChatAsync).forEach(task -> {
             try {
-                task.get(1, TimeUnit.MINUTES);
+                task.get(10, TimeUnit.SECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException ignored) {
                 // no-op
             }

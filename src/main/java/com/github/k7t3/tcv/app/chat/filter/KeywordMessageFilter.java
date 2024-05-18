@@ -12,45 +12,32 @@ import java.util.concurrent.CopyOnWriteArraySet;
  * 正規表現によるチャットメッセージフィルタ。
  *
  * <p>
- * {@link RegexChatMessageFilter#getRegexes()}に登録される
+ * {@link KeywordMessageFilter#getKeywords()}に登録される
  * 正規表現のいずれかに該当するメッセージは非表示扱いになる。
  * </p>
  */
-public class RegexChatMessageFilter implements ChatMessageFilter {
+public class KeywordMessageFilter implements ChatMessageFilter {
 
-    public static final RegexChatMessageFilter DEFAULT = new RegexChatMessageFilter(List.of());
+    public static final KeywordMessageFilter DEFAULT = new KeywordMessageFilter(List.of());
 
-    private final CopyOnWriteArraySet<String> regexes;
+    private final CopyOnWriteArraySet<String> keywords;
 
-    public RegexChatMessageFilter(List<String> regexes) {
-        this.regexes = new CopyOnWriteArraySet<>(regexes);
+    public KeywordMessageFilter(List<String> keywords) {
+        this.keywords = new CopyOnWriteArraySet<>(keywords);
     }
 
-    public Set<String> getRegexes() {
-        return regexes;
+    public Set<String> getKeywords() {
+        return keywords;
     }
 
     @Override
     public boolean test(ChatData chatData) {
-        if (regexes.isEmpty())
+        if (keywords.isEmpty())
             return true;
 
-        return regexes.stream()
+        return keywords.stream()
                 .filter(r -> !r.isEmpty())
-                .map(this::regex)
-                .noneMatch(r -> chatData.message().getPlain().matches(r));
-    }
-
-    private String regex(String r) {
-        var regex = r;
-
-        if (!r.startsWith("^"))
-            regex = ".*" + regex;
-
-        if (!r.endsWith("$"))
-            regex = regex + ".*";
-
-        return regex;
+                .noneMatch(r -> chatData.message().getPlain().toLowerCase().contains(r));
     }
 
     @Override
@@ -58,7 +45,7 @@ public class RegexChatMessageFilter implements ChatMessageFilter {
         try (var baos = new ByteArrayOutputStream();
              var os = new DataOutputStream(baos)) {
 
-            for (var regex : regexes)
+            for (var regex : keywords)
                 os.writeUTF(regex);
 
             return baos.toByteArray();
@@ -68,7 +55,7 @@ public class RegexChatMessageFilter implements ChatMessageFilter {
         }
     }
 
-    public static RegexChatMessageFilter deserialize(byte[] bytes) {
+    public static KeywordMessageFilter deserialize(byte[] bytes) {
         try (var bais = new ByteArrayInputStream(bytes);
              var dis = new DataInputStream(bais)) {
 
@@ -78,7 +65,7 @@ public class RegexChatMessageFilter implements ChatMessageFilter {
                 regexes.add(dis.readUTF());
             }
 
-            return new RegexChatMessageFilter(regexes);
+            return new KeywordMessageFilter(regexes);
 
         } catch (IOException e) {
             throw new RuntimeException(e);

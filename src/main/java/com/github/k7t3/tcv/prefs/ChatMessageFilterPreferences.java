@@ -1,7 +1,7 @@
 package com.github.k7t3.tcv.prefs;
 
 import com.github.k7t3.tcv.app.chat.filter.ChatMessageFilter;
-import com.github.k7t3.tcv.app.chat.filter.RegexChatMessageFilter;
+import com.github.k7t3.tcv.app.chat.filter.KeywordMessageFilter;
 import com.github.k7t3.tcv.app.chat.filter.UserChatMessageFilter;
 import com.github.k7t3.tcv.domain.chat.ChatData;
 import javafx.beans.property.ReadOnlyObjectProperty;
@@ -21,7 +21,7 @@ public class ChatMessageFilterPreferences extends PreferencesBase {
 
     private ReadOnlyObjectWrapper<ChatMessageFilter> chatMessageFilter;
 
-    private ReadOnlyObjectWrapper<RegexChatMessageFilter> regexChatMessageFilter;
+    private ReadOnlyObjectWrapper<KeywordMessageFilter> keywordMessageFilter;
 
     private ReadOnlyObjectWrapper<UserChatMessageFilter> userChatMessageFilter;
 
@@ -38,16 +38,16 @@ public class ChatMessageFilterPreferences extends PreferencesBase {
     protected void readFromPreferences() {
         var bytes = getByteArray(FILTER_REGEX);
         var filter = Arrays.equals(DEFAULT_VALUE, bytes)
-                ? RegexChatMessageFilter.DEFAULT
-                : RegexChatMessageFilter.deserialize(bytes);
-        setRegexChatMessageFilter(filter);
+                ? KeywordMessageFilter.DEFAULT
+                : KeywordMessageFilter.deserialize(bytes);
+        setKeywordMessageFilter(filter);
     }
 
     @Override
     public void writeToPreferences() {
         syncLock.lock();
         try {
-            var regex = getRegexChatMessageFilter();
+            var regex = getKeywordMessageFilter();
             if (regex == null) {
                 preferences.remove(FILTER_REGEX);
             } else {
@@ -72,7 +72,7 @@ public class ChatMessageFilterPreferences extends PreferencesBase {
     private ReadOnlyObjectWrapper<ChatMessageFilter> chatMessageFilterWrapper() {
         if (chatMessageFilter == null) {
             // 正規表現とユーザーIDのフィルタをマージ
-            var regex = getRegexChatMessageFilter();
+            var regex = getKeywordMessageFilter();
             var user = getUserChatMessageFilter();
             var predicate = regex.and(user);
             var filter = new ChatMessageFilter() {
@@ -96,23 +96,23 @@ public class ChatMessageFilterPreferences extends PreferencesBase {
     public ChatMessageFilter getChatMessageFilter() { return chatMessageFilterWrapper().get(); }
     private void setChatMessageFilter(ChatMessageFilter chatMessageFilter) { chatMessageFilterWrapper().set(chatMessageFilter); }
 
-    private ReadOnlyObjectWrapper<RegexChatMessageFilter> regexChatMessageFilterWrapper() {
-        if (regexChatMessageFilter == null) {
+    private ReadOnlyObjectWrapper<KeywordMessageFilter> keywordMessageFilterWrapper() {
+        if (keywordMessageFilter == null) {
             var bytes = getByteArray(FILTER_REGEX);
             var filter = Arrays.equals(DEFAULT_VALUE, bytes)
-                    ? RegexChatMessageFilter.DEFAULT
-                    : RegexChatMessageFilter.deserialize(bytes);
-            regexChatMessageFilter = new ReadOnlyObjectWrapper<>(filter);
-            regexChatMessageFilter.addListener((ob, o, n) -> {
+                    ? KeywordMessageFilter.DEFAULT
+                    : KeywordMessageFilter.deserialize(bytes);
+            keywordMessageFilter = new ReadOnlyObjectWrapper<>(filter);
+            keywordMessageFilter.addListener((ob, o, n) -> {
                 if (n != null)
                     preferences.putByteArray(FILTER_REGEX, n.serialize());
             });
         }
-        return regexChatMessageFilter;
+        return keywordMessageFilter;
     }
-    public ReadOnlyObjectProperty<RegexChatMessageFilter> regexChatMessageFilterProperty() { return regexChatMessageFilterWrapper().getReadOnlyProperty(); }
-    public RegexChatMessageFilter getRegexChatMessageFilter() { return regexChatMessageFilterWrapper().get(); }
-    private void setRegexChatMessageFilter(RegexChatMessageFilter regexChatMessageFilter) { regexChatMessageFilterWrapper().set(regexChatMessageFilter); }
+    public ReadOnlyObjectProperty<KeywordMessageFilter> keywordMessageFilterProperty() { return keywordMessageFilterWrapper().getReadOnlyProperty(); }
+    public KeywordMessageFilter getKeywordMessageFilter() { return keywordMessageFilterWrapper().get(); }
+    private void setKeywordMessageFilter(KeywordMessageFilter keywordMessageFilter) { keywordMessageFilterWrapper().set(keywordMessageFilter); }
 
     private ReadOnlyObjectWrapper<UserChatMessageFilter> userChatMessageFilterWrapper() {
         if (userChatMessageFilter == null) {

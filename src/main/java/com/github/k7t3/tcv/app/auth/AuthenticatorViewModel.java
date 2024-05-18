@@ -6,13 +6,18 @@ import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.prefs.AppPreferences;
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.EncodeHintType;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.qrcode.QRCodeWriter;
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
+import com.google.zxing.qrcode.encoder.QRCode;
 import de.saxsys.mvvmfx.ViewModel;
 import javafx.application.Platform;
-import javafx.beans.property.ReadOnlyBooleanProperty;
-import javafx.beans.property.ReadOnlyBooleanWrapper;
-import javafx.beans.property.ReadOnlyStringProperty;
-import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.beans.property.*;
 import javafx.concurrent.WorkerStateEvent;
+import javafx.embed.swing.SwingFXUtils;
+import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
 import org.slf4j.Logger;
@@ -26,6 +31,9 @@ import java.util.Map;
 import java.util.Optional;
 
 public class AuthenticatorViewModel implements ViewModel {
+
+    private static final int QRCODE_WIDTH = 480;
+    private static final int QRCODE_HEIGHT = 480;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticatorViewModel.class);
 
@@ -41,6 +49,8 @@ public class AuthenticatorViewModel implements ViewModel {
 
     private final ReadOnlyBooleanWrapper authorized = new ReadOnlyBooleanWrapper(false);
 
+    private final ReadOnlyObjectWrapper<Image> qrcode = new ReadOnlyObjectWrapper<>();
+
     public AuthenticatorViewModel() {
     }
 
@@ -54,7 +64,7 @@ public class AuthenticatorViewModel implements ViewModel {
             task.getValue().ifPresent(this::done);
         });
         LOGGER.info("load credential store");
-        TaskWorker.getInstance().submit(task);
+        task.runAsync();
         return task;
     }
 
@@ -76,11 +86,31 @@ public class AuthenticatorViewModel implements ViewModel {
             authUri.set(deviceFlow.verificationURL());
             // ユーザーコード
             userCode.set(deviceFlow.userCode());
+
+            // QRコードを生成する
+            generateQRCode(deviceFlow.verificationURL());
         });
 
-        TaskWorker.getInstance().submit(task);
+        task.runAsync();
 
         return task;
+    }
+
+    private void generateQRCode(String url) {
+        var t = FXTask.task(() -> {
+            var writer = new QRCodeWriter();
+            var matrix = writer.encode(
+                    url,
+                    BarcodeFormat.QR_CODE,
+                    QRCODE_WIDTH,
+                    QRCODE_HEIGHT,
+                    Map.of(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M)
+            );
+            var bufferedImage = MatrixToImageWriter.toBufferedImage(matrix);
+            return SwingFXUtils.toFXImage(bufferedImage, null);
+        });
+        t.setSucceeded(() -> qrcode.set(t.getValue()));
+        t.runAsync();
     }
 
     private void done(Twitch twitch) {
@@ -106,7 +136,7 @@ public class AuthenticatorViewModel implements ViewModel {
                 LOGGER.error("ILLEGAL URL?", e);
             }
         });
-        TaskWorker.getInstance().submit(task);
+        task.runAsync();
     }
 
     public void clipAuthUri() {
@@ -132,5 +162,8 @@ public class AuthenticatorViewModel implements ViewModel {
 
     public ReadOnlyBooleanProperty authorizedProperty() { return authorized.getReadOnlyProperty(); }
     public boolean getAuthorized() { return authorized.get(); }
+
+    public ReadOnlyObjectProperty<Image> qrcodeProperty() { return qrcode.getReadOnlyProperty(); }
+    public Image getQRCode() { return qrcode.get(); }
 
 }

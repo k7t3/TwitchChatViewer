@@ -25,6 +25,23 @@ public interface TableCreator {
                     constraint fk_group_users_group_id foreign key (group_id) references groups(id) on delete cascade
                 );
                 """);
+        connector.execute("""
+                create table if not exists windows (
+                    id text primary key,
+                    x double not null,
+                    y double not null,
+                    width double not null,
+                    height double not null,
+                    maximized boolean not null
+                );
+                """);
+        connector.execute("""
+                create table if not exists opening_channels (
+                    user_id text primary key,
+                    order_no integer not null,
+                    window_id text
+                );
+                """);
     };
 
 }

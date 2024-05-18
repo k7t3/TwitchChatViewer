@@ -4,7 +4,7 @@ import com.github.k7t3.tcv.app.core.OS;
 import javafx.beans.value.ChangeListener;
 import javafx.stage.Stage;
 
-public class StageBoundsListener {
+public class WindowBoundsListener {
 
     private boolean maximized = false;
 
@@ -101,9 +101,9 @@ public class StageBoundsListener {
         oldY = -1;
     }
 
-    public StageBounds getCurrent() {
+    public WindowBounds getCurrent() {
         if (stage == null) throw new IllegalStateException("stage is null");
-        return new StageBounds(x, y, width, height, maximized);
+        return new WindowBounds(x, y, width, height, maximized);
     }
 
     @Override

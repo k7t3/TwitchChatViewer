@@ -75,7 +75,7 @@ public class ChannelGroupListView implements FxmlView<ChannelGroupListViewModel>
         channelGroupListContainer.getChildren().add(new VirtualizedScrollPane<>(virtualFlow));
 
         // ダイアログとして表示するための初期化
-        JavaFXHelper.initAsInnerDialogView(root, 0.7, 0.9);
+        JavaFXHelper.initAsInnerWindow(root, 0.7, 0.9);
     }
 
     private void filterUpdate() {

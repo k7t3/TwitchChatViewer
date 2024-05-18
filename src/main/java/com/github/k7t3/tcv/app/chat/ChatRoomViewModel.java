@@ -134,19 +134,18 @@ public abstract class ChatRoomViewModel implements ChatRoomListener, TwitchChann
     public void onChatDataPosted(ChatRoom chatRoom, ChatData item) {
         try {
             var filter = getChatMessageFilter();
-            if (!filter.test(item)) {
-                return;
-            }
+            var hidden = !filter.test(item); // Filterをパスしないときは非表示
 
             TwitchChannelViewModel channel;
             try {
                 channel = getChannel(chatRoom.getChannel());
             } catch (ConcurrentModificationException ignored) {
-                // チャンネルの分離時に発生する可能性がある
+                // チャンネルが閉じたあとにチャットを受信した場合に発生する可能性がある
                 return;
             }
 
             var chatData = createChatDataViewModel(channel, item);
+            chatData.setHidden(hidden);
             addChat(chatData);
 
         } catch (Exception e) {

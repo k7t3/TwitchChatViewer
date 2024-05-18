@@ -11,6 +11,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.Pane;
 
 import java.net.URL;
@@ -23,6 +24,9 @@ public class AuthenticatorView implements FxmlView<AuthenticatorViewModel>, Init
 
     @FXML
     private Hyperlink authUriLink;
+
+    @FXML
+    private ImageView qrcodeImageView;
 
     @FXML
     private Label userCodeLabel;
@@ -64,6 +68,8 @@ public class AuthenticatorView implements FxmlView<AuthenticatorViewModel>, Init
         clipAuthUriButton.setOnAction(e -> viewModel.clipAuthUri());
 
         progressBar.progressProperty().bind(viewModel.authorizedProperty().map(d -> d ? 1.0 : -1));
+
+        qrcodeImageView.imageProperty().bind(viewModel.qrcodeProperty());
 
 //        root.parentProperty().addListener((ob, o, n) -> {
 //            if (n == null) return;

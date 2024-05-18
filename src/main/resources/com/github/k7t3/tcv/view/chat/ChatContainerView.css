@@ -19,5 +19,9 @@
   -fx-padding: 10;
 }
 
+.chat-data-cell: hover {
+  -fx-background-color: -color-neutral-subtle;
+}
+
 .chat-subs-text {
 }

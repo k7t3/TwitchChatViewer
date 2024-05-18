@@ -4,6 +4,7 @@ import atlantafx.base.controls.Card;
 import atlantafx.base.controls.Tile;
 import atlantafx.base.theme.Styles;
 import atlantafx.base.theme.Tweaks;
+import com.github.k7t3.tcv.app.channel.MultipleChatOpenType;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.Resources;
@@ -71,8 +72,35 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
         setBody(tilePane);
 
         header.getStyleClass().add(Styles.TITLE_3);
+        header.setTooltip(new Tooltip(Resources.getString("group.tooltip.title")));
+        header.getStyleClass().add("title");
+        subHeader.setTooltip(new Tooltip(Resources.getString("group.tooltip.comment")));
+        subHeader.getStyleClass().add("comment");
 
-        var openChatButton = new Button(Resources.getString("group.button.open.chat"), new FontIcon(FontAwesomeRegular.COMMENT_DOTS));
+        // ****************************************
+        // チャットを開くボタン
+        // ****************************************
+        var openSeparatedItem = new MenuItem(Resources.getString("group.button.open.separated.chat"));
+        openSeparatedItem.setOnAction(e -> {
+            e.consume();
+
+            var openType = MultipleChatOpenType.SEPARATED;
+            var opening = new ChatOpeningEvent(openType, group.getChannels().stream().filter(TwitchChannelViewModel::isLive).toList());
+            var eventBus = EventBus.getInstance();
+            eventBus.publish(opening);
+        });
+        var openMergedItem = new MenuItem(Resources.getString("group.button.open.merged.chat"));
+        openMergedItem.setOnAction(e -> {
+            e.consume();
+
+            var openType = MultipleChatOpenType.MERGED;
+            var opening = new ChatOpeningEvent(openType, group.getChannels().stream().filter(TwitchChannelViewModel::isLive).toList());
+            var eventBus = EventBus.getInstance();
+            eventBus.publish(opening);
+        });
+        var openChatButton = new SplitMenuButton(openSeparatedItem, openMergedItem);
+        openChatButton.setText(Resources.getString("group.button.open.chat"));
+        openChatButton.setGraphic(new FontIcon(FontAwesomeRegular.COMMENT_DOTS));
         openChatButton.getStyleClass().add(Styles.ACCENT);
         openChatButton.setOnAction(e -> {
             e.consume();
@@ -83,6 +111,9 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
             eventBus.publish(opening);
         });
 
+        // ****************************************
+        // 削除ボタン
+        // ****************************************
         var deleteButton = new Button(Resources.getString("group.button.delete"), new FontIcon(Feather.TRASH));
         deleteButton.getStyleClass().addAll(Styles.DANGER);
         deleteButton.setOnAction(e -> {

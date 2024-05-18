@@ -4,8 +4,11 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.css.PseudoClass;
 import javafx.event.EventHandler;
+import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.stage.Window;
 import javafx.stage.WindowEvent;
@@ -43,9 +46,36 @@ public class JavaFXHelper {
         window.showingProperty().addListener(listener);
     }
 
+    public static void installContextMenu(Node node, ContextMenu contextMenu) {
+        node.setOnContextMenuRequested(e -> {
+            System.out.printf("count = %d%n", contextMenu.getItems().size());
+            e.consume();
+            contextMenu.show(node, e.getScreenX(), e.getScreenY());
+        });
+        node.addEventFilter(MouseEvent.MOUSE_PRESSED, e -> {
+            if (contextMenu.isShowing()) {
+                e.consume();
+                contextMenu.hide();
+            }
+        });
+    }
+
     private static final String INNER_DIALOG_STYLE_CLASS = "inner-dialog-view";
 
-    public static void initAsInnerDialogView(Pane root, double widthRate, double heightRate) {
+    public static void initAsInnerWindowFixed(Pane root, double width, double height) {
+        // 内部ダイアログのスタイルクラスを追加
+        root.getStyleClass().add(INNER_DIALOG_STYLE_CLASS);
+
+        if (0 <= width) {
+            root.setMaxWidth(width);
+        }
+
+        if (0 <= height) {
+            root.setMaxHeight(height);
+        }
+    }
+
+    public static void initAsInnerWindow(Pane root, double widthRate, double heightRate) {
         if ((widthRate < 0 || 1 < widthRate) && (heightRate < 0 || 1 < heightRate)) {
             throw new IllegalArgumentException();
         }

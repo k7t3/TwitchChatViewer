@@ -15,16 +15,16 @@ import java.util.UUID;
 /**
  * チャンネルグループに関するサービス
  */
-public class ChannelGroupService {
+public class ChannelGroupEntityService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ChannelGroupService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ChannelGroupEntityService.class);
 
     /**
      * チャンネルグループを永続化するDBのコネクタ
      */
     private final DBConnector connector;
 
-    public ChannelGroupService(DBConnector connector) {
+    public ChannelGroupEntityService(DBConnector connector) {
         this.connector = connector;
     }
 

@@ -6,6 +6,7 @@ import javafx.scene.control.SkinBase;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.Region;
 
 public class EditableLabelSkin extends SkinBase<EditableLabel> {
@@ -30,8 +31,10 @@ public class EditableLabelSkin extends SkinBase<EditableLabel> {
         // ラベルは常に最新の値を表示する
         label.textProperty().bind(control.textProperty());
 
-        // ラベルをクリックしたらエディタに切り替える
+        // ラベルをダブルクリックしたらエディタに切り替える
         label.setOnMousePressed(e -> {
+            if (e.getButton() != MouseButton.PRIMARY) return;
+            if (e.getClickCount() != 2) return;
             e.consume();
             startEdit();
         });

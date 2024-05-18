@@ -1,8 +1,9 @@
-package com.github.k7t3.tcv.entity;
+package com.github.k7t3.tcv.entity.service;
 
 import com.github.k7t3.tcv.database.DBConnector;
 import com.github.k7t3.tcv.database.TestDBConnector;
-import com.github.k7t3.tcv.entity.service.ChannelGroupService;
+import com.github.k7t3.tcv.entity.ChannelGroupEntity;
+import com.github.k7t3.tcv.entity.SaveType;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,17 +16,17 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class ChannelGroupServiceTest {
+class ChannelGroupEntityServiceTest {
 
     private DBConnector connector;
 
-    private ChannelGroupService service;
+    private ChannelGroupEntityService service;
 
     @BeforeEach
     void setUp() {
         connector = new TestDBConnector();
         connector.connect();
-        service = new ChannelGroupService(connector);
+        service = new ChannelGroupEntityService(connector);
     }
 
     @AfterEach

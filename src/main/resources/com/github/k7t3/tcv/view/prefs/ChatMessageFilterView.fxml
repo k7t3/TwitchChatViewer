@@ -29,7 +29,6 @@
                </graphic>
             </Button>
             <Pane HBox.hgrow="ALWAYS" />
-            <Label fx:id="guideLabel" text="%prefs.filter.guide" />
          </children>
       </HBox>
       <ListView fx:id="filters" editable="true" prefHeight="200.0" prefWidth="300.0" />

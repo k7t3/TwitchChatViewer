@@ -4,6 +4,8 @@ import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.database.DBConnector;
 import com.github.k7t3.tcv.database.SQLiteDBConnector;
 import com.github.k7t3.tcv.database.TableCreator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,6 +16,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * ユーザーデータを格納するSQLite形式のファイル
  */
 public class UserDataFile {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(UserDataFile.class);
 
     private Path filePath;
 
@@ -52,12 +56,20 @@ public class UserDataFile {
         var moveFrom = this.filePath;
 
         var t = FXTask.task(() -> {
-            if (Files.exists(moveFrom)) {
-                Files.move(moveFrom, moveTo);
+            boolean exists = Files.exists(moveFrom);
+            if (exists) {
+                Files.copy(moveFrom, moveTo);
             }
             var connector = connectorRef.get();
             if (connector != null) {
                 connector.updateFilePath(moveTo);
+            }
+            if (exists) {
+                try {
+                    Files.delete(moveFrom);
+                } catch (Exception e) {
+                    LOGGER.warn("failed to delete an older user data file.");
+                }
             }
             return moveTo;
         });

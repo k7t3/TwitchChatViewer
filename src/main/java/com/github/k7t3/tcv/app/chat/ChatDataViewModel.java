@@ -16,6 +16,9 @@ import javafx.scene.paint.Color;
 import java.util.ArrayList;
 import java.util.Map;
 
+/**
+ * チャットメッセージのViewModel
+ */
 public class ChatDataViewModel implements ViewModel {
 
     private final ReadOnlyObjectWrapper<TwitchChannelViewModel> channel;

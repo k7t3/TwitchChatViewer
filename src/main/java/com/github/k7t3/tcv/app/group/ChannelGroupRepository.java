@@ -3,7 +3,7 @@ package com.github.k7t3.tcv.app.group;
 import com.github.k7t3.tcv.app.channel.ChannelViewModelRepository;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.entity.ChannelGroupEntity;
-import com.github.k7t3.tcv.entity.service.ChannelGroupService;
+import com.github.k7t3.tcv.entity.service.ChannelGroupEntityService;
 import com.github.k7t3.tcv.entity.SaveType;
 import de.saxsys.mvvmfx.ViewModel;
 import javafx.beans.Observable;
@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 
 public class ChannelGroupRepository implements ViewModel {
 
-    private final ChannelGroupService service;
+    private final ChannelGroupEntityService service;
 
     private final ChannelViewModelRepository repository;
 
@@ -26,7 +26,7 @@ public class ChannelGroupRepository implements ViewModel {
             g -> new Observable[] { g.nameProperty(), g.updatedAtProperty() }
     );
 
-    public ChannelGroupRepository(ChannelGroupService service, ChannelViewModelRepository repository) {
+    public ChannelGroupRepository(ChannelGroupEntityService service, ChannelViewModelRepository repository) {
         this.service = service;
         this.repository = repository;
     }

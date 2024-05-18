@@ -13,3 +13,11 @@
     -fx-font-weight: bold;
     -fx-text-fill: -color-danger-fg;
 }
+
+.channel-group-cell .title>.label {
+    -fx-cursor: text;
+}
+
+.channel-group-cell .comment>.label {
+    -fx-cursor: text;
+}

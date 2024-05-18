@@ -148,7 +148,7 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
             var channel = entry.getKey();
             var chatRoom = entry.getValue();
 
-            if (!channels.containsValue(chatRoom)) continue;
+            if (channels.containsValue(chatRoom)) continue;
 
             channel.getChatRoomListeners().remove(mergedChatRoom);
             channel.getChannelListeners().remove(mergedChatRoom);

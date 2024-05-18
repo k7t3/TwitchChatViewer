@@ -4,6 +4,7 @@ import atlantafx.base.controls.ModalPane;
 import com.github.k7t3.tcv.app.prefs.*;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.prefs.AppPreferences;
+import com.github.k7t3.tcv.view.core.JavaFXHelper;
 import com.github.k7t3.tcv.view.core.ThemeManager;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
@@ -66,8 +67,7 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
 
     public void setModalPane(ModalPane modalPane) {
         this.modalPane = modalPane;
-        root.prefWidthProperty().bind(modalPane.widthProperty().multiply(0.5));
-        root.prefHeightProperty().bind(modalPane.heightProperty().multiply(0.5));
+        JavaFXHelper.initAsInnerWindowFixed(root, 640, 480);
     }
 
     private void loadGeneralViewModel() {
@@ -150,7 +150,7 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
 
         cancelButton.setOnAction(e -> {
             ThemeManager.getInstance().setTheme(generalViewModel.getDefaultTheme());
-            modalPane.hide();
+            modalPane.hide(true);
         });
         enterButton.setOnAction(e -> save());
     }
@@ -165,7 +165,7 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         userFilterViewModel.sync();
 
         viewModel.saveAsync();
-        modalPane.hide();
+        modalPane.hide(true);
     }
 
 }

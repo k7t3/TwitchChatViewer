@@ -28,7 +28,7 @@ compileTestJava {
 
 javafx {
     version = '22'
-    modules = [ 'javafx.controls', 'javafx.fxml', 'javafx.web' ]
+    modules = [ 'javafx.controls', 'javafx.fxml', 'javafx.web', 'javafx.swing' ]
 }
 
 application {
@@ -50,6 +50,9 @@ dependencies {
 
     // 永続化
     implementation 'org.xerial:sqlite-jdbc:3.45.3.0'
+
+    // Twitch認証用のQRコード生成
+    implementation 'com.google.zxing:javase:3.5.3'
 
     // AtlantaFXと同じアイコンパックを使用する
     implementation 'io.github.mkpaz:atlantafx-base:2.0.1'

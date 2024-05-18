@@ -1,9 +1,9 @@
 package com.github.k7t3.tcv.view.clip;
 
 import com.github.k7t3.tcv.app.clip.ClipPlayerViewModel;
-import com.github.k7t3.tcv.prefs.AppPreferences;
+import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.Resources;
-import com.github.k7t3.tcv.view.core.StageBoundsListener;
+import com.github.k7t3.tcv.view.core.WindowBoundsListener;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
@@ -40,16 +40,15 @@ class ClipPlayerStage extends Stage {
     }
 
     private void initBounds() {
-        var prefs = AppPreferences.getInstance().getWindowPreferences(WINDOW_NAME);
-        var bounds = prefs.getStageBounds();
-        bounds.apply(this);
+        var service = AppHelper.getInstance().getWindowBoundsService();
+        service.getBoundsAsync(WINDOW_NAME).onDone(bounds -> bounds.apply(this));
 
-        var listener = new StageBoundsListener();
+        var listener = new WindowBoundsListener();
         listener.install(this);
 
         setOnCloseRequest((WindowEvent e) -> {
             // ウインドウをの矩形を記録
-            prefs.setStageBounds(listener.getCurrent());
+            service.saveBoundsAsync(WINDOW_NAME, listener.getCurrent());
             // プレイヤーを破棄
             player.dispose();
         });

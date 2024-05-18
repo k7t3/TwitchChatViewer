@@ -6,10 +6,12 @@ import com.github.k7t3.tcv.app.clip.PostedClipRepository;
 import com.github.k7t3.tcv.app.group.ChannelGroupRepository;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
+import com.github.k7t3.tcv.app.service.WindowBoundsService;
 import com.github.k7t3.tcv.app.user.UserDataFile;
 import com.github.k7t3.tcv.domain.Twitch;
 import com.github.k7t3.tcv.domain.channel.ChannelRepository;
-import com.github.k7t3.tcv.entity.service.ChannelGroupService;
+import com.github.k7t3.tcv.entity.service.ChannelGroupEntityService;
+import com.github.k7t3.tcv.entity.service.WindowBoundsEntityService;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import javafx.beans.property.*;
 import javafx.stage.Stage;
@@ -35,6 +37,8 @@ public class AppHelper implements Closeable {
     private UserDataFile userDataFile;
 
     private ChannelGroupRepository channelGroupRepository;
+
+    private WindowBoundsService windowBoundsService;
 
     private AppHelper() {
         userId.bind(twitch.map(Twitch::getUserId));
@@ -72,12 +76,21 @@ public class AppHelper implements Closeable {
     public ChannelGroupRepository getChannelGroupRepository() {
         if (channelGroupRepository == null) {
             var userDataFile = getUserDataFile();
-            var groupService = new ChannelGroupService(userDataFile.getConnector());
+            var groupService = new ChannelGroupEntityService(userDataFile.getConnector());
             var channelRepository = getChannelRepository();
             channelGroupRepository = new ChannelGroupRepository(groupService, channelRepository);
             channelGroupRepository.loadAll();
         }
         return channelGroupRepository;
+    }
+
+    public WindowBoundsService getWindowBoundsService() {
+        if (windowBoundsService == null) {
+            var userDataFile = getUserDataFile();
+            var entityService = new WindowBoundsEntityService(userDataFile.getConnector());
+            windowBoundsService = new WindowBoundsService(entityService);
+        }
+        return windowBoundsService;
     }
 
     public FXTask<Void> logout() {
