@@ -1,31 +1,41 @@
 package com.github.k7t3.tcv.view.main;
 
 import atlantafx.base.controls.ModalPane;
+import atlantafx.base.controls.Popover;
 import atlantafx.base.theme.Styles;
+import atlantafx.base.theme.Tweaks;
 import atlantafx.base.util.Animations;
 import com.github.k7t3.tcv.app.channel.FollowChannelsViewModel;
 import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.main.MainViewModel;
+import com.github.k7t3.tcv.app.service.LiveStateNotificator;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.prefs.KeyActionRepository;
 import com.github.k7t3.tcv.view.action.*;
 import com.github.k7t3.tcv.view.channel.FollowChannelsView;
 import com.github.k7t3.tcv.view.chat.ChatContainerView;
+import com.github.k7t3.tcv.view.core.ReadOnlyStringConverter;
 import com.github.k7t3.tcv.view.web.BrowserController;
 import com.github.k7t3.tcv.view.web.OpenCommunityGuidelineAction;
 import com.github.k7t3.tcv.view.web.OpenTermsAction;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
+import javafx.beans.binding.Bindings;
+import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.Cursor;
 import javafx.scene.control.*;
+import javafx.scene.control.cell.TextFieldListCell;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 
 import java.net.URL;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ResourceBundle;
 
 public class MainView implements FxmlView<MainViewModel>, Initializable {
@@ -35,6 +45,9 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
     @FXML
     private ModalPane modalPane;
+
+    @FXML
+    private Hyperlink liveStateLink;
 
     @FXML
     private Label userNameLabel;
@@ -121,6 +134,7 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         followersContainer.disableProperty().bind(helper.authorizedProperty().not());
         chatContainer.disableProperty().bind(helper.authorizedProperty().not());
 
+        userNameLabel.getStyleClass().addAll(Styles.TEXT_SMALL);
         userNameLabel.textProperty().bind(viewModel.userNameProperty());
 
         footerLabel.textProperty().bind(viewModel.footerProperty());
@@ -242,6 +256,56 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
         // キーアクションをインストール
         keyActionRepository.install(rootPane.getScene());
+
+        initLiveStateNotificator();
+    }
+
+    private void initLiveStateNotificator() {
+        var helper = AppHelper.getInstance();
+        var repository = helper.getChannelRepository();
+        var notificator = repository.getNotificator();
+
+        var converter = new ReadOnlyStringConverter<LiveStateNotificator.LiveStateRecord>() {
+            private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+            @Override
+            public String toString(LiveStateNotificator.LiveStateRecord record) {
+                var name = record.channelName();
+                var time = record.time().format(formatter);
+                if (record.live()) {
+                    return Resources.getString("main.live.state.online").formatted(name, time);
+                } else {
+                    return Resources.getString("main.live.state.offline").formatted(name, time);
+                }
+            }
+        };
+
+        notificator.getRecords().addListener((ListChangeListener<? super LiveStateNotificator.LiveStateRecord>) c -> {
+            while (c.next() && c.wasAdded()) {
+                for (var record : c.getAddedSubList()) {
+                    liveStateLink.setText(converter.toString(record));
+                }
+                Animations.flash(liveStateLink).playFromStart();
+            }
+        });
+
+        liveStateLink.getStyleClass().addAll(Styles.TEXT_SMALL);
+        liveStateLink.visibleProperty().bind(Bindings.isEmpty(notificator.getRecords()).not());
+
+        var liveStateList = new ListView<>(notificator.getRecords());
+        liveStateList.setCellFactory(TextFieldListCell.forListView(converter));
+        liveStateList.getStyleClass().addAll(Styles.DENSE, Tweaks.EDGE_TO_EDGE);
+        liveStateList.setPrefWidth(340);
+        liveStateList.setPrefHeight(160);
+
+        var popOver = new Popover(liveStateList);
+        popOver.setArrowLocation(Popover.ArrowLocation.TOP_RIGHT);
+        liveStateLink.setOnAction(e -> {
+            if (popOver.isShowing()) {
+                popOver.hide();
+                return;
+            }
+            popOver.show(liveStateLink);
+        });
     }
 
 }

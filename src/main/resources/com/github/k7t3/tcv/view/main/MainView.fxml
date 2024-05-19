@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import atlantafx.base.controls.ModalPane?>
+<?import atlantafx.base.controls.Spacer?>
 <?import java.lang.String?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.Group?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Hyperlink?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.MenuButton?>
 <?import javafx.scene.control.MenuItem?>
@@ -73,7 +75,13 @@
                   </Button>
                   <HBox alignment="CENTER_RIGHT" spacing="10.0" GridPane.columnIndex="2">
                      <children>
-                        <Label fx:id="userNameLabel" text="Label" />
+                        <Hyperlink fx:id="liveStateLink">
+                           <padding>
+                              <Insets left="10.0" />
+                           </padding>
+                        </Hyperlink>
+                        <Spacer />
+                        <Label fx:id="userNameLabel" text="UserName" />
                         <MenuButton fx:id="userMenuButton" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" text="MenuButton">
                           <items>
                               <MenuItem fx:id="prefsMenuItem" mnemonicParsing="false" text="%main.menu.prefs">

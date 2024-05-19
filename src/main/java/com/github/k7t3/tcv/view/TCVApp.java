@@ -81,7 +81,9 @@ public class TCVApp extends Application {
 
         // ウインドウ境界を復元
         var windowBoundsService = helper.getWindowBoundsService();
-        windowBoundsService.getBoundsAsync("main").get().apply(primaryStage);
+        var windowBounds = windowBoundsService.getBoundsAsync("main").get();
+        log.info("fetch window bounds {}", windowBounds);
+        windowBounds.apply(primaryStage);
 
         // ウインドウを閉じるときに境界を記録
         primaryStage.addEventHandler(WindowEvent.WINDOW_HIDING, e -> {

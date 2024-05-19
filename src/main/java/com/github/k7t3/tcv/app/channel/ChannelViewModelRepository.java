@@ -1,6 +1,7 @@
 package com.github.k7t3.tcv.app.channel;
 
 import com.github.k7t3.tcv.app.service.FXTask;
+import com.github.k7t3.tcv.app.service.LiveStateNotificator;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
 import com.github.k7t3.tcv.domain.channel.ChannelRepository;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
@@ -22,8 +23,15 @@ public class ChannelViewModelRepository {
 
     private final ChannelRepository repository;
 
+    private final LiveStateNotificator notificator;
+
     public ChannelViewModelRepository(ChannelRepository repository) {
         this.repository = repository;
+        notificator = new LiveStateNotificator();
+    }
+
+    public LiveStateNotificator getNotificator() {
+        return notificator;
     }
 
     /**
@@ -54,6 +62,7 @@ public class ChannelViewModelRepository {
         // 配信状態を確認するリスナを登録する
         var listener = new TwitchChannelStreamListener(channel);
         channel.getChannel().addListener(listener);
+        channel.getChannel().addListener(notificator);
     }
 
     public List<TwitchChannelViewModel> getFollowingChannels() {
