@@ -18,38 +18,6 @@ public interface ChatRoomListener {
 
     void onUserGiftedSubscribe(ChatRoom chatRoom, String giverName, String userName);
 
-    ChatRoomListener DEFAULT = new ChatRoomListener() {
-        @Override
-        public void onChatDataPosted(ChatRoom chatRoom, ChatData item) {
-        }
-
-        @Override
-        public void onClipPosted(ChatRoom chatRoom, ClipChatMessage clipChatMessage) {
-        }
-
-        @Override
-        public void onChatCleared(ChatRoom chatRoom) {
-        }
-
-        @Override
-        public void onChatMessageDeleted(ChatRoom chatRoom, String messageId) {
-        }
-
-        @Override
-        public void onStateUpdated(ChatRoom chatRoom, ChatRoomState roomState, boolean active) {
-        }
-
-        @Override
-        public void onRaidReceived(ChatRoom chatRoom, String raiderName, int viewerCount) {
-        }
-
-        @Override
-        public void onUserSubscribed(ChatRoom chatRoom, ChatData chatData) {
-        }
-
-        @Override
-        public void onUserGiftedSubscribe(ChatRoom chatRoom, String giverName, String userName) {
-        }
-    };
+    void onCheered(ChatRoom chatRoom, ChatCheer cheer);
 
 }

@@ -55,6 +55,7 @@ public class ChatDataViewModel implements ViewModel {
 
     private boolean system = false;
     private boolean subs = false;
+    private int bits = Integer.MIN_VALUE;
 
     ChatDataViewModel(
             TwitchChannelViewModel channel,
@@ -127,6 +128,22 @@ public class ChatDataViewModel implements ViewModel {
 
     public void setSubs(boolean subs) {
         this.subs = subs;
+    }
+
+    /**
+     * チアーしたビッツ
+     * @param bits ビッツ
+     */
+    public void setBits(int bits) {
+        this.bits = bits;
+    }
+
+    public int getBits() {
+        return bits;
+    }
+
+    public boolean isCheered() {
+        return bits != Integer.MIN_VALUE;
     }
 
     // ********** PROPERTIES **********

@@ -41,7 +41,7 @@ public class LiveStateNotificator implements TwitchChannelListener {
     @Override
     public void onOffline(TwitchChannel channel) {
         Platform.runLater(() -> {
-            var name = channel.getChannelName();
+            var name = channel.getBroadcaster().getUserName();
             var time = LocalTime.now();
             push(new LiveStateRecord(name, time, false));
         });

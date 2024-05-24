@@ -86,6 +86,7 @@ public class ChatRoom {
         subscriptions.add(eventManager.onEvent(RaidEvent.class, this::onRaidEvent));
         subscriptions.add(eventManager.onEvent(SlowModeEvent.class, this::onSlowModeEvent));
         subscriptions.add(eventManager.onEvent(SubscribersOnlyEvent.class, this::onSubscribersOnlyEvent));
+        subscriptions.add(eventManager.onEvent(CheerEvent.class, this::onCheerEvent));
 
         chat.joinChannel(getBroadcaster().getUserLogin());
     }
@@ -243,6 +244,19 @@ public class ChatRoom {
                     listener.onUserSubscribed(this, chatData);
             });
         }
+    }
+
+    private void onCheerEvent(CheerEvent event) {
+        if (notMyEvent(event)) return;
+
+        var chatData = parseMessageEvent(event.getMessageEvent());
+        var bits = event.getBits();
+
+        var cheer = new ChatCheer(chatData, bits);
+        eventExecutor.submit(() -> {
+            for (var listener : listeners)
+                listener.onCheered(this, cheer);
+        });
     }
 
 }

@@ -20,12 +20,14 @@ public class WindowBoundsService {
         return t;
     }
 
+    public WindowBounds getBounds(String identity) {
+        var entity = service.get(identity);
+        return new WindowBounds(entity.x(), entity.y(),
+                entity.width(), entity.height(), entity.maximized());
+    }
+
     public FXTask<WindowBounds> getBoundsAsync(String identity) {
-        var t = FXTask.task(() -> {
-            var entity = service.get(identity);
-            return new WindowBounds(entity.x(), entity.y(),
-                    entity.width(), entity.height(), entity.maximized());
-        });
+        var t = FXTask.task(() -> getBounds(identity));
         t.runAsync();
         return t;
     }

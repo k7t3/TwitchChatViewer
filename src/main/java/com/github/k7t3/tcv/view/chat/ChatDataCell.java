@@ -38,6 +38,7 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
 
     private static final String PSEUDO_SUBSCRIBE = "subscribe";
     private static final String PSEUDO_SYSTEM = "system";
+    private static final String PSEUDO_CHEER = "cheer";
 
     private final boolean mergedChat;
 
@@ -82,6 +83,10 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
             JavaFXHelper.updatePseudoClass(this, PSEUDO_SUBSCRIBE, true);
         }
 
+        if (viewModel.isCheered()) {
+            JavaFXHelper.updatePseudoClass(this, PSEUDO_CHEER, true);
+        }
+
         initialize();
     }
 
@@ -102,6 +107,12 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
             getChildren().add(channelIcon);
         }
 
+        // システムメッセージ
+        if (viewModel.isSystem()) {
+            initForSystemMessage();
+            return;
+        }
+
         // サブスクライブメッセージ
         if (viewModel.isSubs()) {
 
@@ -119,6 +130,28 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
             getChildren().add(subsText);
 
             // サブスクライブメッセージが空のときは終わり
+            if (isEmptyMessage) {
+                return;
+            }
+        }
+
+        // チアーメッセージ
+        if (viewModel.isCheered()) {
+
+            var isEmptyMessage = viewModel.getChatData().message().getPlain().isEmpty();
+
+            var format = Resources.getResourceBundle().getString("chat.cheer.format");
+            var message = format.formatted(viewModel.getDisplayName(), viewModel.getBits());
+            if (!isEmptyMessage) {
+                message += "\n";
+            }
+
+            var subsText = new Text(message);
+            subsText.fontProperty().bind(font.map(ChatFont::getBoldFont));
+            subsText.getStyleClass().add(CHAT_STYLE_SUBS_CLASS);
+            getChildren().add(subsText);
+
+            // メッセージが空のときは終わり
             if (isEmptyMessage) {
                 return;
             }
@@ -149,12 +182,6 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
         }
 
         getChildren().addAll(userNameText, colon);
-
-        // システムメッセージ
-        if (viewModel.isSystem()) {
-            initForSystemMessage();
-            return;
-        }
 
         // 削除済みのメッセージ
         if (deleted.get()) {

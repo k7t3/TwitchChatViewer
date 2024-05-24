@@ -305,6 +305,7 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
                 return;
             }
             popOver.show(liveStateLink);
+            liveStateList.scrollTo(notificator.getRecords().getLast());
         });
     }
 

@@ -214,7 +214,7 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
         // FIXME JavaFXのTaskをマージするには？
         var latch = new CountDownLatch(channels.size());
 
-        channels.keySet().stream().map(TwitchChannelViewModel::leaveChatAsync).forEach(task -> {
+        channels.keySet().parallelStream().map(TwitchChannelViewModel::leaveChatAsync).forEach(task -> {
             try {
                 task.get(30, TimeUnit.SECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException ignored) {

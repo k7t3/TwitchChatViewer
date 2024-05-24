@@ -5,6 +5,7 @@ import com.github.k7t3.tcv.app.chat.filter.ChatMessageFilter;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
 import com.github.k7t3.tcv.domain.channel.TwitchChannelListener;
+import com.github.k7t3.tcv.domain.chat.ChatCheer;
 import com.github.k7t3.tcv.domain.chat.ChatData;
 import com.github.k7t3.tcv.domain.chat.ChatRoom;
 import com.github.k7t3.tcv.domain.chat.ChatRoomListener;
@@ -206,6 +207,17 @@ public abstract class ChatRoomViewModel implements ChatRoomListener, TwitchChann
         var viewModel = createChatDataViewModel(channel, chatData);
         viewModel.fontProperty().bind(font);
         viewModel.setSystem(true);
+
+        addChat(viewModel);
+    }
+
+    @Override
+    public void onCheered(ChatRoom chatRoom, ChatCheer cheer) {
+        var channel = getChannel(chatRoom.getChannel());
+
+        var viewModel = createChatDataViewModel(channel, cheer.chatData());
+        viewModel.fontProperty().bind(font);
+        viewModel.setBits(cheer.bits());
 
         addChat(viewModel);
     }

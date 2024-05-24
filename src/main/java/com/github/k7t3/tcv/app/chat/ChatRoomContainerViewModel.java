@@ -314,7 +314,7 @@ public class ChatRoomContainerViewModel implements ViewModel {
         singles.clear();
         floatings.clear();
 
-        chatRooms.stream().map(ChatRoomViewModel::leaveChatAsync).forEach(task -> {
+        chatRooms.parallelStream().map(ChatRoomViewModel::leaveChatAsync).forEach(task -> {
             try {
                 task.get(10, TimeUnit.SECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException ignored) {

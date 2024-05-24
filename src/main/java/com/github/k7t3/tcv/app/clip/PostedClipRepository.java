@@ -127,4 +127,9 @@ public class PostedClipRepository implements ViewModel, ChatRoomListener {
     public void onUserGiftedSubscribe(ChatRoom chatRoom, String giverName, String userName) {
         // no-op
     }
+
+    @Override
+    public void onCheered(ChatRoom chatRoom, ChatCheer cheer) {
+        // no-op
+    }
 }
