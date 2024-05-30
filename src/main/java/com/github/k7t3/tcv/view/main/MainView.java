@@ -5,16 +5,17 @@ import atlantafx.base.controls.Popover;
 import atlantafx.base.theme.Styles;
 import atlantafx.base.theme.Tweaks;
 import atlantafx.base.util.Animations;
-import com.github.k7t3.tcv.app.channel.FollowChannelsViewModel;
+import com.github.k7t3.tcv.app.channel.TwitchChannelListViewModel;
 import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
+import com.github.k7t3.tcv.app.core.OS;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.main.MainViewModel;
 import com.github.k7t3.tcv.app.service.LiveStateNotificator;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.prefs.KeyActionRepository;
 import com.github.k7t3.tcv.view.action.*;
-import com.github.k7t3.tcv.view.channel.FollowChannelsView;
+import com.github.k7t3.tcv.view.channel.TwitchChannelListView;
 import com.github.k7t3.tcv.view.chat.ChatContainerView;
 import com.github.k7t3.tcv.view.core.ReadOnlyStringConverter;
 import com.github.k7t3.tcv.view.web.BrowserController;
@@ -27,7 +28,6 @@ import javafx.beans.binding.Bindings;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.Cursor;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.TextFieldListCell;
 import javafx.scene.layout.Pane;
@@ -35,10 +35,12 @@ import javafx.scene.layout.StackPane;
 
 import java.net.URL;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 import java.util.ResourceBundle;
 
 public class MainView implements FxmlView<MainViewModel>, Initializable {
+
+    @FXML
+    private MenuBar menuBar;
 
     @FXML
     private Pane rootPane;
@@ -105,7 +107,7 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
     private BrowserController browserController;
 
-    private FollowChannelsViewModel channelsViewModel;
+    private TwitchChannelListViewModel channelsViewModel;
 
     private ChatRoomContainerViewModel chatContainerViewModel;
 
@@ -129,7 +131,7 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
         // フォロワービューは対応するトグルボタンが選択されているときのみ可視化
         followersContainer.visibleProperty().bind(followerToggle.selectedProperty());
-        followersContainer.managedProperty().bind(followerToggle.selectedProperty());
+        followersContainer.managedProperty().bind(followersContainer.visibleProperty());
 
         followersContainer.disableProperty().bind(helper.authorizedProperty().not());
         chatContainer.disableProperty().bind(helper.authorizedProperty().not());
@@ -160,6 +162,19 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
                 animation.play();
             }
         });
+
+        // メニューバーは常に非表示とする。
+        // メニューバーを必要とするのはmacOSのみだけだが、
+        // macOSに関してはシステムメニューバーを使用する。
+        // システムメニューバーを有効化すると本来メニューバーがあった位置に
+        // パディングが残るためvisibleとmanagedを常に無効化することで
+        // 何もなかったかのように見せかける。
+        menuBar.setVisible(false);
+        menuBar.setManaged(false);
+
+        if (OS.isMac()) {
+            menuBar.setUseSystemMenuBar(true);
+        }
 
         initMenuItems();
     }
@@ -205,9 +220,9 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
     private void loadFollowersView() {
         var prefs = AppPreferences.getInstance();
-        channelsViewModel = new FollowChannelsViewModel(prefs.getGeneralPreferences());
+        channelsViewModel = new TwitchChannelListViewModel(prefs.getGeneralPreferences());
 
-        var tuple = FluentViewLoader.fxmlView(FollowChannelsView.class)
+        var tuple = FluentViewLoader.fxmlView(TwitchChannelListView.class)
                 .resourceBundle(Resources.getResourceBundle())
                 .viewModel(channelsViewModel)
                 .load();
@@ -243,8 +258,8 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         var channelLoadTask = channelRepository.loadAllAsync();
         // チャンネルをロードしたときのイベント
         channelLoadTask.setSucceeded(() -> {
-            var followings = channelRepository.getFollowingChannels();
-            channelsViewModel.setFollowChannels(followings);
+            var channels = channelRepository.getChannels();
+            channelsViewModel.bindChannels(channels);
             // グループはチャンネルがロードされたら有効にする
             groupCallerButton.setDisable(false);
             // キーアクション
@@ -284,7 +299,8 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
                 for (var record : c.getAddedSubList()) {
                     liveStateLink.setText(converter.toString(record));
                 }
-                Animations.flash(liveStateLink).playFromStart();
+                Animations.shakeX(liveStateLink).playFromStart();
+                liveStateLink.setVisited(false);
             }
         });
 

@@ -9,10 +9,7 @@ import com.github.k7t3.tcv.domain.channel.TwitchChannel;
 import com.github.k7t3.tcv.domain.channel.TwitchChannelListener;
 import com.github.k7t3.tcv.domain.chat.ChatRoom;
 import com.github.k7t3.tcv.domain.chat.ChatRoomListener;
-import javafx.beans.property.ReadOnlyBooleanProperty;
-import javafx.beans.property.ReadOnlyBooleanWrapper;
-import javafx.beans.property.ReadOnlyObjectProperty;
-import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.property.*;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableSet;
@@ -39,6 +36,10 @@ public class TwitchChannelViewModel {
 
     private ReadOnlyBooleanWrapper chatJoined;
 
+    private final ReadOnlyBooleanWrapper following;
+
+    private final BooleanProperty persistent;
+
     private ObservableSet<TwitchChannelListener> channelListeners;
     private ObservableSet<ChatRoomListener> chatRoomListeners;
 
@@ -55,6 +56,13 @@ public class TwitchChannelViewModel {
         this.repository = repository;
         broadcaster = new ReadOnlyObjectWrapper<>(channel.getBroadcaster());
         chatBadgeStore = new ChannelChatBadgeStore(channel);
+        following = new ReadOnlyBooleanWrapper(channel.isFollowing());
+        persistent = new SimpleBooleanProperty(channel.isPersistent()) {
+            @Override
+            protected void invalidated() {
+                channel.setPersistent(super.get());
+            }
+        };
 
         if (channel.isStreaming()) {
             updateStreamInfo(channel.getStream());
@@ -257,4 +265,10 @@ public class TwitchChannelViewModel {
     public ReadOnlyBooleanProperty chatJoinedProperty() { return chatJoinedWrapper().getReadOnlyProperty(); }
     public boolean isChatJoined() { return chatJoined != null && chatJoined.get(); }
 
+    public ReadOnlyBooleanProperty followingProperty() { return following.getReadOnlyProperty(); }
+    public boolean isFollowing() { return following.get(); }
+
+    public BooleanProperty persistentProperty() { return persistent; }
+    public boolean isPersistent() { return persistent.get(); }
+    public void setPersistent(boolean persistent) { persistentProperty().set(persistent); }
 }

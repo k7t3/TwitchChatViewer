@@ -1,6 +1,7 @@
 package com.github.k7t3.tcv.view.group;
 
 import atlantafx.base.controls.Card;
+import atlantafx.base.controls.Popover;
 import atlantafx.base.controls.Tile;
 import atlantafx.base.theme.Styles;
 import atlantafx.base.theme.Tweaks;
@@ -13,9 +14,9 @@ import com.github.k7t3.tcv.app.event.EventBus;
 import com.github.k7t3.tcv.app.group.ChannelGroup;
 import com.github.k7t3.tcv.app.group.ChannelGroupListViewModel;
 import com.github.k7t3.tcv.prefs.GeneralPreferences;
+import com.github.k7t3.tcv.view.channel.menu.OpenBrowserMenuItem;
 import com.github.k7t3.tcv.view.channel.menu.OpenChatMenuItem;
 import com.github.k7t3.tcv.view.control.EditableLabel;
-import com.github.k7t3.tcv.view.channel.menu.OpenBrowserMenuItem;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -25,12 +26,17 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.TilePane;
+import javafx.scene.layout.VBox;
 import javafx.scene.shape.Rectangle;
+import javafx.stage.WindowEvent;
 import org.fxmisc.flowless.Cell;
 import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeRegular;
+import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 
 public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Region> {
@@ -185,6 +191,10 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
         tile.titleProperty().bind(channel.liveProperty().map(live -> live ? "LIVE" : null));
         tile.descriptionProperty().bind(channel.observableUserName());
 
+        // ツールチップに配信のタイトルを割り当て
+        var tooltip = new Tooltip();
+        tooltip.textProperty().bind(channel.observableStreamTitle());
+
         // チャンネルページをブラウザで開く
         var openPageMenuItem = new OpenBrowserMenuItem(channel);
 
@@ -225,6 +235,7 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
         clip.arcHeightProperty().bind(imageView.fitHeightProperty());
         imageView.setClip(clip);
         tile.setGraphic(imageView);
+        installStreamInfoPopOver(channel, imageView);
 
         // ライブの状態に応じてエフェクトを切り替える
         updateLiveEffect(imageView, channel.isLive());
@@ -239,6 +250,67 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
         } else {
             node.setEffect(new SepiaTone());
         }
+    }
+
+    public static void installStreamInfoPopOver(TwitchChannelViewModel channel, Node node) {
+        var gameNameLabel = new Label();
+        gameNameLabel.setWrapText(true);
+
+        var streamTitleLabel = new Label();
+        streamTitleLabel.setWrapText(true);
+        streamTitleLabel.getStyleClass().addAll(Styles.TEXT_SMALL);
+
+        var viewerCountLabel = new Label();
+        viewerCountLabel.setGraphic(new FontIcon(FontAwesomeSolid.USER));
+        viewerCountLabel.getStyleClass().add(Styles.DANGER);
+
+        // アップタイムはポップアップを表示したときに計算する
+        var uptimeLabel = new Label();
+        uptimeLabel.setGraphic(new FontIcon(FontAwesomeSolid.CLOCK));
+
+        var vbox = new VBox(gameNameLabel, streamTitleLabel, viewerCountLabel, uptimeLabel);
+        vbox.setPrefWidth(300);
+        vbox.setSpacing(4);
+        vbox.setPadding(new Insets(10, 0, 10, 0));
+
+        var pop = new Popover(vbox);
+        pop.titleProperty().bind(channel.observableUserName());
+        pop.setCloseButtonEnabled(false);
+        pop.setHeaderAlwaysVisible(true);
+        pop.setDetachable(false);
+        pop.setArrowLocation(Popover.ArrowLocation.TOP_LEFT);
+
+        pop.addEventHandler(WindowEvent.WINDOW_SHOWING, e -> {
+            gameNameLabel.setText(channel.getStreamInfo().gameName());
+            streamTitleLabel.setText(channel.getStreamInfo().title());
+            viewerCountLabel.setText(Integer.toString(channel.getStreamInfo().viewerCount()));
+
+            var now = LocalDateTime.now();
+            var startedAt = channel.getStreamInfo().startedAt();
+            var between = Duration.between(startedAt, now);
+            var minutes = between.toMinutes();
+
+            if (minutes < 60) {
+                uptimeLabel.setText("%d m".formatted(minutes));
+            } else {
+                var hours = minutes / 60;
+                minutes = minutes - hours * 60;
+                uptimeLabel.setText("%d h %d m".formatted(hours, minutes));
+            }
+        });
+
+        node.setOnMousePressed(e -> {
+            if (channel.isLive() && !pop.isShowing()) {
+                pop.show(node);
+                e.consume();
+            }
+        });
+        node.setOnMouseEntered(e -> {
+            if (channel.isLive()) {
+                pop.show(node);
+            }
+        });
+        node.setOnMouseExited(e -> pop.hide());
     }
 
     @Override

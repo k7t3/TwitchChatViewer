@@ -1,6 +1,7 @@
 package com.github.k7t3.tcv.view.channel;
 
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
+import com.github.k7t3.tcv.view.core.JavaFXHelper;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Insets;
@@ -17,12 +18,12 @@ import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Rectangle;
 
-public class FollowChannelListCell extends ListCell<TwitchChannelViewModel> {
+public class TwitchChannelListCell extends ListCell<TwitchChannelViewModel> {
 
     private static final double PROFILE_IMAGE_WIDTH = 32;
     private static final double PROFILE_IMAGE_HEIGHT = 32;
 
-    private static final String STYLE_CLASS = "follow-channel-view";
+    private static final String STYLE_CLASS = "channel-list-cell";
     private static final String PROFILE_IMAGE_STYLE_CLASS = "profile-image-view";
     private static final String NAMES_CONTAINER_CLASS = "names-container";
     private static final String USER_NAME_STYLE_CLASS = "user-name-label";
@@ -43,12 +44,9 @@ public class FollowChannelListCell extends ListCell<TwitchChannelViewModel> {
 
     private BooleanProperty live;
 
-    private final BooleanProperty visibleFully;
-
     private Tooltip tooltip;
 
-    public FollowChannelListCell(BooleanProperty visibleFullyProperty) {
-        this.visibleFully = visibleFullyProperty;
+    public TwitchChannelListCell() {
         getStyleClass().add(STYLE_CLASS);
         setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
     }
@@ -91,16 +89,12 @@ public class FollowChannelListCell extends ListCell<TwitchChannelViewModel> {
         center.getStyleClass().add(NAMES_CONTAINER_CLASS);
         center.setAlignment(Pos.CENTER_LEFT);
         center.setFillWidth(true);
-        center.visibleProperty().bind(visibleFully);
-        center.managedProperty().bind(visibleFully);
 
         // 視聴者数とオンラインアイコン
         var right = new HBox(viewerCountLabel, onlineMark);
         right.setSpacing(10);
         right.setPadding(new Insets(0, 10, 0, 0));
         right.setAlignment(Pos.CENTER_RIGHT);
-        right.visibleProperty().bind(visibleFully);
-        right.managedProperty().bind(visibleFully);
 
         layout = new BorderPane();
 
@@ -148,6 +142,9 @@ public class FollowChannelListCell extends ListCell<TwitchChannelViewModel> {
         } else {
             setTooltip(null);
         }
+
+        // フォローPseudoクラス
+        JavaFXHelper.updatePseudoClass(this, "unfollow", !viewModel.isFollowing());
     }
 
     @Override
@@ -156,6 +153,7 @@ public class FollowChannelListCell extends ListCell<TwitchChannelViewModel> {
 
         if (item == null || empty) {
             setGraphic(null);
+            setTooltip(null);
             return;
         }
 

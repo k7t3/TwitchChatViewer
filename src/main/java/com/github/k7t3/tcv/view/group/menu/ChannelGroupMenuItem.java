@@ -60,6 +60,7 @@ class ChannelGroupMenuItem extends CheckMenuItem {
             // チャンネル一覧に追加
             for (var channel : this.channels) {
                 if (!channels.contains(channel)) {
+                    channel.setPersistent(true);
                     channels.add(channel);
                 }
             }
@@ -70,7 +71,7 @@ class ChannelGroupMenuItem extends CheckMenuItem {
         } else {
 
             // チャンネルの一覧から除去
-            channels.removeAll(this.channels);
+            this.channels.forEach(channels::remove);
 
             if (channels.isEmpty()) {
                 // 登録されているチャンネルが空になったら削除する

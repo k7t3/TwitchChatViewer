@@ -59,7 +59,8 @@ public class AppHelper implements Closeable {
 
     public ChannelViewModelRepository getChannelRepository() {
         if (channelRepository == null) {
-            channelRepository = new ChannelViewModelRepository(new ChannelRepository(getTwitch()));
+            var groupRepo = getChannelGroupRepository();
+            channelRepository = new ChannelViewModelRepository(new ChannelRepository(getTwitch()), groupRepo);
         }
         return channelRepository;
     }
@@ -77,9 +78,7 @@ public class AppHelper implements Closeable {
         if (channelGroupRepository == null) {
             var userDataFile = getUserDataFile();
             var groupService = new ChannelGroupEntityService(userDataFile.getConnector());
-            var channelRepository = getChannelRepository();
-            channelGroupRepository = new ChannelGroupRepository(groupService, channelRepository);
-            channelGroupRepository.loadAll();
+            channelGroupRepository = new ChannelGroupRepository(groupService);
         }
         return channelGroupRepository;
     }

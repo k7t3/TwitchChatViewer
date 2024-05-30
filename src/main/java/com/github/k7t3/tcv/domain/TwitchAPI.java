@@ -29,7 +29,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -42,27 +41,14 @@ public class TwitchAPI implements Closeable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TwitchAPI.class);
 
-    private static final int INTERRUPT_THRESHOLD = 8;
-
     private final Twitch twitch;
 
     private final Lock lock = new ReentrantLock(true);
 
-    private final AtomicBoolean authorized = new AtomicBoolean(true);
-
     private final ChannelListener channelListener = new ChannelListener();
-
-    private final ExponentialBackoffStrategy retryStrategy = ExponentialBackoffStrategy.builder()
-            .immediateFirst(false)
-            .baseMillis(1000L)
-            .jitter(false)
-            .build();
-
-    private final InterruptionStrategy interruptionStrategy;
 
     public TwitchAPI(Twitch twitch) {
         this.twitch = twitch;
-        interruptionStrategy = new InterruptionStrategy();
     }
 
     public List<Broadcaster> getFollowChannelOwners() {
@@ -142,48 +128,54 @@ public class TwitchAPI implements Closeable {
     }
 
     public List<Broadcaster> getBroadcasters(List<String> userIds) {
-        if (100 < userIds.size()) {
-            throw new IllegalArgumentException("too large userIds");
-        }
         if (userIds.isEmpty()) {
             return List.of();
         }
 
-        var set = hystrixCommandWrapper(helix -> helix.getUsers(
-                twitch.getAccessToken(),
-                userIds,
-                null)
-        );
+        var subList = CollectionUtils.chunked(userIds, 100);
+        var broadcasters = new ArrayList<Broadcaster>();
 
-        var users = set.getUsers();
-        return users.stream().map(user -> new Broadcaster(
-                user.getId(),
-                user.getLogin(),
-                user.getDisplayName(),
-                user.getProfileImageUrl(),
-                user.getOfflineImageUrl())
-        ).toList();
-    }
-
-    private List<Stream> getTwitchStreams(List<String> userIds) {
-        if (100 < userIds.size()) {
-            throw new IllegalArgumentException("too large list");
+        for (var subUserList : subList) {
+            var set = hystrixCommandWrapper(helix -> helix.getUsers(
+                    twitch.getAccessToken(),
+                    subUserList,
+                    null)
+            );
+            var users = set.getUsers();
+            var list = users.stream().map(user -> new Broadcaster(
+                    user.getId(),
+                    user.getLogin(),
+                    user.getDisplayName(),
+                    user.getProfileImageUrl(),
+                    user.getOfflineImageUrl())
+            ).toList();
+            broadcasters.addAll(list);
         }
 
-        var limit = Math.clamp(userIds.size(), 1, 100);
+        return broadcasters;
+    }
 
-        var result = hystrixCommandWrapper(helix -> helix.getStreams(
-                twitch.getAccessToken(),
-                null,
-                null,
-                limit,
-                null,
-                null,
-                userIds,
-                null)
-        );
+    // Twitch4Jの生のStreamを取得する
+    private List<Stream> getTwitchStreams(List<String> userIds) {
+        var subLists = CollectionUtils.chunked(userIds, 100);
+        var streams = new ArrayList<Stream>();
 
-        return result.getStreams();
+        for (var subUserIds : subLists) {
+            var limit = Math.min(userIds.size(), 100);
+            var result = hystrixCommandWrapper(helix -> helix.getStreams(
+                    twitch.getAccessToken(),
+                    null,
+                    null,
+                    limit,
+                    null,
+                    null,
+                    subUserIds,
+                    null)
+            );
+            streams.addAll(result.getStreams());
+        }
+
+        return streams;
     }
 
     public Optional<StreamInfo> getStream(String userId) {
@@ -231,6 +223,10 @@ public class TwitchAPI implements Closeable {
         return channelListener.enableStreamEventListener(broadcaster);
     }
 
+    public void enableStreamEventListeners(Iterable<Broadcaster> broadcasters) {
+        channelListener.enableStreamEventListeners(broadcasters);
+    }
+
     public boolean disableStreamEventListener(Broadcaster broadcaster) {
         return channelListener.disableStreamEventListenerForId(broadcaster);
     }
@@ -240,19 +236,11 @@ public class TwitchAPI implements Closeable {
         lock.lock();
 
         try {
-
             var helix = twitch.getClient().getHelix();
             var command = function.apply(helix);
-            var result = command.execute();
-
-            retryStrategy.reset();
-            interruptionStrategy.reset();
-
-            return result;
+            return command.execute();
 
         } catch (HystrixRuntimeException e) {
-
-            interruptionStrategy.retry();
 
             if (e.getCause() instanceof UnauthorizedException) {
                 // トークンが無効になっていると判断してリフレッシュ
@@ -261,109 +249,62 @@ public class TwitchAPI implements Closeable {
             }
 
             if (e.getCause() instanceof TimeoutException) {
-
                 LOGGER.warn(e.getMessage());
-
-                retryStrategy.sleep();
-
                 return hystrixCommandWrapper(function);
-
             }
 
             if (e.getCause() instanceof FeignException fe) {
-
                 LOGGER.warn(e.getMessage());
 
                 // リトライしてみる
                 if (500 <= fe.status() && fe.status() <= 599) {
-
-                    retryStrategy.sleep();
-
                     return hystrixCommandWrapper(function);
                 }
-
             }
 
             if (e.getCause() instanceof InterruptedException) {
-
                 LOGGER.info("interrupted current command");
-
             } else {
-
                 LOGGER.error("Hystrix Command Wrapper", e);
-
             }
 
             throw new RuntimeException(e);
 
         } catch (Exception e) {
-
             throw new RuntimeException(e);
-
         } finally {
-
             lock.unlock();
-
         }
     }
 
     private void refreshAccessToken() {
-
-        if (!authorized.get()) {
-            return;
-        }
-
         LOGGER.info("start refresh");
-        authorized.set(false);
 
         try {
-
             var controller = new CredentialController(twitch.getCredentialStore());
             var credential = controller.refreshToken();
 
             // 資格情報がnullのときはリフレッシュできない何らかの事情があるためログアウトする
             if (credential == null) {
-
                 twitch.logout();
-
                 // 無効な資格情報をスロー
                 throw new InvalidCredentialException();
             }
 
             twitch.updateCredential(credential);
-            authorized.set(true);
             LOGGER.info("done refresh");
 
         } catch (InvalidCredentialException e) {
-
             throw e;
-
         } catch (Exception e) {
-
             LOGGER.error(e.getMessage(), e);
             throw new RuntimeException(e);
-
         }
     }
 
     @Override
     public void close() throws IOException {
         channelListener.close();
-    }
-
-    private static class InterruptionStrategy {
-        private int counter = 0;
-
-        public void retry() {
-            if (INTERRUPT_THRESHOLD < ++counter) {
-                throw new IllegalStateException();
-            }
-        }
-
-        public void reset() {
-            counter = 0;
-        }
-
     }
 
     // TwitchClientHelperより
@@ -519,6 +460,16 @@ public class TwitchAPI implements Closeable {
         public void close() throws IOException {
             cancel(streamStatusEventFuture);
             executor.close();
+        }
+
+        public void enableStreamEventListeners(Iterable<Broadcaster> broadcasters) {
+            broadcasters.forEach(b -> {
+                if (listenForGoLive.add(b.getUserId())) {
+                    channelInformation.computeIfAbsent(b.getUserId(), c -> new ChannelCache(b.getUserName()));
+                }
+                listenForGoLive.add(b.getUserId());
+            });
+            startOrStopEventGenerationThread();
         }
 
         public boolean enableStreamEventListener(Broadcaster broadcaster) {

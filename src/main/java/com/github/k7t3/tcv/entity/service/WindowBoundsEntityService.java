@@ -80,8 +80,8 @@ public class WindowBoundsEntityService {
                 var height = rs.getDouble("height");
                 var maximized = rs.getBoolean("maximized");
 
-                if (x == NaN) x = Double.NaN;
-                if (y == NaN) y = Double.NaN;
+                if (Double.isNaN(x)) x = Double.NaN;
+                if (Double.isNaN(y)) y = Double.NaN;
                 entities[0] = new WindowBoundsEntity(id, x, y, width, height, maximized);
             }
         });

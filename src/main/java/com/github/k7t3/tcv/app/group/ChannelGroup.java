@@ -7,8 +7,10 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.ObservableSet;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.UUID;
 
 public class ChannelGroup {
@@ -16,7 +18,7 @@ public class ChannelGroup {
     private UUID id;
     private final StringProperty name = new SimpleStringProperty();
     private StringProperty comment;
-    private final ObservableList<TwitchChannelViewModel> channels = FXCollections.observableArrayList();
+    private final ObservableSet<TwitchChannelViewModel> channels = FXCollections.observableSet(new HashSet<>());
     private final ObjectProperty<LocalDateTime> createdAt = new SimpleObjectProperty<>();
     private final ObjectProperty<LocalDateTime> updatedAt = new SimpleObjectProperty<>();
 
@@ -27,7 +29,7 @@ public class ChannelGroup {
         this.id = id;
     }
 
-    public ObservableList<TwitchChannelViewModel> getChannels() {
+    public ObservableSet<TwitchChannelViewModel> getChannels() {
         return channels;
     }
 

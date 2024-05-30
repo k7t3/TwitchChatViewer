@@ -1,6 +1,6 @@
 package com.github.k7t3.tcv.app.main;
 
-import com.github.k7t3.tcv.app.channel.FollowChannelsViewModel;
+import com.github.k7t3.tcv.app.channel.TwitchChannelListViewModel;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import de.saxsys.mvvmfx.ViewModel;
@@ -33,8 +33,8 @@ public class MainViewModel implements ViewModel {
         clipCount.bind(helper.getClipRepository().getCountBinding());
     }
 
-    public void installFollowChannelsViewModel(FollowChannelsViewModel followChannelsViewModel) {
-        followChannelsViewModel.getSelectedChannels().addListener((ListChangeListener<? super TwitchChannelViewModel>) c -> {
+    public void installFollowChannelsViewModel(TwitchChannelListViewModel twitchChannelListViewModel) {
+        twitchChannelListViewModel.getSelectedChannels().addListener((ListChangeListener<? super TwitchChannelViewModel>) c -> {
             var list = c.getList();
             if (list.isEmpty())
                 return;

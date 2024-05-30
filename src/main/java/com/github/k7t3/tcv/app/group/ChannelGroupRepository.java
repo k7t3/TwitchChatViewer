@@ -1,10 +1,10 @@
 package com.github.k7t3.tcv.app.group;
 
-import com.github.k7t3.tcv.app.channel.ChannelViewModelRepository;
+import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.entity.ChannelGroupEntity;
-import com.github.k7t3.tcv.entity.service.ChannelGroupEntityService;
 import com.github.k7t3.tcv.entity.SaveType;
+import com.github.k7t3.tcv.entity.service.ChannelGroupEntityService;
 import de.saxsys.mvvmfx.ViewModel;
 import javafx.beans.Observable;
 import javafx.collections.FXCollections;
@@ -13,6 +13,7 @@ import javafx.collections.ObservableList;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -20,51 +21,44 @@ public class ChannelGroupRepository implements ViewModel {
 
     private final ChannelGroupEntityService service;
 
-    private final ChannelViewModelRepository repository;
-
     private final ObservableList<ChannelGroup> groups = FXCollections.observableArrayList(
             g -> new Observable[] { g.nameProperty(), g.updatedAtProperty() }
     );
 
-    public ChannelGroupRepository(ChannelGroupEntityService service, ChannelViewModelRepository repository) {
+    public ChannelGroupRepository(ChannelGroupEntityService service) {
         this.service = service;
-        this.repository = repository;
+    }
+
+    public List<String> retrieveAllChannelIds() {
+        return service.retrieveAll().stream()
+                .flatMap(entity -> entity.channelIds().stream())
+                .distinct()
+                .toList();
     }
 
     /**
-     * リポジトリに登録されているグループをすべてロードする
+     * チャンネルグループで使用しているチャンネルを与える
+     * <p>
+     *     {@link #retrieveAllChannelIds()}で事前に使用しているチャンネルを取得しておくこと
+     * </p>
      */
-    public FXTask<?> loadAll() {
-        var task = FXTask.task(() -> {
-            // サービスから取得できたすべてのグループ
-            var entities = service.retrieveAll();
+    public void injectChannels(Map<String, TwitchChannelViewModel> channels) {
+        var entities = service.retrieveAll();
 
-            // すべてのグループに関するチャンネルを取得する
-            var channelIds = entities.stream().flatMap(e -> e.channelIds().stream()).distinct().toList();
-            var channels = repository.getChannelsAsync(channelIds)
-                    .get()
-                    .stream()
-                    .peek(c -> c.getChannel().setPersistent(true))
-                    .collect(Collectors.toMap(c -> c.getBroadcaster().getUserId(), c -> c));
+        var groups = new HashSet<ChannelGroup>();
 
-            var groups = new HashSet<ChannelGroup>();
+        for (var entity : entities) {
+            var group = new ChannelGroup(entity.id());
+            group.setName(entity.name());
+            group.setComment(entity.comment());
+            group.setCreatedAt(entity.createdAt());
+            group.setUpdatedAt(entity.updatedAt());
+            var groupChannels = entity.channelIds().stream().map(channels::get).toList();
+            group.getChannels().addAll(groupChannels);
+            groups.add(group);
+        }
 
-            for (var entity : entities) {
-                var group = new ChannelGroup(entity.id());
-                group.setName(entity.name());
-                group.setComment(entity.comment());
-                group.setCreatedAt(entity.createdAt());
-                group.setUpdatedAt(entity.updatedAt());
-                var groupChannels = entity.channelIds().stream().map(channels::get).toList();
-                group.getChannels().setAll(groupChannels);
-                groups.add(group);
-            }
-
-            return groups;
-        });
-        task.setSucceeded(() -> groups.setAll(task.getValue()));
-        task.runAsync();
-        return task;
+        this.groups.addAll(groups);
     }
 
     /**

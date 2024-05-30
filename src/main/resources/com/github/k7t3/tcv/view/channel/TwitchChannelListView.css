@@ -13,3 +13,8 @@
 .online-mark {
   -fx-fill: red;
 }
+
+.channel-list-cell: unfollow {
+  -fx-border-width: 0 0 0 4;
+  -fx-border-color: -color-neutral-muted;
+}

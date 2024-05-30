@@ -16,24 +16,27 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Comparator;
-import java.util.List;
 
-public class FollowChannelsViewModel implements ViewModel {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(FollowChannelsViewModel.class);
+/**
+ * 永続化しているチャンネルのリスト
+ * <p>
+ *     {@link #filterProperty()}
+ * </p>
+ */
+public class TwitchChannelListViewModel implements ViewModel {
 
     /**
-     * フォローしているチャンネルのComparator
+     * チャンネルリストのComparator
      * 視聴者数の降順でログインしている人を優先
      */
     private static final Comparator<TwitchChannelViewModel> DEFAULT_COMPARATOR =
             Comparator.comparing(TwitchChannelViewModel::getViewerCount).reversed()
                     .thenComparing(TwitchChannelViewModel::getUserLogin);
 
-    /** フォローしているすべてのチャンネル*/
-    private final ObservableList<TwitchChannelViewModel> followChannels =
+    /** ロードしているすべてのチャンネル*/
+    private final ObservableList<TwitchChannelViewModel> loadedChannels =
             FXCollections.observableArrayList(vm ->
-                    new Observable[] { vm.liveProperty(), vm.observableViewerCount() }
+                    new Observable[] { vm.liveProperty(), vm.observableViewerCount(), vm.persistentProperty() }
             );
 
     /** 並べ替え、フィルタ*/
@@ -41,6 +44,9 @@ public class FollowChannelsViewModel implements ViewModel {
 
     /** ライブ中のみ*/
     private final BooleanProperty onlyLive = new SimpleBooleanProperty(false);
+
+    /** フォローしているチャンネルのみ*/
+    private final BooleanProperty onlyFollow = new SimpleBooleanProperty(false);
 
     /** キーワードフィルタ*/
     private final StringProperty filter = new SimpleStringProperty();
@@ -53,40 +59,47 @@ public class FollowChannelsViewModel implements ViewModel {
 
     private final GeneralPreferences generalPrefs;
 
-    public FollowChannelsViewModel(GeneralPreferences generalPrefs) {
+    public TwitchChannelListViewModel(GeneralPreferences generalPrefs) {
         this.generalPrefs = generalPrefs;
-        var sorted = new SortedList<>(followChannels);
+        var sorted = new SortedList<>(loadedChannels);
         sorted.setComparator(DEFAULT_COMPARATOR);
 
-        transformedChannels = new FilteredList<>(sorted);
-        transformedChannels.predicateProperty().bind(Bindings.createObjectBinding(() -> this::filter, filter, onlyLive));
+        var persistent = new FilteredList<>(sorted);
+        persistent.setPredicate(TwitchChannelViewModel::isPersistent);
+
+        transformedChannels = new FilteredList<>(persistent);
+        transformedChannels.predicateProperty().bind(Bindings.createObjectBinding(() -> this::filter, filter, onlyLive, onlyFollow));
 
         var eventBus = EventBus.getInstance();
         eventBus.subscribe(LogoutEvent.class, e -> {
             // ログアウトしたときはクリアする
-            followChannels.clear();
+            loadedChannels.clear();
             loaded.set(false);
         });
     }
 
     private boolean filter(TwitchChannelViewModel channel) {
+        var liveState = !isOnlyLive() || channel.isLive();
+        var followingState = !isOnlyFollow() || channel.isFollowing();
+
         var keyword = getFilter() == null ? "" : getFilter().trim().toLowerCase();
-        if (keyword.isEmpty())
-            return !isOnlyLive() || channel.isLive();
+        if (keyword.isEmpty()) {
+            return liveState && followingState;
+        }
 
         var gameTitle = channel.getGameName() == null ? "" : channel.getGameName();
 
-        return (!isOnlyLive() || channel.isLive()) && channel.getUserName().toLowerCase().contains(keyword) ||
-                channel.getUserLogin().toLowerCase().contains(keyword) ||
-                gameTitle.toLowerCase().contains(keyword);
+        return (liveState && followingState) && channel.getUserName().toLowerCase().contains(keyword) ||
+               channel.getUserLogin().toLowerCase().contains(keyword) ||
+               gameTitle.toLowerCase().contains(keyword);
     }
 
-    public void setFollowChannels(List<TwitchChannelViewModel> channels) {
-        this.followChannels.setAll(channels);
+    public void bindChannels(ObservableList<TwitchChannelViewModel> channels) {
+        Bindings.bindContent(loadedChannels, channels);
         loaded.set(true);
     }
 
-    public ObservableList<TwitchChannelViewModel> getFollowChannels() {
+    public ObservableList<TwitchChannelViewModel> getLoadedChannels() {
         return transformedChannels;
     }
 
@@ -127,6 +140,10 @@ public class FollowChannelsViewModel implements ViewModel {
     public BooleanProperty onlyLiveProperty() { return onlyLive; }
     public boolean isOnlyLive() { return onlyLive.get(); }
     public void setOnlyLive(boolean onlyLive) { this.onlyLive.set(onlyLive); }
+
+    public BooleanProperty onlyFollowProperty() { return onlyFollow; }
+    public boolean isOnlyFollow() { return onlyFollow.get(); }
+    public void setOnlyFollow(boolean onlyFollow) { this.onlyFollow.set(onlyFollow); }
 
     public BooleanProperty visibleFullyProperty() { return visibleFully; }
     public boolean isVisibleFully() { return visibleFully.get(); }

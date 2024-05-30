@@ -28,7 +28,9 @@ compileTestJava {
 
 javafx {
     version = '22'
-    modules = [ 'javafx.controls', 'javafx.fxml', 'javafx.web', 'javafx.swing' ]
+    // 非モジュールアプリケーション向けに完全なモジュール定義
+    // https://github.com/openjfx/javafx-gradle-plugin
+    modules = [ 'javafx.base', 'javafx.graphics', 'javafx.controls', 'javafx.fxml', 'javafx.web', 'javafx.swing' ]
 }
 
 application {

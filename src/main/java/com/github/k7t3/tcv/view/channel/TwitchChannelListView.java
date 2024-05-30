@@ -1,7 +1,9 @@
 package com.github.k7t3.tcv.view.channel;
 
 import atlantafx.base.controls.CustomTextField;
-import com.github.k7t3.tcv.app.channel.FollowChannelsViewModel;
+import atlantafx.base.theme.Styles;
+import atlantafx.base.theme.Tweaks;
+import com.github.k7t3.tcv.app.channel.TwitchChannelListViewModel;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.Resources;
@@ -9,7 +11,6 @@ import com.github.k7t3.tcv.view.group.menu.ChannelGroupMenu;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.beans.binding.Bindings;
-import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
@@ -21,7 +22,7 @@ import org.kordamp.ikonli.javafx.FontIcon;
 import java.net.URL;
 import java.util.ResourceBundle;
 
-public class FollowChannelsView implements FxmlView<FollowChannelsViewModel>, Initializable {
+public class TwitchChannelListView implements FxmlView<TwitchChannelListViewModel>, Initializable {
 
     @FXML
     private Pane root;
@@ -32,8 +33,17 @@ public class FollowChannelsView implements FxmlView<FollowChannelsViewModel>, In
     @FXML
     private CustomTextField searchField;
 
+    @FXML
+    private MenuButton optionMenuButton;
+
+    @FXML
+    private CheckMenuItem onlyLiveMenuItem;
+
+    @FXML
+    private CheckMenuItem onlyFollowMenuItem;
+
     @InjectViewModel
-    private FollowChannelsViewModel viewModel;
+    private TwitchChannelListViewModel viewModel;
 
     private ContextMenu contextMenu;
 
@@ -44,9 +54,9 @@ public class FollowChannelsView implements FxmlView<FollowChannelsViewModel>, In
         // 認証されていないときはrootから無効化
         root.disableProperty().bind(helper.authorizedProperty().not());
 
-        channels.setCellFactory(param -> new FollowChannelListCell(viewModel.visibleFullyProperty()));
+        channels.setCellFactory(param -> new TwitchChannelListCell());
         channels.disableProperty().bind(viewModel.loadedProperty().not());
-        channels.setItems(viewModel.getFollowChannels());
+        channels.setItems(viewModel.getLoadedChannels());
 
         // チャンネルは複数選択することが可能
         channels.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
@@ -92,6 +102,15 @@ public class FollowChannelsView implements FxmlView<FollowChannelsViewModel>, In
         searchField.disableProperty().bind(viewModel.loadedProperty().not());
         searchField.setRight(clearIcon);
         searchField.setLeft(new FontIcon(Feather.SEARCH));
+
+        // オプションメニュー
+        optionMenuButton.getStyleClass().addAll(Styles.BUTTON_ICON, Tweaks.NO_ARROW);
+
+        // 配信中のみ
+        onlyLiveMenuItem.selectedProperty().bindBidirectional(viewModel.onlyLiveProperty());
+
+        // フォローのみ
+        onlyFollowMenuItem.selectedProperty().bindBidirectional(viewModel.onlyFollowProperty());
     }
 
     private ChannelGroupMenu groupMenu;

@@ -1,32 +1,41 @@
 package com.github.k7t3.tcv.app.channel;
 
+import com.github.k7t3.tcv.app.group.ChannelGroupRepository;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.LiveStateNotificator;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
 import com.github.k7t3.tcv.domain.channel.ChannelRepository;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
-import javafx.application.Platform;
 import javafx.collections.FXCollections;
-import javafx.collections.ObservableMap;
+import javafx.collections.ObservableList;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CountDownLatch;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public class ChannelViewModelRepository {
 
     /**
      * ユーザーIDとチャンネルのMap
+     * バックグラウンドスレッドで操作されるMapのためConcurrent
      */
-    private final ObservableMap<String, TwitchChannelViewModel> channels = FXCollections.observableHashMap();
+    private final Map<String, TwitchChannelViewModel> channelMap = new ConcurrentHashMap<>();
+
+    /**
+     * ロードされたチャンネルのリスト
+     */
+    private final ObservableList<TwitchChannelViewModel> channels = FXCollections.observableArrayList();
 
     private final ChannelRepository repository;
 
+    private final ChannelGroupRepository groupRepository;
+
     private final LiveStateNotificator notificator;
 
-    public ChannelViewModelRepository(ChannelRepository repository) {
+    public ChannelViewModelRepository(ChannelRepository repository, ChannelGroupRepository groupRepository) {
         this.repository = repository;
+        this.groupRepository = groupRepository;
         notificator = new LiveStateNotificator();
     }
 
@@ -42,18 +51,36 @@ public class ChannelViewModelRepository {
             // すべての登録しているチャンネルをロードする
             repository.loadAllRelatedChannels();
 
-            return repository.getOrLoadChannels()
-                    .stream()
+            // グループに登録しているチャンネルをロード
+            var groupChannelIds = groupRepository.retrieveAllChannelIds();
+            var groupChannels = repository.getOrLoadChannels(groupChannelIds).stream()
                     .collect(Collectors.toMap(
                             c -> c.getBroadcaster().getUserId(),
                             c -> new TwitchChannelViewModel(c, this)
                     ));
+            groupChannels.forEach((id, c) -> c.setPersistent(true));
+            groupRepository.injectChannels(groupChannels);
+
+            // フォローしているチャンネルを含めてロード
+            var valMap = new HashMap<>(groupChannels);
+            repository.getOrLoadChannels().forEach(c -> {
+                var userId = c.getBroadcaster().getUserId();
+                if (!groupChannelIds.contains(userId)) {
+                    var viewModel = new TwitchChannelViewModel(c, this);
+                    valMap.put(userId, viewModel);
+                }
+            });
+            valMap.values().forEach(this::addListener);
+
+            this.channelMap.putAll(valMap);
+
+            return valMap;
         });
-        task.setOnScheduled(e -> channels.clear());
-        FXTask.setOnSucceeded(task, e -> {
-            channels.putAll(task.getValue());
-            channels.values().forEach(this::addListener);
+        task.setOnScheduled(e -> {
+            channelMap.clear();
+            channels.clear();
         });
+        task.onDone(map -> channels.addAll(map.values()));
         task.runAsync();
         return task;
     }
@@ -65,8 +92,8 @@ public class ChannelViewModelRepository {
         channel.getChannel().addListener(notificator);
     }
 
-    public List<TwitchChannelViewModel> getFollowingChannels() {
-        return channels.values().stream().filter(c -> c.getChannel().isFollowing()).toList();
+    public ObservableList<TwitchChannelViewModel> getChannels() {
+        return channels;
     }
 
     /**
@@ -78,7 +105,7 @@ public class ChannelViewModelRepository {
      * @return チャンネル
      */
     public FXTask<TwitchChannelViewModel> getChannelAsync(Broadcaster broadcaster) {
-        var channel = channels.get(broadcaster.getUserId());
+        var channel = channelMap.get(broadcaster.getUserId());
         if (channel != null) return FXTask.of(channel);
 
         var t = FXTask.task(() -> {
@@ -86,62 +113,10 @@ public class ChannelViewModelRepository {
             var c2 = new TwitchChannelViewModel(c, this);
             // チャンネルにリスナを追加
             addListener(c2);
+            channelMap.put(broadcaster.getUserId(), c2);
             return c2;
         });
-        t.setSucceeded(() -> channels.put(broadcaster.getUserId(), t.getValue()));
-        t.runAsync();
-        return t;
-    }
-
-    /**
-     * チャンネルをロードする
-     * <p>
-     *     すでにチャンネルがロードされているときはそれを返す
-     * </p>
-     * @param userIds ユーザーID
-     * @return チャンネル
-     */
-    public FXTask<List<TwitchChannelViewModel>> getChannelsAsync(List<String> userIds) {
-        if (userIds.isEmpty()) {
-            return FXTask.of(List.of());
-        }
-
-        FXTask<List<TwitchChannelViewModel>> t = FXTask.task(() -> {
-            var list = new ArrayList<TwitchChannelViewModel>();
-            var loadIds = new ArrayList<String>();
-
-            // Channels MapはJavaFX Application Threadでの使用を
-            // 想定しているため操作の終了まで待つ必要がある
-            var latch = new CountDownLatch(1);
-            Platform.runLater(() -> {
-                for (var userId : userIds) {
-                    var channel = channels.get(userId);
-                    if (channel == null) {
-                        loadIds.add(userId);
-                    } else {
-                        list.add(channel);
-                    }
-                }
-                latch.countDown();
-            });
-
-            latch.await();
-
-            // すべてのチャンネルがロードされていればそれを返すのみ
-            if (loadIds.isEmpty()) {
-                return list;
-            }
-
-            var channels = repository.getOrLoadChannels(loadIds);
-            for (var c : channels) {
-                var channel = new TwitchChannelViewModel(c, this);
-                // チャンネルにリスナを追加
-                addListener(channel);
-                list.add(channel);
-            }
-
-            return list;
-        });
+        t.onDone(channels::add);
         t.runAsync();
         return t;
     }
@@ -158,14 +133,18 @@ public class ChannelViewModelRepository {
             return;
         }
 
-        var removed = channels.remove(channel.getBroadcaster().getUserId()) != null;
-        if (removed) {
+        var t = FXTask.task(() -> {
             repository.releaseChannel(channel.getChannel());
-        }
+            channelMap.remove(channel.getBroadcaster().getUserId());
+            return channel;
+        });
+        t.onDone(channels::remove);
+        t.runAsync();
     }
 
     public void clear() {
         channels.clear();
+        channelMap.clear();
         repository.clear();
     }
 
