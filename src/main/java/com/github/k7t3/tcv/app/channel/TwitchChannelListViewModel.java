@@ -1,10 +1,9 @@
 package com.github.k7t3.tcv.app.channel;
 
+import com.github.k7t3.tcv.app.core.AbstractViewModel;
 import com.github.k7t3.tcv.app.event.ChatOpeningEvent;
-import com.github.k7t3.tcv.app.event.EventBus;
-import com.github.k7t3.tcv.app.event.LogoutEvent;
+import com.github.k7t3.tcv.domain.event.EventSubscribers;
 import com.github.k7t3.tcv.prefs.GeneralPreferences;
-import de.saxsys.mvvmfx.ViewModel;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.*;
@@ -12,8 +11,6 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Comparator;
 
@@ -23,7 +20,7 @@ import java.util.Comparator;
  *     {@link #filterProperty()}
  * </p>
  */
-public class TwitchChannelListViewModel implements ViewModel {
+public class TwitchChannelListViewModel extends AbstractViewModel {
 
     /**
      * チャンネルリストのComparator
@@ -33,34 +30,24 @@ public class TwitchChannelListViewModel implements ViewModel {
             Comparator.comparing(TwitchChannelViewModel::getViewerCount).reversed()
                     .thenComparing(TwitchChannelViewModel::getUserLogin);
 
+    /** loadedChannelsにバインドするソース*/
+    private ObservableList<TwitchChannelViewModel> lazySource = null;
+
     /** ロードしているすべてのチャンネル*/
     private final ObservableList<TwitchChannelViewModel> loadedChannels =
             FXCollections.observableArrayList(vm ->
                     new Observable[] { vm.liveProperty(), vm.observableViewerCount(), vm.persistentProperty() }
             );
 
-    /** 並べ替え、フィルタ*/
     private final FilteredList<TwitchChannelViewModel> transformedChannels;
-
-    /** ライブ中のみ*/
-    private final BooleanProperty onlyLive = new SimpleBooleanProperty(false);
-
-    /** フォローしているチャンネルのみ*/
-    private final BooleanProperty onlyFollow = new SimpleBooleanProperty(false);
-
-    /** キーワードフィルタ*/
-    private final StringProperty filter = new SimpleStringProperty();
-
-    private final ReadOnlyBooleanWrapper loaded = new ReadOnlyBooleanWrapper(false);
-
     private final ObservableList<TwitchChannelViewModel> selectedChannels = FXCollections.observableArrayList();
 
-    private final BooleanProperty visibleFully = new SimpleBooleanProperty(true);
+    private final BooleanProperty onlyLive = new SimpleBooleanProperty(false);
+    private final BooleanProperty onlyFollow = new SimpleBooleanProperty(false);
+    private final StringProperty filter = new SimpleStringProperty();
+    private final ObjectProperty<MultipleChatOpenType> multipleOpenType = new SimpleObjectProperty<>(MultipleChatOpenType.SEPARATED);
 
-    private final GeneralPreferences generalPrefs;
-
-    public TwitchChannelListViewModel(GeneralPreferences generalPrefs) {
-        this.generalPrefs = generalPrefs;
+    public TwitchChannelListViewModel() {
         var sorted = new SortedList<>(loadedChannels);
         sorted.setComparator(DEFAULT_COMPARATOR);
 
@@ -69,13 +56,10 @@ public class TwitchChannelListViewModel implements ViewModel {
 
         transformedChannels = new FilteredList<>(persistent);
         transformedChannels.predicateProperty().bind(Bindings.createObjectBinding(() -> this::filter, filter, onlyLive, onlyFollow));
+    }
 
-        var eventBus = EventBus.getInstance();
-        eventBus.subscribe(LogoutEvent.class, e -> {
-            // ログアウトしたときはクリアする
-            loadedChannels.clear();
-            loaded.set(false);
-        });
+    public void bindGeneralPreferences(GeneralPreferences preferences) {
+        multipleOpenType.bind(preferences.multipleOpenTypeProperty());
     }
 
     private boolean filter(TwitchChannelViewModel channel) {
@@ -88,15 +72,22 @@ public class TwitchChannelListViewModel implements ViewModel {
         }
 
         var gameTitle = channel.getGameName() == null ? "" : channel.getGameName();
-
         return (liveState && followingState) && channel.getUserName().toLowerCase().contains(keyword) ||
                channel.getUserLogin().toLowerCase().contains(keyword) ||
                gameTitle.toLowerCase().contains(keyword);
     }
 
+    /**
+     * ロード済みのチャンネル一覧としてバインドするソースコレクションを指定する。
+     * <p>
+     *     ソースチャンネルのうち、{@link TwitchChannelViewModel#persistentProperty()}が
+     *     有効なものが{@link #getLoadedChannels()}で取得できるようになる。
+     * </p>
+     * @param channels バインドソース
+     */
     public void bindChannels(ObservableList<TwitchChannelViewModel> channels) {
-        Bindings.bindContent(loadedChannels, channels);
-        loaded.set(true);
+        lazySource = channels;
+        Bindings.bindContent(loadedChannels, lazySource);
     }
 
     public ObservableList<TwitchChannelViewModel> getLoadedChannels() {
@@ -117,21 +108,36 @@ public class TwitchChannelListViewModel implements ViewModel {
             openingEvent = new ChatOpeningEvent(channel);
         } else {
             // 開くときの動作を取得
-            var openType = generalPrefs.getMultipleOpenType();
+            var openType = multipleOpenType.get();
             openingEvent = new ChatOpeningEvent(openType, getSelectedChannels());
         }
 
         // イベントを発行
-        var eventBus = EventBus.getInstance();
-        eventBus.publish(openingEvent);
+        publish(openingEvent);
     }
 
     public ObservableList<TwitchChannelViewModel> getSelectedChannels() {
         return selectedChannels;
     }
 
-    public ReadOnlyBooleanProperty loadedProperty() { return loaded.getReadOnlyProperty(); }
-    public boolean isLoaded() { return loaded.get(); }
+    @Override
+    public void subscribeEvents(EventSubscribers eventSubscribers) {
+        // no-op
+    }
+
+    @Override
+    public void onLogout() {
+        if (lazySource != null) {
+            Bindings.unbindContent(loadedChannels, lazySource);
+            lazySource = null;
+        }
+        loadedChannels.clear();
+    }
+
+    @Override
+    public void close() {
+        // no-op
+    }
 
     public StringProperty filterProperty() { return filter; }
     public String getFilter() { return filter.get(); }
@@ -145,7 +151,4 @@ public class TwitchChannelListViewModel implements ViewModel {
     public boolean isOnlyFollow() { return onlyFollow.get(); }
     public void setOnlyFollow(boolean onlyFollow) { this.onlyFollow.set(onlyFollow); }
 
-    public BooleanProperty visibleFullyProperty() { return visibleFully; }
-    public boolean isVisibleFully() { return visibleFully.get(); }
-    public void setVisibleFully(boolean visibleFully) { this.visibleFully.set(visibleFully); }
 }

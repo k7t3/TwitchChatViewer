@@ -105,16 +105,6 @@
                                        </graphic>
                                     </MenuItem>
                                     <SeparatorMenuItem mnemonicParsing="false" />
-                                    <MenuItem fx:id="loginMenuItem" mnemonicParsing="false" text="%main.menu.login">
-                                       <graphic>
-                                          <FontIcon iconLiteral="fth-log-in" />
-                                       </graphic>
-                                    </MenuItem>
-                                    <MenuItem fx:id="logoutMenuItem" mnemonicParsing="false" text="%main.menu.logout">
-                                       <graphic>
-                                          <FontIcon iconLiteral="fth-log-out" />
-                                       </graphic>
-                                    </MenuItem>
                                 </items>
                                  <graphic>
                                     <FontIcon iconLiteral="fas-user" />

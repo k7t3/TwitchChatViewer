@@ -2,53 +2,32 @@ package com.github.k7t3.tcv.app.channel;
 
 import com.github.k7t3.tcv.app.chat.ChannelChatBadgeStore;
 import com.github.k7t3.tcv.app.service.FXTask;
-import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
 import com.github.k7t3.tcv.domain.channel.StreamInfo;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
-import com.github.k7t3.tcv.domain.channel.TwitchChannelListener;
 import com.github.k7t3.tcv.domain.chat.ChatRoom;
-import com.github.k7t3.tcv.domain.chat.ChatRoomListener;
 import javafx.beans.property.*;
 import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableSet;
-import javafx.collections.SetChangeListener;
 import javafx.scene.image.Image;
 
 import java.awt.*;
 import java.net.URI;
-import java.util.HashSet;
 
 public class TwitchChannelViewModel {
 
     private static final String CHANNEL_URL_FORMAT = "https://www.twitch.tv/%s";
 
     private final ReadOnlyObjectWrapper<Broadcaster> broadcaster;
-
     private ReadOnlyObjectWrapper<Image> profileImage;
-
     private ReadOnlyObjectWrapper<Image> offlineImage;
-
     private ReadOnlyObjectWrapper<StreamInfo> streamInfo;
-
     private ReadOnlyBooleanWrapper live;
-
     private ReadOnlyBooleanWrapper chatJoined;
-
     private final ReadOnlyBooleanWrapper following;
-
     private final BooleanProperty persistent;
 
-    private ObservableSet<TwitchChannelListener> channelListeners;
-    private ObservableSet<ChatRoomListener> chatRoomListeners;
-
     private final ChannelChatBadgeStore chatBadgeStore;
-
     private final TwitchChannel channel;
-
-    private ChatRoom chatRoom;
-
     private final ChannelViewModelRepository repository;
 
     public TwitchChannelViewModel(TwitchChannel channel, ChannelViewModelRepository repository) {
@@ -76,44 +55,6 @@ public class TwitchChannelViewModel {
 
     public TwitchChannel getChannel() {
         return channel;
-    }
-
-    public ObservableSet<TwitchChannelListener> getChannelListeners() {
-        if (channelListeners == null) {
-            channelListeners = FXCollections.observableSet(new HashSet<>());
-            channelListeners.addListener(this::channelListenerChanged);
-        }
-        return channelListeners;
-    }
-
-    private void channelListenerChanged(SetChangeListener.Change<? extends TwitchChannelListener> c) {
-        if (!isChatJoined()) return;
-
-        if (c.wasAdded()) {
-            channel.addListener(c.getElementAdded());
-        }
-        if (c.wasRemoved()) {
-            channel.removeListener(c.getElementRemoved());
-        }
-    }
-
-    public ObservableSet<ChatRoomListener> getChatRoomListeners() {
-        if (chatRoomListeners == null) {
-            chatRoomListeners = FXCollections.observableSet(new HashSet<>());
-            chatRoomListeners.addListener(this::chatRoomListenerChanged);
-        }
-        return chatRoomListeners;
-    }
-
-    private void chatRoomListenerChanged(SetChangeListener.Change<? extends ChatRoomListener> c) {
-        if (!isChatJoined()) return;
-
-        if (c.wasAdded()) {
-            chatRoom.addListener(c.getElementAdded());
-        }
-        if (c.wasRemoved()) {
-            chatRoom.removeListener(c.getElementRemoved());
-        }
     }
 
     /**
@@ -144,20 +85,8 @@ public class TwitchChannelViewModel {
             channel.loadBadgesIfNotLoaded();
             return channel.getOrJoinChatRoom();
         });
-        FXTask.setOnSucceeded(task, e -> {
-            chatRoom = task.getValue();
-
-            if (chatRoomListeners != null) {
-                chatRoomListeners.forEach(chatRoom::addListener);
-            }
-
-            if (channelListeners != null) {
-                channelListeners.forEach(channel::addListener);
-            }
-
-            chatJoinedWrapper().set(true);
-        });
-        TaskWorker.getInstance().submit(task);
+        FXTask.setOnSucceeded(task, e -> chatJoinedWrapper().set(true));
+        task.runAsync();
         return task;
     }
 
@@ -169,20 +98,9 @@ public class TwitchChannelViewModel {
         }
 
         var task = FXTask.task(() -> {
-            // leave
             channel.leaveChat();
-
             repository.releaseChannel(this);
-
-            if (chatRoomListeners != null) {
-                chatRoomListeners.forEach(chatRoom::removeListener);
-            }
-
-            if (channelListeners != null) {
-                channelListeners.forEach(channel::removeListener);
-            }
         });
-        task.setSucceeded(() -> chatRoom = null);
         task.runAsync();
 
         return task;

@@ -2,6 +2,7 @@ package com.github.k7t3.tcv.domain.clip;
 
 import com.github.k7t3.tcv.domain.Twitch;
 import com.github.k7t3.tcv.domain.TwitchLoader;
+import com.github.k7t3.tcv.domain.auth.PreferencesCredentialStorage;
 import com.github.k7t3.tcv.domain.chat.ClipFinder;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,7 +19,7 @@ class ClipFinderTest {
     @BeforeEach
     void setUp() {
         var prefs = AppPreferences.getInstance();
-        var loader = new TwitchLoader(prefs.getPreferences());
+        var loader = new TwitchLoader(new PreferencesCredentialStorage(prefs.getPreferences()));
         var op = loader.load();
 
         twitch = op.orElse(null);

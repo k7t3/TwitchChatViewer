@@ -3,6 +3,8 @@ package com.github.k7t3.tcv.view;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.LoggerInitializer;
 import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.app.main.MainViewModel;
+import com.github.k7t3.tcv.app.user.UserDataFile;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.view.core.JavaFXHelper;
 import com.github.k7t3.tcv.view.core.ThemeManager;
@@ -17,13 +19,13 @@ import javafx.stage.WindowEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.ExecutionException;
-
 public class TCVApp extends Application {
 
     private Logger log;
 
     private AppPreferences preferences;
+
+    private MainViewModel viewModel;
 
     @Override
     public void init() throws Exception {
@@ -43,7 +45,7 @@ public class TCVApp extends Application {
     }
 
     @Override
-    public void start(Stage primaryStage) throws ExecutionException, InterruptedException {
+    public void start(Stage primaryStage) {
 
         log.info("start application");
 
@@ -51,22 +53,38 @@ public class TCVApp extends Application {
         helper.setPrimaryStage(primaryStage);
 
         // ユーザーファイルを接続
-        helper.getUserDataFile().connectDatabaseAsync().get();
+        var generalPrefs = preferences.getGeneralPreferences();
+        var userDataFile = new UserDataFile(generalPrefs.getUserDataFilePath());
+        userDataFile.connectDatabaseAsync().waitForDone();
+        helper.setUserDataFile(userDataFile);
 
+        // ViewModel
+        viewModel = new MainViewModel(helper.getChannelGroupRepository());
+
+        // チャンネルリストに関する設定のバインド
+        var channelList = viewModel.getChannelListViewModel();
+        channelList.bindGeneralPreferences(preferences.getGeneralPreferences());
+
+        // チャットに関する設定のバインド
+        var chatContainer = viewModel.getChatContainer();
+        chatContainer.bindChatPreferences(preferences.getChatPreferences());
+        chatContainer.bindChatMessageFilterPreferences(preferences.getMessageFilterPreferences());
+
+        // Viewのロード
         var tuple = FluentViewLoader.fxmlView(MainView.class)
-                .resourceBundle(Resources.getResourceBundle()).load();
+                .viewModel(viewModel)
+                .resourceBundle(Resources.getResourceBundle())
+                .load();
         var view = tuple.getView();
         var codeBehind = tuple.getCodeBehind();
 
+        // メインシーンの作成
         var scene = new Scene(view);
 
-        // テーマ
+        // テーマを適用
         var tm = ThemeManager.getInstance();
         tm.setScene(scene);
         tm.setTheme(preferences.getGeneralPreferences().getTheme());
-
-        primaryStage.setTitle("Twitch Chat Viewer");
-        primaryStage.getIcons().setAll(Resources.getIcons());
 
         // 画面が表示されたら認証画面を表示する(おそらくModalPaneの仕様的に
         // シーングラフが表示されてからじゃないと動作しないため)
@@ -74,6 +92,10 @@ public class TCVApp extends Application {
 
         // ウインドウを閉じるときのイベント
         primaryStage.setOnHidden(this::onHidden);
+
+        // ウインドウの情報
+        primaryStage.titleProperty().bind(viewModel.titleProperty());
+        primaryStage.getIcons().setAll(Resources.getIcons());
 
         // ウインドウの境界を追跡
         var boundsListener = new WindowBoundsListener();
@@ -102,6 +124,9 @@ public class TCVApp extends Application {
         // 設定のSave
         var prefs = AppPreferences.getInstance();
         prefs.save();
+
+        // ViewModelのクローズ
+        viewModel.close();
 
         // アプリケーションの終了
         var helper = AppHelper.getInstance();

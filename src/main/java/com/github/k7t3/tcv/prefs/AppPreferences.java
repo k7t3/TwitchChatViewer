@@ -1,6 +1,5 @@
 package com.github.k7t3.tcv.prefs;
 
-import javafx.beans.property.BooleanProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,15 +24,13 @@ public class AppPreferences extends PreferencesBase {
 
     private final GeneralPreferences generalPreferences;
 
-    private BooleanProperty experimental;
-
-    private KeyActionPreferences keyActionPreferences;
-
     private PlayerPreferences playerPreferences;
 
     private ChatMessageFilterPreferences messageFilterPreferences;
 
     private ChatPreferences chatPreferences;
+
+    private KeyBindingPreferences keyBindingPreferences;
 
     private AppPreferences() {
         super(Preferences.userNodeForPackage(AppPreferences.class), new HashMap<>());
@@ -55,9 +52,6 @@ public class AppPreferences extends PreferencesBase {
 
     @Override
     protected void readFromPreferences() {
-        if (keyActionPreferences != null)
-            keyActionPreferences.readFromPreferences();
-
         if (playerPreferences != null)
             playerPreferences.readFromPreferences();
 
@@ -94,7 +88,6 @@ public class AppPreferences extends PreferencesBase {
         }
     }
 
-    // FIXME CredentialStorageにどうやって渡すか
     public Preferences getPreferences() {
         return preferences;
     }
@@ -111,13 +104,6 @@ public class AppPreferences extends PreferencesBase {
 
     public GeneralPreferences getGeneralPreferences() {
         return generalPreferences;
-    }
-
-    public KeyActionPreferences getKeyActionPreferences() {
-        if (keyActionPreferences == null) {
-            keyActionPreferences = new KeyActionPreferences(preferences, defaults);
-        }
-        return keyActionPreferences;
     }
 
     public PlayerPreferences getPlayerPreferences() {
@@ -141,14 +127,14 @@ public class AppPreferences extends PreferencesBase {
         return chatPreferences;
     }
 
-    // ******************** PROPERTIES ********************
-
-    public BooleanProperty experimentalProperty() {
-        if (experimental == null) experimental = createBooleanProperty(EXPERIMENTAL);
-        return experimental;
+    public KeyBindingPreferences getKeyBindingPreferences() {
+        if (keyBindingPreferences == null) {
+            keyBindingPreferences = new KeyBindingPreferences(preferences, defaults);
+        }
+        return keyBindingPreferences;
     }
-    public boolean isExperimental() { return experimentalProperty().get(); }
-    public void setExperimental(boolean experimental) { experimentalProperty().set(experimental); }
+
+    // ******************** PROPERTIES ********************
 
     public static AppPreferences getInstance() {
         return Holder.INSTANCE;

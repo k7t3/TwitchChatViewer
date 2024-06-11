@@ -49,9 +49,7 @@ public final class Broadcaster {
         if (this == o) return true;
         if (!(o instanceof Broadcaster that)) return false;
         return Objects.equals(userId, that.userId) &&
-                Objects.equals(userLogin, that.userLogin) &&
-                Objects.equals(userName, that.userName) &&
-                Objects.equals(profileImageUrl, that.profileImageUrl);
+                Objects.equals(userLogin, that.userLogin);
     }
 
     @Override

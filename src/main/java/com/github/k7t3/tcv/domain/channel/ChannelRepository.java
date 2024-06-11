@@ -1,6 +1,8 @@
 package com.github.k7t3.tcv.domain.channel;
 
 import com.github.k7t3.tcv.domain.Twitch;
+import com.github.k7t3.tcv.domain.chat.ChatRoomEventProvider;
+import com.github.k7t3.tcv.domain.event.EventPublishers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,8 +28,13 @@ public class ChannelRepository {
 
     private final Twitch twitch;
 
-    public ChannelRepository(Twitch twitch) {
+    private final TwitchChannelEventProvider channelEventProvider;
+    private final ChatRoomEventProvider chatEventProvider;
+
+    public ChannelRepository(Twitch twitch, EventPublishers publishers) {
         this.twitch = twitch;
+        channelEventProvider = new TwitchChannelEventProvider(twitch, publishers);
+        chatEventProvider = new ChatRoomEventProvider(twitch, publishers);
     }
 
     /**
@@ -54,6 +61,8 @@ public class ChannelRepository {
 
         channelLock.lock();
         try {
+            channelEventProvider.listen();
+            chatEventProvider.listen();
 
             var api = twitch.getTwitchAPI();
 
@@ -68,18 +77,18 @@ public class ChannelRepository {
                         .findFirst()
                         .orElse(null);
 
-                var channel = new TwitchChannel(twitch, broadcaster, stream);
+                var channel = new TwitchChannel(twitch, broadcaster, stream, chatEventProvider, this);
                 channel.setFollowing(true);
                 channel.setPersistent(true);
-                channel.updateEventSubs();
                 channels.put(broadcaster.getUserId(), channel);
+                channelEventProvider.add(channel);
             }
 
             // Stream GoLive/GoOffline/GameChange/TitleChange
             channels.values()
                     .stream()
                     .map(TwitchChannel::getBroadcaster)
-                    .forEach(api::enableStreamEventListener);
+                    .forEach(api::enableStreamEventListener); // TODO 一括
 
         } finally {
             channelLock.unlock();
@@ -119,12 +128,13 @@ public class ChannelRepository {
                         .findFirst()
                         .orElse(null);
 
-                var channel = new TwitchChannel(twitch, broadcaster, stream);
-                channel.updateEventSubs();
+                var channel = new TwitchChannel(twitch, broadcaster, stream, chatEventProvider, this);
                 channels.put(broadcaster.getUserId(), channel);
 
                 // Stream 監視イベントを有効化
                 api.enableStreamEventListener(channel.getBroadcaster());
+
+                channelEventProvider.add(channel);
 
                 list.add(channel);
             }
@@ -159,13 +169,13 @@ public class ChannelRepository {
             var api = twitch.getTwitchAPI();
             var stream = api.getStream(broadcaster.getUserId()).orElse(null);
 
-            channel = new TwitchChannel(twitch, broadcaster, stream);
-            channel.updateEventSubs();
-
+            channel = new TwitchChannel(twitch, broadcaster, stream, chatEventProvider, this);
             channels.put(broadcaster.getUserId(), channel);
 
             // Stream 監視イベントを有効化
             api.enableStreamEventListener(channel.getBroadcaster());
+
+            channelEventProvider.add(channel);
 
             return channel;
 
@@ -191,12 +201,16 @@ public class ChannelRepository {
 
         var api = twitch.getTwitchAPI();
 
-        // Stream 監視イベントを無効化
-        api.disableStreamEventListener(channel.getBroadcaster());
-
         channelLock.lock();
         try {
             channels.remove(channel.getBroadcaster().getUserId());
+
+            // Stream 監視イベントを無効化
+            api.disableStreamEventListener(channel.getBroadcaster());
+
+            // チャンネルに関するイベントの発行を停止
+            channelEventProvider.remove(channel);
+
         } finally {
             channelLock.unlock();
         }
@@ -211,13 +225,16 @@ public class ChannelRepository {
         channelLock.lock();
         try {
             for (var channel : channels.values()) {
-
-                channel.clear();
+                channel.leaveChat();
                 api.disableStreamEventListener(channel.getBroadcaster());
 
+                // チャンネルに関するイベントの発行を停止
+                channelEventProvider.remove(channel);
             }
 
             channels.clear();
+            channelEventProvider.clean();
+            chatEventProvider.clean();
         } finally {
             channelLock.unlock();
         }

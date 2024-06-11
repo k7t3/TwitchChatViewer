@@ -1,20 +1,18 @@
 package com.github.k7t3.tcv.app.channel;
 
-import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
+import com.github.k7t3.tcv.app.core.AbstractViewModel;
 import com.github.k7t3.tcv.app.event.ChatOpeningEvent;
-import com.github.k7t3.tcv.app.event.EventBus;
 import com.github.k7t3.tcv.app.service.FXTask;
-import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
 import com.github.k7t3.tcv.domain.channel.FoundChannel;
-import de.saxsys.mvvmfx.ViewModel;
+import com.github.k7t3.tcv.domain.event.EventSubscribers;
 import javafx.beans.property.*;
 import javafx.scene.image.Image;
 
 import java.awt.*;
 import java.net.URI;
 
-public class FoundChannelViewModel implements ViewModel {
+public class FoundChannelViewModel extends AbstractViewModel {
 
     private static final String CHANNEL_URL_FORMAT = "https://www.twitch.tv/%s";
 
@@ -22,13 +20,9 @@ public class FoundChannelViewModel implements ViewModel {
     private static final double PROFILE_IMAGE_HEIGHT = 32;
 
     private final ReadOnlyObjectWrapper<Broadcaster> broadcaster;
-
     private final ReadOnlyObjectWrapper<Image> profileImage;
-
     private final ReadOnlyBooleanWrapper live;
-
     private final ReadOnlyStringWrapper gameName;
-
     private final ChannelViewModelRepository channelRepository;
 
     public FoundChannelViewModel(
@@ -63,7 +57,7 @@ public class FoundChannelViewModel implements ViewModel {
             return true;
         });
 
-        TaskWorker.getInstance().submit(task);
+        task.runAsync();
 
         return task;
     }
@@ -76,11 +70,25 @@ public class FoundChannelViewModel implements ViewModel {
 
             // チャットを開くイベントを発行
             var opening = new ChatOpeningEvent(channel);
-            var eventBus = EventBus.getInstance();
-            eventBus.publish(opening);
+            publish(opening);
         });
         t.runAsync();
         return t;
+    }
+
+    @Override
+    public void subscribeEvents(EventSubscribers eventSubscribers) {
+        // no-op
+    }
+
+    @Override
+    public void onLogout() {
+        // no-op
+    }
+
+    @Override
+    public void close() {
+        // no-op
     }
 
     // ******************** PROPERTIES ********************

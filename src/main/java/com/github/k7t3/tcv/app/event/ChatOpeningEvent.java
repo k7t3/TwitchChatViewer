@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * チャットを開くイベント
  */
-public class ChatOpeningEvent extends Event {
+public class ChatOpeningEvent implements AppEvent {
 
     private final MultipleChatOpenType chatOpenType;
 

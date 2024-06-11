@@ -1,9 +1,10 @@
 package com.github.k7t3.tcv.app.group;
 
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
+import com.github.k7t3.tcv.app.core.AbstractViewModel;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.service.FXTask;
-import de.saxsys.mvvmfx.ViewModel;
+import com.github.k7t3.tcv.domain.event.EventSubscribers;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -13,14 +14,11 @@ import javafx.collections.transformation.SortedList;
 
 import java.util.Comparator;
 
-public class ChannelGroupListViewModel implements ViewModel {
+public class ChannelGroupListViewModel extends AbstractViewModel {
 
     private final ChannelGroupRepository repository;
-
     private final SortedList<ChannelGroup> sorted;
-
     private final FilteredList<ChannelGroup> filtered;
-
     private final StringProperty filter = new SimpleStringProperty();
 
     public ChannelGroupListViewModel(ChannelGroupRepository repository) {
@@ -83,6 +81,21 @@ public class ChannelGroupListViewModel implements ViewModel {
     public StringProperty filterProperty() { return filter; }
     public String getFilter() { return filter.get(); }
     public void setFilter(String filter) { this.filter.set(filter); }
+
+    @Override
+    public void subscribeEvents(EventSubscribers eventSubscribers) {
+        // no-op
+    }
+
+    @Override
+    public void onLogout() {
+        // no-op
+    }
+
+    @Override
+    public void close() {
+        // no-op
+    }
 
     public enum Comparators implements Comparator<ChannelGroup> {
 

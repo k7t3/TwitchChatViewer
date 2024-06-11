@@ -1,19 +1,22 @@
 package com.github.k7t3.tcv.app.clip;
 
+import com.github.k7t3.tcv.app.core.AbstractViewModel;
+import com.github.k7t3.tcv.app.event.ClipPostedAppEvent;
+import com.github.k7t3.tcv.app.reactive.DownCastFXSubscriber;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
-import com.github.k7t3.tcv.domain.chat.*;
-import de.saxsys.mvvmfx.ViewModel;
+import com.github.k7t3.tcv.domain.event.EventSubscribers;
+import com.github.k7t3.tcv.domain.event.chat.ChatRoomEvent;
+import com.github.k7t3.tcv.domain.event.chat.ClipPostedEvent;
+import com.github.k7t3.tcv.reactive.FlowableSubscriber;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.NumberBinding;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableMap;
-import javafx.collections.ObservableSet;
 
-import java.util.HashSet;
 import java.util.List;
 
-public class PostedClipRepository implements ViewModel, ChatRoomListener {
+public class PostedClipRepository extends AbstractViewModel {
 
     /**
      * クリップのIDをキーとするクリップのMap
@@ -27,7 +30,51 @@ public class PostedClipRepository implements ViewModel, ChatRoomListener {
 
     private ClipThumbnailStore thumbnailStore;
 
+    private FlowableSubscriber<ChatRoomEvent> subscriber;
+
     public PostedClipRepository() {
+    }
+
+    @Override
+    public void subscribeEvents(EventSubscribers eventSubscribers) {
+        subscriber = new DownCastFXSubscriber<>(ClipPostedEvent.class, this::onClipPostedEvent);
+        eventSubscribers.subscribeChatEvent(subscriber);
+    }
+
+    private void onClipPostedEvent(ClipPostedEvent e) {
+        var chatRoom = e.getChatRoom();
+        var broadcaster = chatRoom.getBroadcaster();
+        var clipChatMessage = e.getClipChatMessage();
+        var c = clipChatMessage.getClip();
+
+        if (c.isPresent()) {
+            var clip = c.get();
+            Platform.runLater(() -> {
+                var posted = postedClips.get(clip.id());
+                if (posted == null) {
+                    posted = new PostedClipViewModel(clip, broadcaster, this);
+                    postedClips.put(clip.id(), posted);
+                } else {
+                    posted.onPosted(broadcaster);
+                }
+                publishEvent();
+            });
+        } else {
+            Platform.runLater(() -> {
+                var url = estimatedClipURLs.get(clipChatMessage.getEstimatedURL());
+                if (url == null) {
+                    url = new EstimatedClipViewModel(this, clipChatMessage);
+                    estimatedClipURLs.put(clipChatMessage.getEstimatedURL(), url);
+                } else {
+                    url.onPosted(broadcaster);
+                }
+                publishEvent();
+            });
+        }
+    }
+
+    private void publishEvent() {
+        publish(new ClipPostedAppEvent());
     }
 
     public NumberBinding getCountBinding() {
@@ -57,79 +104,17 @@ public class PostedClipRepository implements ViewModel, ChatRoomListener {
         return thumbnailStore;
     }
 
-    public void clear() {
+    @Override
+    public void onLogout() {
+        if (subscriber != null) {
+            subscriber.cancel();
+        }
         postedClips.clear();
         estimatedClipURLs.clear();
     }
 
     @Override
-    public void onClipPosted(ChatRoom chatRoom, ClipChatMessage clipChatMessage) {
-
-        var broadcaster = chatRoom.getBroadcaster();
-
-        if (clipChatMessage.getClip().isPresent()) {
-
-            var clip = clipChatMessage.getClip().get();
-            Platform.runLater(() -> {
-                var posted = postedClips.get(clip.id());
-                if (posted == null) {
-                    posted = new PostedClipViewModel(clip, broadcaster, this);
-                    postedClips.put(clip.id(), posted);
-                } else {
-                    posted.onPosted(broadcaster);
-                }
-            });
-
-        } else {
-            Platform.runLater(() -> {
-                var url = estimatedClipURLs.get(clipChatMessage.getEstimatedURL());
-                if (url == null) {
-                    url = new EstimatedClipViewModel(this, clipChatMessage);
-                    estimatedClipURLs.put(clipChatMessage.getEstimatedURL(), url);
-                } else {
-                    url.onPosted(broadcaster);
-                }
-            });
-        }
-    }
-
-    @Override
-    public void onChatDataPosted(ChatRoom chatRoom, ChatData item) {
-        // no-op
-    }
-
-    @Override
-    public void onChatCleared(ChatRoom chatRoom) {
-        // no-op
-    }
-
-    @Override
-    public void onChatMessageDeleted(ChatRoom chatRoom, String messageId) {
-        // no-op
-    }
-
-    @Override
-    public void onStateUpdated(ChatRoom chatRoom, ChatRoomState roomState, boolean active) {
-        // no-op
-    }
-
-    @Override
-    public void onRaidReceived(ChatRoom chatRoom, String raiderName, int viewerCount) {
-        // no-op
-    }
-
-    @Override
-    public void onUserSubscribed(ChatRoom chatRoom, ChatData chatData) {
-        // no-op
-    }
-
-    @Override
-    public void onUserGiftedSubscribe(ChatRoom chatRoom, String giverName, String userName) {
-        // no-op
-    }
-
-    @Override
-    public void onCheered(ChatRoom chatRoom, ChatCheer cheer) {
+    public void close() {
         // no-op
     }
 }

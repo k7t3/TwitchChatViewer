@@ -1,11 +1,12 @@
 package com.github.k7t3.tcv.app.group;
 
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
+import com.github.k7t3.tcv.app.core.AbstractViewModel;
 import com.github.k7t3.tcv.app.service.FXTask;
+import com.github.k7t3.tcv.domain.event.EventSubscribers;
 import com.github.k7t3.tcv.entity.ChannelGroupEntity;
 import com.github.k7t3.tcv.entity.SaveType;
 import com.github.k7t3.tcv.entity.service.ChannelGroupEntityService;
-import de.saxsys.mvvmfx.ViewModel;
 import javafx.beans.Observable;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -17,7 +18,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class ChannelGroupRepository implements ViewModel {
+public class ChannelGroupRepository extends AbstractViewModel {
 
     private final ChannelGroupEntityService service;
 
@@ -130,6 +131,21 @@ public class ChannelGroupRepository implements ViewModel {
         });
         t.runAsync();
         return t;
+    }
+
+    @Override
+    public void subscribeEvents(EventSubscribers eventSubscribers) {
+        // no-op
+    }
+
+    @Override
+    public void onLogout() {
+        groups.clear();
+    }
+
+    @Override
+    public void close() {
+        groups.clear();
     }
 
 }

@@ -32,8 +32,9 @@ public abstract class FXTask<T> extends Task<T> {
         if (state() != Future.State.RUNNING)
             return;
         try {
-            get(1, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException ignored) {
+            get(20, TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            LOGGER.warn("failed to await for done", e);
         }
     }
 

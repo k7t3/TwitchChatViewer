@@ -10,7 +10,6 @@ import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.event.ChatOpeningEvent;
-import com.github.k7t3.tcv.app.event.EventBus;
 import com.github.k7t3.tcv.app.group.ChannelGroup;
 import com.github.k7t3.tcv.app.group.ChannelGroupListViewModel;
 import com.github.k7t3.tcv.prefs.GeneralPreferences;
@@ -48,15 +47,11 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
     private static final double PROFILE_IMAGE_HEIGHT = 48;
 
     private final EditableLabel header = new EditableLabel();
-
     private final EditableLabel subHeader = new EditableLabel();
-
     private final TilePane tilePane = new TilePane();
 
     private final GeneralPreferences generalPrefs;
-
     private final ChannelGroup group;
-
     private final ChannelGroupListViewModel viewModel;
 
     public ChannelGroupListCell(
@@ -92,8 +87,7 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
 
             var openType = MultipleChatOpenType.SEPARATED;
             var opening = new ChatOpeningEvent(openType, group.getChannels().stream().filter(TwitchChannelViewModel::isLive).toList());
-            var eventBus = EventBus.getInstance();
-            eventBus.publish(opening);
+            viewModel.publish(opening);
         });
         var openMergedItem = new MenuItem(Resources.getString("group.button.open.merged.chat"));
         openMergedItem.setOnAction(e -> {
@@ -101,8 +95,7 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
 
             var openType = MultipleChatOpenType.MERGED;
             var opening = new ChatOpeningEvent(openType, group.getChannels().stream().filter(TwitchChannelViewModel::isLive).toList());
-            var eventBus = EventBus.getInstance();
-            eventBus.publish(opening);
+            viewModel.publish(opening);
         });
         var openChatButton = new SplitMenuButton(openSeparatedItem, openMergedItem);
         openChatButton.setText(Resources.getString("group.button.open.chat"));
@@ -113,8 +106,7 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
 
             var openType = generalPrefs.getMultipleOpenType();
             var opening = new ChatOpeningEvent(openType, group.getChannels().stream().filter(TwitchChannelViewModel::isLive).toList());
-            var eventBus = EventBus.getInstance();
-            eventBus.publish(opening);
+            viewModel.publish(opening);
         });
 
         // ****************************************

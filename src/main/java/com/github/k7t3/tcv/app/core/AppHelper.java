@@ -1,44 +1,38 @@
 package com.github.k7t3.tcv.app.core;
 
-import com.github.k7t3.tcv.app.channel.ChannelViewModelRepository;
-import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
-import com.github.k7t3.tcv.app.clip.PostedClipRepository;
 import com.github.k7t3.tcv.app.group.ChannelGroupRepository;
+import com.github.k7t3.tcv.app.key.KeyBindingCombinations;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.app.service.WindowBoundsService;
 import com.github.k7t3.tcv.app.user.UserDataFile;
 import com.github.k7t3.tcv.domain.Twitch;
-import com.github.k7t3.tcv.domain.channel.ChannelRepository;
+import com.github.k7t3.tcv.domain.event.EventPublishers;
+import com.github.k7t3.tcv.domain.event.EventSubscribers;
 import com.github.k7t3.tcv.entity.service.ChannelGroupEntityService;
 import com.github.k7t3.tcv.entity.service.WindowBoundsEntityService;
-import com.github.k7t3.tcv.prefs.AppPreferences;
 import javafx.beans.property.*;
 import javafx.stage.Stage;
 
 import java.io.Closeable;
+import java.util.Objects;
 
 public class AppHelper implements Closeable {
 
     private final ReadOnlyStringWrapper userId = new ReadOnlyStringWrapper();
     private final ReadOnlyStringWrapper userName = new ReadOnlyStringWrapper();
     private final ReadOnlyBooleanWrapper authorized = new ReadOnlyBooleanWrapper();
-
     private final ObjectProperty<Twitch> twitch = new SimpleObjectProperty<>();
 
     private ObjectProperty<Stage> primaryStage;
 
-    private PostedClipRepository clipRepository;
-
-    private ChatRoomContainerViewModel containerViewModel;
-
-    private ChannelViewModelRepository channelRepository;
+    private final EventPublishers publishers = new EventPublishers();
+    private final EventSubscribers subscribers = new EventSubscribers(publishers);
 
     private UserDataFile userDataFile;
-
     private ChannelGroupRepository channelGroupRepository;
-
     private WindowBoundsService windowBoundsService;
+    private KeyBindingCombinations keyBindingCombinations;
 
     private AppHelper() {
         userId.bind(twitch.map(Twitch::getUserId));
@@ -46,31 +40,11 @@ public class AppHelper implements Closeable {
         authorized.bind(twitch.isNotNull());
     }
 
-    public void setContainerViewModel(ChatRoomContainerViewModel containerViewModel) {
-        this.containerViewModel = containerViewModel;
-    }
-
-    public PostedClipRepository getClipRepository() {
-        if (clipRepository == null) {
-            clipRepository = new PostedClipRepository();
-        }
-        return clipRepository;
-    }
-
-    public ChannelViewModelRepository getChannelRepository() {
-        if (channelRepository == null) {
-            var groupRepo = getChannelGroupRepository();
-            channelRepository = new ChannelViewModelRepository(new ChannelRepository(getTwitch()), groupRepo);
-        }
-        return channelRepository;
+    public void setUserDataFile(UserDataFile userDataFile) {
+        this.userDataFile = userDataFile;
     }
 
     public UserDataFile getUserDataFile() {
-        if (userDataFile == null) {
-            var prefs = AppPreferences.getInstance();
-            var generalPrefs = prefs.getGeneralPreferences();
-            userDataFile = new UserDataFile(generalPrefs.getUserDataFilePath());
-        }
         return userDataFile;
     }
 
@@ -85,36 +59,41 @@ public class AppHelper implements Closeable {
 
     public WindowBoundsService getWindowBoundsService() {
         if (windowBoundsService == null) {
-            var userDataFile = getUserDataFile();
+            var userDataFile = Objects.requireNonNull(getUserDataFile());
             var entityService = new WindowBoundsEntityService(userDataFile.getConnector());
             windowBoundsService = new WindowBoundsService(entityService);
         }
         return windowBoundsService;
     }
 
-    public FXTask<Void> logout() {
-        if (!isAuthorized()) return FXTask.empty();
-
-        var task = FXTask.task(() -> getTwitch().logout());
-        FXTask.setOnSucceeded(task, e -> onLogout());
-        TaskWorker.getInstance().submit(task);
-        return task;
+    public KeyBindingCombinations getKeyBindingCombinations() {
+        if (keyBindingCombinations == null) {
+            keyBindingCombinations = new KeyBindingCombinations();
+        }
+        return keyBindingCombinations;
     }
 
-    private void onLogout() {
-        if (channelRepository != null) {
-            channelRepository.clear();
-        }
+    public EventPublishers getPublishers() {
+        return publishers;
+    }
+
+    public EventSubscribers getSubscribers() {
+        return subscribers;
+    }
+
+    public FXTask<Void> logoutAsync() {
+        if (!isAuthorized()) return FXTask.empty();
+
+        final var twitch = getTwitch();
         setTwitch(null);
+
+        var task = FXTask.task(twitch::logout);
+        task.runAsync();
+        return task;
     }
 
     @Override
     public void close() {
-        var container = containerViewModel;
-        if (container != null) {
-            container.clearAll();
-        }
-
         if (userDataFile != null) {
             userDataFile.closeDatabase();
         }
@@ -123,6 +102,9 @@ public class AppHelper implements Closeable {
         if (twitch != null) {
             twitch.close();
         }
+
+        var publishers = getPublishers();
+        publishers.close();
 
         var worker = TaskWorker.getInstance();
         worker.close();

@@ -2,7 +2,6 @@ package com.github.k7t3.tcv.domain;
 
 import com.github.k7t3.tcv.domain.auth.CredentialController;
 import com.github.k7t3.tcv.domain.auth.CredentialStore;
-import com.github.k7t3.tcv.domain.auth.PreferencesCredentialStorage;
 import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
 import com.github.twitch4j.TwitchClientBuilder;
 import org.slf4j.Logger;
@@ -10,20 +9,17 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 import java.util.function.Consumer;
-import java.util.prefs.Preferences;
 
 public class TwitchLoader {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TwitchLoader.class);
 
     public record DeviceFlow(String userCode, String verificationURL) {}
-
     private final CredentialStore credentialStore;
-
     private final CredentialController controller;
 
-    public TwitchLoader(Preferences preferences) {
-        credentialStore = new PreferencesCredentialStorage(preferences);
+    public TwitchLoader(CredentialStore credentialStore) {
+        this.credentialStore = credentialStore;
         controller = new CredentialController(credentialStore);
     }
 

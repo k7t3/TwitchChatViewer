@@ -1,6 +1,7 @@
 package com.github.k7t3.tcv.view.core;
 
 import atlantafx.base.theme.*;
+import com.github.k7t3.tcv.app.core.OS;
 import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
@@ -24,7 +25,15 @@ public class ThemeManager {
 
     private static final PseudoClass DARK = PseudoClass.getPseudoClass("dark");
 
-    public static final Theme DEFAULT_THEME = new NordLight();
+    public static final Theme DEFAULT_THEME;
+
+    static {
+        if (OS.isMac()) {
+            DEFAULT_THEME = new CupertinoLight();
+        } else {
+            DEFAULT_THEME = new PrimerLight();
+        }
+    }
 
     private Scene scene;
 

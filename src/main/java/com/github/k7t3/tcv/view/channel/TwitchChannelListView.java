@@ -13,8 +13,12 @@ import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.beans.binding.Bindings;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.Cursor;
 import javafx.scene.control.*;
-import javafx.scene.input.*;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.javafx.FontIcon;
@@ -46,17 +50,13 @@ public class TwitchChannelListView implements FxmlView<TwitchChannelListViewMode
     private TwitchChannelListViewModel viewModel;
 
     private ContextMenu contextMenu;
+    private ChannelGroupMenu groupMenu;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        var helper = AppHelper.getInstance();
-
-        // 認証されていないときはrootから無効化
-        root.disableProperty().bind(helper.authorizedProperty().not());
-
         channels.setCellFactory(param -> new TwitchChannelListCell());
-        channels.disableProperty().bind(viewModel.loadedProperty().not());
         channels.setItems(viewModel.getLoadedChannels());
+        Bindings.size(channels.getItems()).addListener((ob, o, n) -> System.out.println("要素数: " + n));
 
         // チャンネルは複数選択することが可能
         channels.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
@@ -80,10 +80,12 @@ public class TwitchChannelListView implements FxmlView<TwitchChannelListViewMode
         // コンテキストメニュー
         initContextMenu();
 
+        var helper = AppHelper.getInstance();
+        var channelGroupRepository = helper.getChannelGroupRepository();
+
         // チャンネルグループに関するメニューは遅延初期化
         channels.setOnContextMenuRequested(e -> {
-            var repository = AppHelper.getInstance().getChannelGroupRepository();
-            groupMenu = new ChannelGroupMenu(repository, viewModel.getSelectedChannels());
+            groupMenu = new ChannelGroupMenu(channelGroupRepository, viewModel.getSelectedChannels());
             groupMenu.disableProperty().bind(Bindings.isEmpty(viewModel.getSelectedChannels()));
             groupMenu.refreshItems();
             contextMenu.getItems().add(groupMenu);
@@ -97,9 +99,9 @@ public class TwitchChannelListView implements FxmlView<TwitchChannelListViewMode
 
         var clearIcon = new FontIcon(Feather.X);
         clearIcon.setOnMouseClicked(e -> viewModel.setFilter(null));
+        clearIcon.setCursor(Cursor.HAND);
 
         searchField.textProperty().bindBidirectional(viewModel.filterProperty());
-        searchField.disableProperty().bind(viewModel.loadedProperty().not());
         searchField.setRight(clearIcon);
         searchField.setLeft(new FontIcon(Feather.SEARCH));
 
@@ -112,8 +114,6 @@ public class TwitchChannelListView implements FxmlView<TwitchChannelListViewMode
         // フォローのみ
         onlyFollowMenuItem.selectedProperty().bindBidirectional(viewModel.onlyFollowProperty());
     }
-
-    private ChannelGroupMenu groupMenu;
 
     private void initContextMenu() {
         var open = new MenuItem(Resources.getString("channel.list.open"));

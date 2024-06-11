@@ -3,38 +3,37 @@ package com.github.k7t3.tcv.view.main;
 import atlantafx.base.controls.ModalPane;
 import atlantafx.base.controls.Popover;
 import atlantafx.base.theme.Styles;
-import atlantafx.base.theme.Tweaks;
 import atlantafx.base.util.Animations;
-import com.github.k7t3.tcv.app.channel.TwitchChannelListViewModel;
 import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.OS;
 import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.app.event.ClipPostedAppEvent;
+import com.github.k7t3.tcv.app.event.LiveNotificationEvent;
+import com.github.k7t3.tcv.app.event.LoginEvent;
+import com.github.k7t3.tcv.app.key.KeyBinding;
+import com.github.k7t3.tcv.app.key.KeyBindingCommands;
 import com.github.k7t3.tcv.app.main.MainViewModel;
 import com.github.k7t3.tcv.app.service.LiveStateNotificator;
+import com.github.k7t3.tcv.domain.auth.PreferencesCredentialStorage;
 import com.github.k7t3.tcv.prefs.AppPreferences;
-import com.github.k7t3.tcv.prefs.KeyActionRepository;
-import com.github.k7t3.tcv.view.action.*;
+import com.github.k7t3.tcv.view.channel.LiveStateNotificatorView;
 import com.github.k7t3.tcv.view.channel.TwitchChannelListView;
 import com.github.k7t3.tcv.view.chat.ChatContainerView;
-import com.github.k7t3.tcv.view.core.ReadOnlyStringConverter;
+import com.github.k7t3.tcv.view.command.*;
+import com.github.k7t3.tcv.view.key.KeyBindingAccelerator;
 import com.github.k7t3.tcv.view.web.BrowserController;
-import com.github.k7t3.tcv.view.web.OpenCommunityGuidelineAction;
-import com.github.k7t3.tcv.view.web.OpenTermsAction;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
-import javafx.beans.binding.Bindings;
-import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.TextFieldListCell;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 
 import java.net.URL;
-import java.time.format.DateTimeFormatter;
 import java.util.ResourceBundle;
 
 public class MainView implements FxmlView<MainViewModel>, Initializable {
@@ -70,12 +69,6 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
     private MenuItem prefsMenuItem;
 
     @FXML
-    private MenuItem loginMenuItem;
-
-    @FXML
-    private MenuItem logoutMenuItem;
-
-    @FXML
     private MenuItem termsMenuItem;
 
     @FXML
@@ -105,69 +98,62 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
     @InjectViewModel
     private MainViewModel viewModel;
 
-    private BrowserController browserController;
-
-    private TwitchChannelListViewModel channelsViewModel;
-
-    private ChatRoomContainerViewModel chatContainerViewModel;
-
-    private KeyActionRepository keyActionRepository;
-
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         var helper = AppHelper.getInstance();
-        var prefs = AppPreferences.getInstance();
 
-        chatContainerViewModel = new ChatRoomContainerViewModel(
-                helper.getClipRepository(),
-                prefs.getChatPreferences(),
-                prefs.getMessageFilterPreferences()
-        );
-        helper.setContainerViewModel(chatContainerViewModel);
-
-        keyActionRepository = new KeyActionRepository();
         loadChatContainerView();
         loadFollowersView();
+
+        // 認証されていないコンディション
+        var notAuthorizedCondition = viewModel.authorizedProperty().not();
 
         // フォロワービューは対応するトグルボタンが選択されているときのみ可視化
         followersContainer.visibleProperty().bind(followerToggle.selectedProperty());
         followersContainer.managedProperty().bind(followersContainer.visibleProperty());
+        followersContainer.disableProperty().bind(notAuthorizedCondition);
+        chatContainer.disableProperty().bind(notAuthorizedCondition);
 
-        followersContainer.disableProperty().bind(helper.authorizedProperty().not());
-        chatContainer.disableProperty().bind(helper.authorizedProperty().not());
-
+        // ログインしているユーザー名
         userNameLabel.getStyleClass().addAll(Styles.TEXT_SMALL);
         userNameLabel.textProperty().bind(viewModel.userNameProperty());
 
+        // 選択しているチャンネルのライブタイトル
         footerLabel.textProperty().bind(viewModel.footerProperty());
         footerLabel.getStyleClass().addAll(Styles.TEXT_SMALL);
 
-        searchChannelButton.disableProperty().bind(helper.authorizedProperty().not());
+        // 認証用メニューアイテム
+        var preferences = AppPreferences.getInstance();
+        var credentialStore = new PreferencesCredentialStorage(preferences.getPreferences());
+        var authMenuItem = new AuthenticationMenuItem(modalPane, credentialStore, rootPane, viewModel);
+        authMenuItem.authorizedProperty().bind(viewModel.authorizedProperty());
+        userMenuButton.getItems().add(authMenuItem);
 
-        loginMenuItem.visibleProperty().bind(helper.authorizedProperty().not());
-        loginMenuItem.setOnAction(new AuthorizationViewCallAction(modalPane, this::authorized));
+        // ライブ状態が更新されたときの表示ラベル
+        liveStateLink.getStyleClass().addAll(Styles.TEXT_SMALL);
+        liveStateLink.setVisited(false);
 
-        logoutMenuItem.visibleProperty().bind(helper.authorizedProperty());
-        logoutMenuItem.setOnAction(new LogoutAction(rootPane));
-
+        // クリップを表示するボタン
         clipButton.getStyleClass().addAll(Styles.SMALL, Styles.ROUNDED, Styles.SUCCESS);
         clipButton.visibleProperty().bind(
                 viewModel.clipCountProperty().greaterThan(0)
                         .and(helper.authorizedProperty())
         );
+
         // クリップが投稿されたらアニメーションを実行するリスナ
-        viewModel.clipCountProperty().addListener((ob, o, n) -> {
-            if (o.intValue() < n.intValue()) {
-                var animation = Animations.wobble(clipButton);
-                animation.play();
-            }
+        viewModel.subscribe(ClipPostedAppEvent.class, e -> {
+            var animation = Animations.wobble(clipButton);
+            animation.play();
         });
 
+        // ログインに成功したときのハンドラ
+        viewModel.subscribe(LoginEvent.class, this::onLoginEvent);
+
         // メニューバーは常に非表示とする。
-        // メニューバーを必要とするのはmacOSのみだけだが、
-        // macOSに関してはシステムメニューバーを使用する。
+        // メニューバーを必要とするのはmacOSのみだが、
+        // そのmacOSに関してはシステムメニューバーを使用する。
         // システムメニューバーを有効化すると本来メニューバーがあった位置に
-        // パディングが残るためvisibleとmanagedを常に無効化することで
+        // パディングが残るため、visibleとmanagedを常に無効化することで
         // 何もなかったかのように見せかける。
         menuBar.setVisible(false);
         menuBar.setManaged(false);
@@ -176,144 +162,106 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
             menuBar.setUseSystemMenuBar(true);
         }
 
-        initMenuItems();
+        initLiveNotificator();
+
+        initCommands();
     }
 
-    private void initKeyActions(AppHelper helper) {
-        var searchViewCallAction = new SearchChannelViewCallAction(modalPane);
-        searchViewCallAction.disableProperty().bind(helper.authorizedProperty());
-        searchChannelButton.setOnAction(searchViewCallAction);
-        keyActionRepository.addAction(searchViewCallAction);
+    private void initCommands() {
+        var helper = AppHelper.getInstance();
+        var commands = new KeyBindingCommands();
 
-        var prefViewCallAction = new PreferenceViewCallAction(modalPane);
-        prefViewCallAction.disableProperty().bind(modalPane.displayProperty());
-        prefsMenuItem.setOnAction(prefViewCallAction);
-        prefsMenuItem.acceleratorProperty().bind(prefViewCallAction.combinationProperty());
-        prefsMenuItem.disableProperty().bind(prefViewCallAction.disableProperty());
-        keyActionRepository.addAction(prefViewCallAction);
+        var authCondition = viewModel.authorizedProperty();
 
-        var channelGroupViewCallAction = new ChannelGroupListViewCallAction(modalPane);
-        channelGroupViewCallAction.disableProperty().bind(modalPane.displayProperty());
-        groupCallerButton.setOnAction(channelGroupViewCallAction);
-        keyActionRepository.addAction(channelGroupViewCallAction);
+        var browserController = new BrowserController(mainContainer);
 
-        var clipViewCallAction = new VideoClipListViewCallAction(modalPane, getBrowserController());
-        clipViewCallAction.disableProperty().bind(viewModel.clipCountProperty().lessThan(1));
-        clipButton.setOnAction(clipViewCallAction);
-        keyActionRepository.addAction(clipViewCallAction);
+        // チャンネルグループを開くコマンド
+        var openChannelGroupCommand = new OpenChannelGroupCommand(modalPane, helper.getChannelGroupRepository(), authCondition);
+        commands.updateCommand(KeyBinding.OPEN_GROUPS_VIEW, openChannelGroupCommand);
 
-        var closeChatRoomAction = new CloseChatRoomAction(chatContainerViewModel);
-        keyActionRepository.addAction(closeChatRoomAction);
-    }
+        // クリップ一覧を開くコマンド
+        var openClipCommand = new OpenClipCommand(modalPane, browserController, viewModel.getClipRepository(), authCondition);
+        commands.updateCommand(KeyBinding.OPEN_CLIPS_VIEW, openClipCommand);
 
-    private BrowserController getBrowserController() {
-        if (browserController == null) {
-            browserController = new BrowserController(mainContainer);
-        }
-        return browserController;
-    }
+        // 設定を開くコマンド
+        var openPrefCommand = new OpenPreferencesCommand(modalPane);
+        commands.updateCommand(KeyBinding.OPEN_PREFERENCES, openPrefCommand);
 
-    private void initMenuItems() {
-        guidelineMenuItem.setOnAction(new OpenCommunityGuidelineAction(getBrowserController()));
-        termsMenuItem.setOnAction(new OpenTermsAction(getBrowserController()));
+        // 検索画面を開くコマンド
+        var openSearchCommand = new OpenSearchChannelCommand(modalPane, viewModel.getChannelRepository(), authCondition);
+        commands.updateCommand(KeyBinding.OPEN_SEARCH_VIEW, openSearchCommand);
+
+        // Twitchの利用規約、コミュニティガイドライン
+        // これらはショートカットに登録しない
+        var openTermsCommand = new OpenTermsCommand(browserController);
+        var openCommunityGuidelineCommand = new OpenCommunityGuidelineCommand(browserController);
+
+        // コマンド実行ハンドラを登録
+        var accelerator = new KeyBindingAccelerator(helper.getKeyBindingCombinations(), commands);
+        rootPane.sceneProperty().addListener((ob, o, n) -> {
+            if (n != null)
+                n.addEventHandler(KeyEvent.KEY_RELEASED, accelerator);
+        });
+
+        // 各種呼び出し用コントロールにバインド
+        groupCallerButton.disableProperty().bind(openChannelGroupCommand.notExecutableProperty());
+        groupCallerButton.setOnAction(openChannelGroupCommand);
+        clipButton.disableProperty().bind(openClipCommand.notExecutableProperty());
+        clipButton.setOnAction(openClipCommand);
+        prefsMenuItem.disableProperty().bind(openPrefCommand.notExecutableProperty());
+        prefsMenuItem.setOnAction(openPrefCommand);
+        searchChannelButton.disableProperty().bind(openSearchCommand.notExecutableProperty());
+        searchChannelButton.setOnAction(openSearchCommand);
+        termsMenuItem.setOnAction(openTermsCommand);
+        termsMenuItem.disableProperty().bind(openClipCommand.notExecutableProperty());
+        guidelineMenuItem.setOnAction(openCommunityGuidelineCommand);
+        guidelineMenuItem.disableProperty().bind(openCommunityGuidelineCommand.notExecutableProperty());
     }
 
     private void loadFollowersView() {
-        var prefs = AppPreferences.getInstance();
-        channelsViewModel = new TwitchChannelListViewModel(prefs.getGeneralPreferences());
+        var channelsViewModel = viewModel.getChannelListViewModel();
 
         var tuple = FluentViewLoader.fxmlView(TwitchChannelListView.class)
                 .resourceBundle(Resources.getResourceBundle())
                 .viewModel(channelsViewModel)
                 .load();
 
-        viewModel.installFollowChannelsViewModel(channelsViewModel);
-
         followersContainer.getChildren().add(tuple.getView());
     }
 
     private void loadChatContainerView() {
+        var chatContainerViewModel = viewModel.getChatContainer();
+
         var tuple = FluentViewLoader.fxmlView(ChatContainerView.class)
                 .resourceBundle(Resources.getResourceBundle())
                 .viewModel(chatContainerViewModel)
                 .load();
 
-        chatContainerViewModel = tuple.getViewModel();
         chatContainer.getChildren().add(tuple.getView());
     }
 
-    public void startMainView() {
-        var action = new AuthorizationViewCallAction(modalPane, this::authorized);
-        action.run();
-    }
+    private void initLiveNotificator() {
+        var notificator = new LiveStateNotificator(viewModel.getChannelRepository());
 
-    private void authorized() {
-        // ModalPaneを非表示にする
-        modalPane.hide(true);
+        var tuple = FluentViewLoader.javaView(LiveStateNotificatorView.class)
+                .viewModel(notificator)
+                .load();
+        var controller = tuple.getCodeBehind();
+        var converter = controller.getConverter();
 
-        var helper = AppHelper.getInstance();
+        controller.setPrefWidth(340);
+        controller.setPrefHeight(160);
 
-        // フォローしているチャンネルを初期化
-        var channelRepository = helper.getChannelRepository();
-        var channelLoadTask = channelRepository.loadAllAsync();
-        // チャンネルをロードしたときのイベント
-        channelLoadTask.setSucceeded(() -> {
-            var channels = channelRepository.getChannels();
-            channelsViewModel.bindChannels(channels);
-            // グループはチャンネルがロードされたら有効にする
-            groupCallerButton.setDisable(false);
-            // キーアクション
-            initKeyActions(helper);
-        });
-
-        // チャットコンテナを初期化
-        chatContainerViewModel.loadAsync();
-
-        // キーアクションをインストール
-        keyActionRepository.install(rootPane.getScene());
-
-        initLiveStateNotificator();
-    }
-
-    private void initLiveStateNotificator() {
-        var helper = AppHelper.getInstance();
-        var repository = helper.getChannelRepository();
-        var notificator = repository.getNotificator();
-
-        var converter = new ReadOnlyStringConverter<LiveStateNotificator.LiveStateRecord>() {
-            private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
-            @Override
-            public String toString(LiveStateNotificator.LiveStateRecord record) {
-                var name = record.channelName();
-                var time = record.time().format(formatter);
-                if (record.live()) {
-                    return Resources.getString("main.live.state.online").formatted(name, time);
-                } else {
-                    return Resources.getString("main.live.state.offline").formatted(name, time);
-                }
-            }
-        };
-
-        notificator.getRecords().addListener((ListChangeListener<? super LiveStateNotificator.LiveStateRecord>) c -> {
-            while (c.next() && c.wasAdded()) {
-                for (var record : c.getAddedSubList()) {
-                    liveStateLink.setText(converter.toString(record));
-                }
+        notificator.subscribe(LiveNotificationEvent.class, e -> {
+            var record = e.getRecord();
+            liveStateLink.setText(converter.toString(record));
+            liveStateLink.setVisited(false);
+            if (record.live()) {
                 Animations.shakeX(liveStateLink).playFromStart();
-                liveStateLink.setVisited(false);
             }
         });
 
-        liveStateLink.getStyleClass().addAll(Styles.TEXT_SMALL);
-        liveStateLink.visibleProperty().bind(Bindings.isEmpty(notificator.getRecords()).not());
-
-        var liveStateList = new ListView<>(notificator.getRecords());
-        liveStateList.setCellFactory(TextFieldListCell.forListView(converter));
-        liveStateList.getStyleClass().addAll(Styles.DENSE, Tweaks.EDGE_TO_EDGE);
-        liveStateList.setPrefWidth(340);
-        liveStateList.setPrefHeight(160);
-
-        var popOver = new Popover(liveStateList);
+        var popOver = new Popover(controller);
         popOver.setArrowLocation(Popover.ArrowLocation.TOP_RIGHT);
         liveStateLink.setOnAction(e -> {
             if (popOver.isShowing()) {
@@ -321,8 +269,23 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
                 return;
             }
             popOver.show(liveStateLink);
-            liveStateList.scrollTo(notificator.getRecords().getLast());
+            controller.scrollTo(notificator.getRecords().getLast());
         });
+    }
+
+    public void startMainView() {
+        var preferences = AppPreferences.getInstance();
+        var command = new LoadCredentialCommand(
+                modalPane,
+                viewModel.authorizedProperty().not(),
+                new PreferencesCredentialStorage(preferences.getPreferences())
+        );
+        command.execute();
+    }
+
+    private void onLoginEvent(LoginEvent loginEvent) {
+        // ModalPaneを非表示にする
+        modalPane.hide(true);
     }
 
 }

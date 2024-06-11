@@ -6,12 +6,13 @@ import javafx.concurrent.WorkerStateEvent;
 import java.io.Closeable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 
 public class TaskWorker implements Closeable {
 
-    private final ExecutorService executor = Executors.newThreadPerTaskExecutor(r ->
-            Thread.ofVirtual().name("TCV-Worker-Thread").factory().newThread(r)
-    );
+    private final ThreadFactory factory = Thread.ofVirtual().name("TCV-Worker-Thread").factory();
+
+    private final ExecutorService executor = Executors.newThreadPerTaskExecutor(factory);
 
     private TaskWorker() {
     }

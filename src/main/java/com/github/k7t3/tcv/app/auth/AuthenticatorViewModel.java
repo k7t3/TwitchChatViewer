@@ -1,18 +1,18 @@
 package com.github.k7t3.tcv.app.auth;
 
+import com.github.k7t3.tcv.app.core.AbstractViewModel;
+import com.github.k7t3.tcv.app.core.AppHelper;
+import com.github.k7t3.tcv.app.event.LoginEvent;
+import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.domain.Twitch;
 import com.github.k7t3.tcv.domain.TwitchLoader;
-import com.github.k7t3.tcv.app.core.AppHelper;
-import com.github.k7t3.tcv.app.service.FXTask;
-import com.github.k7t3.tcv.app.service.TaskWorker;
-import com.github.k7t3.tcv.prefs.AppPreferences;
+import com.github.k7t3.tcv.domain.auth.CredentialStore;
+import com.github.k7t3.tcv.domain.event.EventSubscribers;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
 import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.qrcode.QRCodeWriter;
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
-import com.google.zxing.qrcode.encoder.QRCode;
-import de.saxsys.mvvmfx.ViewModel;
 import javafx.application.Platform;
 import javafx.beans.property.*;
 import javafx.concurrent.WorkerStateEvent;
@@ -30,34 +30,42 @@ import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.Optional;
 
-public class AuthenticatorViewModel implements ViewModel {
+/**
+ * Twitchユーザー認証用ViewModel
+ * <p>
+ *     OAuth Device Authorization Flowを使用して認証する。
+ * </p>
+ * <p>
+ *     CredentialStoreにアクセストークンが保管されている場合、
+ *     {@link #loadClientAsync()}メソッドで{@link Twitch}インスタンスを取得できる。
+ * </p>
+ * <p>
+ *     トークンが有効でない場合は{@link #startAuthenticateAsync()}メソッドで
+ *     認証フローを開始する。
+ * </p>
+ */
+public class AuthenticatorViewModel extends AbstractViewModel {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticatorViewModel.class);
 
     private static final int QRCODE_WIDTH = 480;
     private static final int QRCODE_HEIGHT = 480;
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticatorViewModel.class);
-
     private TwitchLoader twitchLoader;
 
     private final ReadOnlyBooleanWrapper initialized = new ReadOnlyBooleanWrapper(false);
-
     private final ReadOnlyStringWrapper userCode = new ReadOnlyStringWrapper();
-
     private final ReadOnlyStringWrapper authUri = new ReadOnlyStringWrapper();
-
     private final ReadOnlyStringWrapper error = new ReadOnlyStringWrapper();
-
-    private final ReadOnlyBooleanWrapper authorized = new ReadOnlyBooleanWrapper(false);
-
     private final ReadOnlyObjectWrapper<Image> qrcode = new ReadOnlyObjectWrapper<>();
+    private final CredentialStore credentialStore;
 
-    public AuthenticatorViewModel() {
+    public AuthenticatorViewModel(CredentialStore credentialStore) {
+        this.credentialStore = credentialStore;
     }
 
     public FXTask<Optional<Twitch>> loadClientAsync() {
-        var preferences = AppPreferences.getInstance();
-
-        twitchLoader = new TwitchLoader(preferences.getPreferences());
+        twitchLoader = new TwitchLoader(credentialStore);
         var task = FXTask.task(() -> twitchLoader.load());
         task.addEventHandler(WorkerStateEvent.WORKER_STATE_SUCCEEDED, e -> {
             initialized.set(true);
@@ -117,7 +125,8 @@ public class AuthenticatorViewModel implements ViewModel {
         var helper = AppHelper.getInstance();
         helper.setTwitch(twitch);
 
-        authorized.set(true);
+        // ログインイベントを発行
+        publish(new LoginEvent());
     }
 
     public void openAuthUri() {
@@ -147,6 +156,21 @@ public class AuthenticatorViewModel implements ViewModel {
         cb.setContent(Map.of(DataFormat.PLAIN_TEXT, uri));
     }
 
+    @Override
+    public void subscribeEvents(EventSubscribers eventSubscribers) {
+        // no-op
+    }
+
+    @Override
+    public void onLogout() {
+        // no-op
+    }
+
+    @Override
+    public void close() {
+        // no-op
+    }
+
     // ******************** properties ********************
     public ReadOnlyStringProperty authUriProperty() { return authUri.getReadOnlyProperty(); }
     public String getAuthUri() { return authUri.get(); }
@@ -160,10 +184,6 @@ public class AuthenticatorViewModel implements ViewModel {
     public ReadOnlyBooleanProperty initializedProperty() { return initialized.getReadOnlyProperty(); }
     public boolean isInitialized() { return initialized.get(); }
 
-    public ReadOnlyBooleanProperty authorizedProperty() { return authorized.getReadOnlyProperty(); }
-    public boolean getAuthorized() { return authorized.get(); }
-
     public ReadOnlyObjectProperty<Image> qrcodeProperty() { return qrcode.getReadOnlyProperty(); }
     public Image getQRCode() { return qrcode.get(); }
-
 }

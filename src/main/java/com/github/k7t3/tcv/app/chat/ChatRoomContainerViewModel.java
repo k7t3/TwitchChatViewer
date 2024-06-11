@@ -2,90 +2,182 @@ package com.github.k7t3.tcv.app.chat;
 
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.filter.ChatMessageFilter;
-import com.github.k7t3.tcv.app.clip.PostedClipRepository;
+import com.github.k7t3.tcv.app.core.AbstractViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.event.ChatOpeningEvent;
-import com.github.k7t3.tcv.app.event.EventBus;
-import com.github.k7t3.tcv.app.event.LogoutEvent;
+import com.github.k7t3.tcv.app.reactive.ChatMessageSubscriber;
+import com.github.k7t3.tcv.app.reactive.DownCastFXSubscriber;
 import com.github.k7t3.tcv.app.service.FXTask;
-import com.github.k7t3.tcv.app.service.TaskWorker;
-import com.github.k7t3.tcv.domain.chat.ChatRoomListener;
+import com.github.k7t3.tcv.domain.channel.TwitchChannel;
 import com.github.k7t3.tcv.domain.chat.GlobalChatBadges;
+import com.github.k7t3.tcv.domain.event.EventSubscribers;
+import com.github.k7t3.tcv.domain.event.chat.*;
 import com.github.k7t3.tcv.prefs.ChatMessageFilterPreferences;
 import com.github.k7t3.tcv.prefs.ChatPreferences;
+import com.github.k7t3.tcv.reactive.FlowableSubscriber;
 import com.github.k7t3.tcv.view.chat.ChatFont;
-import de.saxsys.mvvmfx.ViewModel;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 
-public class ChatRoomContainerViewModel implements ViewModel {
+public class ChatRoomContainerViewModel extends AbstractViewModel {
 
-    /** 開かれているチャットルーム(チャンネル)のリスト*/
     private final ObservableList<ChatRoomViewModel> chatRoomList = FXCollections.observableArrayList(c -> new Observable[] { c.selectedProperty() });
-
-    /** フロートモード*/
     private final ObservableList<ChatRoomViewModel> floatingChatRoomList = FXCollections.observableArrayList();
+    private final ObservableList<ChatRoomViewModel> allChatRooms = FXCollections.observableArrayList();
 
     /** 選択しているチャットルーム*/
     private final ObservableList<ChatRoomViewModel> selectedList = new FilteredList<>(chatRoomList, ChatRoomViewModel::isSelected);
 
-    /** 選択モード*/
     private final ReadOnlyBooleanWrapper selectMode = new ReadOnlyBooleanWrapper(false);
-
     private final ReadOnlyIntegerWrapper selectingCount = new ReadOnlyIntegerWrapper();
-
     private final ReadOnlyBooleanWrapper loaded = new ReadOnlyBooleanWrapper(false);
 
     private GlobalChatBadgeStore globalBadgeStore;
-
     private ChatEmoteStore chatEmoteStore;
-
     private final DefinedChatColors definedChatColors = new DefinedChatColors();
 
     private final IntegerProperty chatCacheSize = new SimpleIntegerProperty();
-
     private final BooleanProperty showUserName = new SimpleBooleanProperty(true);
-
     private final BooleanProperty showBadges = new SimpleBooleanProperty(true);
-
     private final ObjectProperty<ChatFont> font = new SimpleObjectProperty<>(null);
-
     private final ObjectProperty<ChatMessageFilter> chatMessageFilter = new SimpleObjectProperty<>(ChatMessageFilter.DEFAULT);
 
-    private final List<ChatRoomListener> defaultChatRoomListeners;
+    private final List<FlowableSubscriber<?>> subscribers = new ArrayList<>();
 
-    public ChatRoomContainerViewModel(
-            PostedClipRepository clipRepository,
-            ChatPreferences chatPrefs,
-            ChatMessageFilterPreferences msgFilterPrefs
-    ) {
-        var eventBus = EventBus.getInstance();
-        eventBus.subscribe(LogoutEvent.class, e -> clearAll());
-        eventBus.subscribe(ChatOpeningEvent.class, this::onChatOpened);
-
+    public ChatRoomContainerViewModel() {
         selectingCount.bind(Bindings.size(selectedList));
 
         // 一つ以上選択されているときは選択モード
         selectMode.bind(selectingCount.greaterThan(0));
 
-        defaultChatRoomListeners = List.of(clipRepository);
+        // mergeリストに同期させるためのリスナを追加
+        chatRoomList.addListener(this::injectionItemListener);
+        floatingChatRoomList.addListener(this::injectionItemListener);
+    }
 
-        // Preferencesと同期
-        chatCacheSize.bind(chatPrefs.chatCacheSizeProperty());
-        showUserName.bind(chatPrefs.showUserNameProperty());
-        showBadges.bind(chatPrefs.showBadgesProperty());
-        font.bind(chatPrefs.fontProperty());
-        chatMessageFilter.bind(msgFilterPrefs.chatMessageFilterProperty());
+    public void bindChatPreferences(ChatPreferences chatPreferences) {
+        chatCacheSize.bind(chatPreferences.chatCacheSizeProperty());
+        showUserName.bind(chatPreferences.showUserNameProperty());
+        showBadges.bind(chatPreferences.showBadgesProperty());
+        font.bind(chatPreferences.fontProperty());
+    }
+
+    public void bindChatMessageFilterPreferences(ChatMessageFilterPreferences filterPreferences) {
+        chatMessageFilter.bind(filterPreferences.chatMessageFilterProperty());
+    }
+
+    private void injectionItemListener(ListChangeListener.Change<? extends ChatRoomViewModel> c) {
+        while (c.next()) {
+            if (c.wasAdded())
+                allChatRooms.addAll(c.getAddedSubList());
+            if (c.wasRemoved())
+                allChatRooms.removeAll(c.getRemoved());
+        }
+    }
+
+    private <T extends ChatRoomEvent> FlowableSubscriber<ChatRoomEvent> subscriber(Class<T> type, Consumer<T> consumer) {
+        return new DownCastFXSubscriber<>(type, consumer);
+    }
+
+    @Override
+    public void subscribeEvents(EventSubscribers eventSubscribers) {
+        var clearedSub = subscriber(ChatClearedEvent.class, this::onChatCleared);
+        var deleteSub = subscriber(ChatMessageDeletedEvent.class, this::onMessageDeleted);
+        var stateSub = subscriber(ChatRoomStateUpdatedEvent.class, this::onStateUpdated);
+        var cheeredSub = subscriber(CheeredEvent.class, this::onCheered);
+        var raidReceivedSub = subscriber(RaidReceivedEvent.class, this::onRaidReceived);
+        var giftedSub = subscriber(UserGiftedSubscribeEvent.class, this::onGiftedSubs);
+        var subsSub = subscriber(UserSubscribedEvent.class, this::onSubs);
+        var chatSub = new ChatMessageSubscriber(this::onChatPosted);
+
+        eventSubscribers.subscribeChatEvent(clearedSub);
+        eventSubscribers.subscribeChatEvent(deleteSub);
+        eventSubscribers.subscribeChatEvent(stateSub);
+        eventSubscribers.subscribeChatEvent(cheeredSub);
+        eventSubscribers.subscribeChatEvent(raidReceivedSub);
+        eventSubscribers.subscribeChatEvent(giftedSub);
+        eventSubscribers.subscribeChatEvent(subsSub);
+        eventSubscribers.subscribeMessageEvent(chatSub);
+
+        subscribers.addAll(List.of(
+                clearedSub,
+                deleteSub,
+                stateSub,
+                cheeredSub,
+                raidReceivedSub,
+                giftedSub,
+                subsSub,
+                chatSub
+        ));
+
+        // チャットを開くイベント
+        subscribe(ChatOpeningEvent.class, this::onChatOpened);
+    }
+
+    private Optional<ChatRoomViewModel> find(TwitchChannel channel) {
+        return allChatRooms.stream().filter(r -> r.accept(channel)).findFirst();
+    }
+
+    private void onChatPosted(ChatMessageEvent e) {
+        var chatRoom = e.getChatRoom();
+        var channel = chatRoom.getChannel();
+        find(channel).ifPresent(c -> c.onChatAdded(e));
+    }
+
+    private void onChatCleared(ChatClearedEvent e) {
+        var chatRoom = e.getChatRoom();
+        var channel = chatRoom.getChannel();
+        find(channel).ifPresent(c -> c.clearChatMessages(chatRoom));
+    }
+
+    private void onMessageDeleted(ChatMessageDeletedEvent e) {
+        var chatRoom = e.getChatRoom();
+        var channel = chatRoom.getChannel();
+        var messageId = e.getDeletedMessageId();
+        find(channel).ifPresent(c -> c.deleteChatMessage(messageId));
+    }
+
+    private void onStateUpdated(ChatRoomStateUpdatedEvent e) {
+        var chatRoom = e.getChatRoom();
+        var channel = chatRoom.getChannel();
+        find(channel).ifPresent(c -> c.onStateUpdated(e));
+    }
+
+    private void onCheered(CheeredEvent e) {
+        var chatRoom = e.getChatRoom();
+        var channel = chatRoom.getChannel();
+        find(channel).ifPresent(c -> c.onCheered(e));
+    }
+
+    private void onRaidReceived(RaidReceivedEvent e) {
+        var chatRoom = e.getChatRoom();
+        var channel = chatRoom.getChannel();
+        find(channel).ifPresent(c -> c.onRaidReceived(e));
+    }
+
+    private void onGiftedSubs(UserGiftedSubscribeEvent e) {
+        var chatRoom = e.getChatRoom();
+        var channel = chatRoom.getChannel();
+        find(channel).ifPresent(c -> c.onGiftedSubsEvent(e));
+    }
+
+    private void onSubs(UserSubscribedEvent e) {
+        var chatRoom = e.getChatRoom();
+        var channel = chatRoom.getChannel();
+        find(channel).ifPresent(c -> c.onUserSubsEvent(e));
     }
 
     private void onChatOpened(ChatOpeningEvent e) {
@@ -113,7 +205,7 @@ public class ChatRoomContainerViewModel implements ViewModel {
             chatEmoteStore = new ChatEmoteStore();
         });
 
-        TaskWorker.getInstance().submit(task);
+        task.runAsync();
 
         return task;
     }
@@ -123,8 +215,8 @@ public class ChatRoomContainerViewModel implements ViewModel {
 
         // すでに登録済みのチャンネルは除外する
         var filtered = channels.stream()
-                .filter(c -> chatRoomList.stream().noneMatch(c2 -> c2.hasChannel(c)))
-                .filter(c -> floatingChatRoomList.stream().noneMatch(c2 -> c2.hasChannel(c)))
+                .filter(c -> chatRoomList.stream().noneMatch(c2 -> c2.accept(c.getChannel())))
+                .filter(c -> floatingChatRoomList.stream().noneMatch(c2 -> c2.accept(c.getChannel())))
                 .toList();
 
         if (filtered.isEmpty()) {
@@ -138,8 +230,13 @@ public class ChatRoomContainerViewModel implements ViewModel {
         }
 
         var chatRooms = filtered.stream().map(c -> {
-            var chatRoom = new SingleChatRoomViewModel(this, globalBadgeStore, chatEmoteStore, definedChatColors, c);
-            chatRoom.getChannel().getChatRoomListeners().addAll(defaultChatRoomListeners);
+            var chatRoom = new SingleChatRoomViewModel(
+                    this,
+                    globalBadgeStore,
+                    chatEmoteStore,
+                    definedChatColors,
+                    c
+            );
             bindChatRoomProperties(chatRoom);
             return chatRoom;
         }).toList();
@@ -161,12 +258,16 @@ public class ChatRoomContainerViewModel implements ViewModel {
     private void openChatRoom(TwitchChannelViewModel channel) {
         if (!loaded.get()) throw new IllegalStateException("not loaded yet");
 
-        var exist = chatRoomList.stream().filter(vm -> vm.hasChannel(channel)).findFirst();
+        var exist = chatRoomList.stream()
+                .filter(vm -> vm.accept(channel.getChannel()))
+                .findFirst();
         if (exist.isPresent()) {
             return;
         }
 
-        exist = floatingChatRoomList.stream().filter(vm -> vm.hasChannel(channel)).findFirst();
+        exist = floatingChatRoomList.stream()
+                .filter(vm -> vm.accept(channel.getChannel()))
+                .findFirst();
         if (exist.isPresent()) {
             return;
         }
@@ -179,13 +280,8 @@ public class ChatRoomContainerViewModel implements ViewModel {
                 channel
         );
 
-        var channelViewModel = chatRoomViewModel.getChannel();
-        channelViewModel.getChatRoomListeners().addAll(defaultChatRoomListeners);
-
         bindChatRoomProperties(chatRoomViewModel);
-
         chatRoomList.add(chatRoomViewModel);
-
     }
 
     private void bindChatRoomProperties(ChatRoomViewModel viewModel) {
@@ -216,10 +312,9 @@ public class ChatRoomContainerViewModel implements ViewModel {
 
     public void removeLast() {
         var chatRoomList = getChatRoomList();
-
         if (chatRoomList.isEmpty()) return;
-        var last = getChatRoomList().getLast();
 
+        var last = getChatRoomList().getLast();
         last.leaveChatAsync();
         chatRoomList.remove(last);
     }
@@ -243,11 +338,30 @@ public class ChatRoomContainerViewModel implements ViewModel {
         chatRoomList.forEach(c -> c.setSelected(false));
     }
 
+    /**
+     * 選択しているすべてのチャットルームを閉じる。
+     * <p>
+     *     チャットルームから退出し、そのチャンネルが
+     *     持続化されていなければ({@link TwitchChannelViewModel#persistentProperty()})
+     *     ロードしていたチャンネルが開放される。
+     * </p>
+     */
     public void closeAll() {
         var selectedList = new ArrayList<>(getSelectedList());
         selectedList.forEach(ChatRoomViewModel::leaveChatAsync);
     }
 
+    /**
+     * 選択しているチャットルームをまとめて一つのチャットルームビューにする。
+     * <p>
+     *     選択しているチャンネルに{@link MergedChatRoomViewModel}があれば
+     *     そのうちの一つを代表として、他のすべてのチャットルームを集約する。
+     * </p>
+     * <p>
+     *     {@link MergedChatRoomViewModel}がない場合はインスタンスを生成し、
+     *     そこにチャットルームを集約する。
+     * </p>
+     */
     public void mergeSelectedChats() {
 
         var chatRooms = getSelectedList().stream()
@@ -299,11 +413,11 @@ public class ChatRoomContainerViewModel implements ViewModel {
         chatRoomList.add(chatRoomViewModel);
     }
 
-    /**
-     * コンテナをクリアする。
-     * チャットがすべてログアウトされるまでスレッドをブロックする。
-     */
-    public void clearAll() {
+    @Override
+    public void onLogout() {
+        subscribers.forEach(FlowableSubscriber::cancel);
+        subscribers.clear();
+
         var singles = getChatRoomList();
         var floatings = getFloatingChatRoomList();
 
@@ -314,7 +428,24 @@ public class ChatRoomContainerViewModel implements ViewModel {
         singles.clear();
         floatings.clear();
 
-        chatRooms.parallelStream().map(ChatRoomViewModel::leaveChatAsync).forEach(task -> {
+        chatRooms.forEach(ChatRoomViewModel::leaveChatAsync);
+    }
+
+    /**
+     * コンテナをクリアする。
+     * チャットがすべてログアウトされるまでスレッドをブロックする。
+     */
+    @Override
+    public void close() {
+        subscribers.forEach(FlowableSubscriber::cancel);
+
+        var singles = getChatRoomList();
+        var floatings = getFloatingChatRoomList();
+
+        var chatRooms = new ArrayList<ChatRoomViewModel>();
+        chatRooms.addAll(singles);
+        chatRooms.addAll(floatings);
+        chatRooms.stream().map(ChatRoomViewModel::leaveChatAsync).forEach(task -> {
             try {
                 task.get(10, TimeUnit.SECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException ignored) {
@@ -325,10 +456,8 @@ public class ChatRoomContainerViewModel implements ViewModel {
 
     // ******************** PROPERTIES ********************
 
-    private ReadOnlyBooleanWrapper loadedWrapper() { return loaded; }
     public ReadOnlyBooleanProperty loadedProperty() { return loaded.getReadOnlyProperty(); }
     public boolean isLoaded() { return loaded.get(); }
-    private void setLoaded(boolean loaded) { this.loaded.set(loaded); }
 
     public ReadOnlyBooleanProperty selectModeProperty() { return selectMode.getReadOnlyProperty(); }
     public boolean isSelectMode() { return selectMode.get(); }
