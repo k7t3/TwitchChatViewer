@@ -4,15 +4,14 @@ import atlantafx.base.controls.ModalPane;
 import atlantafx.base.controls.Popover;
 import atlantafx.base.theme.Styles;
 import atlantafx.base.util.Animations;
-import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.OS;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.event.ClipPostedAppEvent;
 import com.github.k7t3.tcv.app.event.LiveNotificationEvent;
 import com.github.k7t3.tcv.app.event.LoginEvent;
-import com.github.k7t3.tcv.app.key.KeyBinding;
-import com.github.k7t3.tcv.app.key.KeyBindingCommands;
+import com.github.k7t3.tcv.app.keyboard.KeyBinding;
+import com.github.k7t3.tcv.app.keyboard.KeyBindingCommands;
 import com.github.k7t3.tcv.app.main.MainViewModel;
 import com.github.k7t3.tcv.app.service.LiveStateNotificator;
 import com.github.k7t3.tcv.domain.auth.PreferencesCredentialStorage;
@@ -21,7 +20,7 @@ import com.github.k7t3.tcv.view.channel.LiveStateNotificatorView;
 import com.github.k7t3.tcv.view.channel.TwitchChannelListView;
 import com.github.k7t3.tcv.view.chat.ChatContainerView;
 import com.github.k7t3.tcv.view.command.*;
-import com.github.k7t3.tcv.view.key.KeyBindingAccelerator;
+import com.github.k7t3.tcv.view.keyboard.KeyBindingAccelerator;
 import com.github.k7t3.tcv.view.web.BrowserController;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
@@ -29,11 +28,13 @@ import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 
 import java.net.URL;
+import java.util.Arrays;
 import java.util.ResourceBundle;
 
 public class MainView implements FxmlView<MainViewModel>, Initializable {
@@ -180,11 +181,12 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         commands.updateCommand(KeyBinding.OPEN_GROUPS_VIEW, openChannelGroupCommand);
 
         // クリップ一覧を開くコマンド
-        var openClipCommand = new OpenClipCommand(modalPane, browserController, viewModel.getClipRepository(), authCondition);
+        var clipCondition = authCondition.and(viewModel.clipCountProperty().greaterThan(0));
+        var openClipCommand = new OpenClipCommand(modalPane, browserController, viewModel.getClipRepository(), clipCondition);
         commands.updateCommand(KeyBinding.OPEN_CLIPS_VIEW, openClipCommand);
 
         // 設定を開くコマンド
-        var openPrefCommand = new OpenPreferencesCommand(modalPane);
+        var openPrefCommand = new OpenPreferencesCommand();
         commands.updateCommand(KeyBinding.OPEN_PREFERENCES, openPrefCommand);
 
         // 検索画面を開くコマンド
@@ -216,6 +218,16 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         termsMenuItem.disableProperty().bind(openClipCommand.notExecutableProperty());
         guidelineMenuItem.setOnAction(openCommunityGuidelineCommand);
         guidelineMenuItem.disableProperty().bind(openCommunityGuidelineCommand.notExecutableProperty());
+
+        // カスタムされたキーバインドを復元
+        var preferences = AppPreferences.getInstance();
+        var combinations = helper.getKeyBindingCombinations();
+        var keyBinds = preferences.getKeyBindingPreferences();
+        for (var binding : KeyBinding.values()) {
+            var stored = keyBinds.readCustomCombination(binding);
+            if (stored != KeyCombination.NO_MATCH)
+                combinations.updateCombination(binding, stored);
+        }
     }
 
     private void loadFollowersView() {
@@ -249,6 +261,7 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         var controller = tuple.getCodeBehind();
         var converter = controller.getConverter();
 
+        controller.setItems(notificator.getRecords());
         controller.setPrefWidth(340);
         controller.setPrefHeight(160);
 
@@ -263,14 +276,15 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
         var popOver = new Popover(controller);
         popOver.setArrowLocation(Popover.ArrowLocation.TOP_RIGHT);
-        liveStateLink.setOnAction(e -> {
-            if (popOver.isShowing()) {
-                popOver.hide();
-                return;
-            }
-            popOver.show(liveStateLink);
-            controller.scrollTo(notificator.getRecords().getLast());
-        });
+        popOver.setAnimated(false);
+//        liveStateLink.setOnAction(e -> {
+//            if (popOver.isShowing()) {
+//                popOver.hide();
+//                return;
+//            }
+//            popOver.show(liveStateLink);
+//            controller.scrollTo(notificator.getRecords().getLast());
+//        });
     }
 
     public void startMainView() {

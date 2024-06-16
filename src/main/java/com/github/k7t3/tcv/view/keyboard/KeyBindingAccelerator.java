@@ -1,7 +1,7 @@
-package com.github.k7t3.tcv.view.key;
+package com.github.k7t3.tcv.view.keyboard;
 
-import com.github.k7t3.tcv.app.key.KeyBindingCombinations;
-import com.github.k7t3.tcv.app.key.KeyBindingCommands;
+import com.github.k7t3.tcv.app.keyboard.KeyBindingCombinations;
+import com.github.k7t3.tcv.app.keyboard.KeyBindingCommands;
 import javafx.event.EventHandler;
 import javafx.scene.input.KeyEvent;
 

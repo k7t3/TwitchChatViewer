@@ -1,7 +1,7 @@
 package com.github.k7t3.tcv.app.core;
 
 import com.github.k7t3.tcv.app.group.ChannelGroupRepository;
-import com.github.k7t3.tcv.app.key.KeyBindingCombinations;
+import com.github.k7t3.tcv.app.keyboard.KeyBindingCombinations;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.app.service.WindowBoundsService;

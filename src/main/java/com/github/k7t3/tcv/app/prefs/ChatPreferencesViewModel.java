@@ -43,6 +43,11 @@ public class ChatPreferencesViewModel implements PreferencesViewModelBase {
     }
 
     @Override
+    public boolean canSync() {
+        return true;
+    }
+
+    @Override
     public void sync() {
         var font = getFont();
         var size = getFontSize();

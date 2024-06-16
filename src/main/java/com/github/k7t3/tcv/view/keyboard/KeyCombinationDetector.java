@@ -1,5 +1,6 @@
-package com.github.k7t3.tcv.view.key;
+package com.github.k7t3.tcv.view.keyboard;
 
+import com.github.k7t3.tcv.app.core.OS;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.EventHandler;
@@ -41,10 +42,18 @@ public class KeyCombinationDetector implements EventHandler<KeyEvent> {
 
         var modifiers = new ArrayList<KeyCombination.Modifier>();
         if (event.isShiftDown()) modifiers.add(KeyCombination.SHIFT_DOWN);
-        if (event.isControlDown()) modifiers.add(KeyCombination.CONTROL_DOWN);
         if (event.isAltDown()) modifiers.add(KeyCombination.ALT_DOWN);
-        if (event.isMetaDown()) modifiers.add(KeyCombination.META_DOWN);
-        //if (event.isShortcutDown()) modifiers.add(KeyCombination.SHORTCUT_DOWN);
+        if (event.isShortcutDown()) modifiers.add(KeyCombination.SHORTCUT_DOWN);
+
+        // Shortcutキーがプラットフォーム固有のショートカットキーを吸収するため、
+        // それらの入力は個別に回収しない。
+        if (OS.isMac()) {
+            // ControlキーはOS Xのときのみ回収する
+            if (event.isControlDown()) modifiers.add(KeyCombination.CONTROL_DOWN);
+        } else {
+            // MetaキーはOS X以外のときのみ回収する
+            if (event.isMetaDown()) modifiers.add(KeyCombination.META_DOWN);
+        }
 
         KeyCombination combination;
         if (modifiers.isEmpty()) {

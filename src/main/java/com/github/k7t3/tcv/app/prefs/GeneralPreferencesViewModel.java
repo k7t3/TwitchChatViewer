@@ -28,6 +28,12 @@ public class GeneralPreferencesViewModel implements PreferencesViewModelBase {
         userDataFilePath = new SimpleStringProperty(prefs.getUserDataFilePath());
     }
 
+    @Override
+    public boolean canSync() {
+        return true;
+    }
+
+    @Override
     public void sync() {
         var theme = getTheme();
         if (!Objects.equals(prefs.getTheme().getName(), theme.getName())) {

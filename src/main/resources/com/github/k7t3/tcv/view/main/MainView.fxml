@@ -30,7 +30,7 @@
 
 <BorderPane stylesheets="@MainView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.main.MainView">
    <center>
-      <StackPane fx:id="rootPane" prefHeight="768.0" prefWidth="1024.0">
+      <StackPane id="rootStackPane" fx:id="rootPane" prefHeight="768.0" prefWidth="1024.0">
          <children>
             <ModalPane fx:id="modalPane" />
             <BorderPane fx:id="headerPane">

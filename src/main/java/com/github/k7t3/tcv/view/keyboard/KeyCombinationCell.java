@@ -1,25 +1,30 @@
-package com.github.k7t3.tcv.view.key;
+package com.github.k7t3.tcv.view.keyboard;
 
-import com.github.k7t3.tcv.app.key.KeyBindingCombination;
+import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.app.keyboard.KeyBindingCombination;
 import com.github.k7t3.tcv.view.core.JavaFXHelper;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.Cursor;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 
-import java.util.Objects;
-
 public class KeyCombinationCell extends TableCell<KeyBindingCombination, KeyCombination> {
+
+    private static final String STYLE_CLASS = "key-combination-cell";
 
     private final BooleanProperty duplicated = new SimpleBooleanProperty(false);
 
     private TextField textField;
     private KeyCombinationDetector combinationDetector;
 
+    private Tooltip duplicatedTooltip;
+
     public KeyCombinationCell() {
+        getStyleClass().add(STYLE_CLASS);
         setCursor(Cursor.HAND);
 
         // 編集中のPseudoClass
@@ -27,6 +32,8 @@ public class KeyCombinationCell extends TableCell<KeyBindingCombination, KeyComb
 
         // キーコンビネーションの重複PseudoClass
         JavaFXHelper.registerPseudoClass(this, "duplicated", duplicated);
+
+        duplicated.addListener((ob, o, n) -> setTooltip(n));
     }
 
     @Override
@@ -82,22 +89,16 @@ public class KeyCombinationCell extends TableCell<KeyBindingCombination, KeyComb
 
         var item = getTableRow().getItem();
         item.setCombination(newValue);
-        checkDuplicate();
     }
 
-    private void checkDuplicate() {
-        var items = getTableView().getItems();
-        items.forEach(item -> item.setDuplicated(false));
-
-        for (var check : items) {
-            for (var compare : items) {
-                if (check == compare) continue;
-                if (Objects.equals(check.getCombination().getDisplayText(),
-                        compare.getCombination().getDisplayText())) {
-                    check.setDuplicated(true);
-                    compare.setDuplicated(true);
-                }
+    private void setTooltip(boolean enable) {
+        if (enable) {
+            if (duplicatedTooltip == null) {
+                duplicatedTooltip = new Tooltip(Resources.getString("prefs.keybind.tooltip.duplicated"));
             }
+            setTooltip(duplicatedTooltip);
+        } else {
+            setTooltip(null);
         }
     }
 
@@ -108,6 +109,7 @@ public class KeyCombinationCell extends TableCell<KeyBindingCombination, KeyComb
         if (item == null || empty) {
             setText(null);
             setGraphic(null);
+            setTooltip(false);
             duplicated.unbind();
             return;
         }

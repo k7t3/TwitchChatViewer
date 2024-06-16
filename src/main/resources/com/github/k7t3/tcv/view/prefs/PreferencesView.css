@@ -1,5 +1,7 @@
 .preference-view {
     -fx-background-color: -color-bg-default;
+    -fx-pref-width: 640;
+    -fx-pref-height: 480;
 }
 
 .prefs-grid-pane {

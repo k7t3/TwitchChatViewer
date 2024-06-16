@@ -52,6 +52,8 @@ public class TCVApp extends Application {
         var helper = AppHelper.getInstance();
         helper.setPrimaryStage(primaryStage);
 
+        // TODO キーボードバインドを復元
+
         // ユーザーファイルを接続
         var generalPrefs = preferences.getGeneralPreferences();
         var userDataFile = new UserDataFile(generalPrefs.getUserDataFilePath());

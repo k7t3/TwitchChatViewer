@@ -16,12 +16,14 @@ public enum OS {
 
     public static OS current() {
         if (os == null) {
-            if (isLinux())
+            if (OS_NAME.startsWith("linux"))
                 os = LINUX;
-            else if (isWindows())
+            else if (OS_NAME.startsWith("win"))
                 os = WINDOWS;
-            else
+            else if (OS_NAME.startsWith("mac"))
                 os = MAC;
+            else
+                os = LINUX;
         }
         return os;
     }
@@ -41,15 +43,15 @@ public enum OS {
     }
 
     public static boolean isLinux() {
-        return OS_NAME.startsWith("linux");
+        return current() == LINUX;
     }
 
     public static boolean isWindows() {
-        return OS_NAME.startsWith("win");
+        return current() == WINDOWS;
     }
 
     public static boolean isMac() {
-        return OS_NAME.startsWith("mac");
+        return current() == MAC;
     }
 
 }

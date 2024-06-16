@@ -102,10 +102,10 @@ public class MainViewModel extends AbstractViewModel {
     }
 
     public void logout() {
-        publish(new LogoutEvent());
-
         var helper = AppHelper.getInstance();
         helper.logoutAsync();
+
+        publish(new LogoutEvent());
     }
 
     public ChannelViewModelRepository getChannelRepository() {

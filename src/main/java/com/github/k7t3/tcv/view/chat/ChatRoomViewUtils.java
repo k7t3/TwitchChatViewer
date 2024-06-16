@@ -118,6 +118,7 @@ public class ChatRoomViewUtils {
         pop.setCloseButtonEnabled(false);
         pop.setHeaderAlwaysVisible(true);
         pop.setDetachable(false);
+        pop.setAnimated(false);
         pop.setArrowLocation(Popover.ArrowLocation.TOP_LEFT);
 
         pop.addEventHandler(WindowEvent.WINDOW_SHOWING, e -> {
@@ -139,18 +140,18 @@ public class ChatRoomViewUtils {
             }
         });
 
-        node.setOnMousePressed(e -> {
-            if (channel.isLive() && !pop.isShowing()) {
-                pop.show(node);
-                e.consume();
-            }
-        });
-        node.setOnMouseEntered(e -> {
-            if (channel.isLive()) {
-                pop.show(node);
-            }
-        });
-        node.setOnMouseExited(e -> pop.hide());
+//        node.setOnMousePressed(e -> {
+//            if (channel.isLive() && !pop.isShowing()) {
+//                pop.show(node);
+//                e.consume();
+//            }
+//        });
+//        node.setOnMouseEntered(e -> {
+//            if (channel.isLive()) {
+//                pop.show(node);
+//            }
+//        });
+//        node.setOnMouseExited(e -> pop.hide());
     }
 
 }

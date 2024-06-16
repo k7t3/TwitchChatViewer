@@ -5,7 +5,7 @@ import atlantafx.base.theme.Tweaks;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.event.ChatOpeningEvent;
 import com.github.k7t3.tcv.app.service.LiveStateNotificator;
-import com.github.k7t3.tcv.view.core.ReadOnlyStringConverter;
+import com.github.k7t3.tcv.view.core.ToStringConverter;
 import de.saxsys.mvvmfx.InjectViewModel;
 import de.saxsys.mvvmfx.JavaView;
 import javafx.fxml.Initializable;
@@ -24,19 +24,17 @@ public class LiveStateNotificatorView extends ListView<LiveStateNotificator.Live
     @InjectViewModel
     private LiveStateNotificator notificator;
 
-    private final StringConverter<LiveStateNotificator.LiveStateRecord> converter = new ReadOnlyStringConverter<LiveStateNotificator.LiveStateRecord>() {
-        private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
-        @Override
-        public String toString(LiveStateNotificator.LiveStateRecord record) {
-            var name = record.channel().getUserName();
-            var time = record.time().format(formatter);
-            if (record.live()) {
-                return Resources.getString("main.live.state.online").formatted(name, time);
-            } else {
-                return Resources.getString("main.live.state.offline").formatted(name, time);
-            }
+    private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+
+    private final StringConverter<LiveStateNotificator.LiveStateRecord> converter = new ToStringConverter<>(record -> {
+        var name = record.channel().getUserName();
+        var time = record.time().format(formatter);
+        if (record.live()) {
+            return Resources.getString("main.live.state.online").formatted(name, time);
+        } else {
+            return Resources.getString("main.live.state.offline").formatted(name, time);
         }
-    };
+    });
 
     public LiveStateNotificatorView() {
         setCellFactory(p -> new Cell(converter));

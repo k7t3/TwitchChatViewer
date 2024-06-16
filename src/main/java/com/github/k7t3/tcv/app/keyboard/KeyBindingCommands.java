@@ -1,4 +1,4 @@
-package com.github.k7t3.tcv.app.key;
+package com.github.k7t3.tcv.app.keyboard;
 
 import de.saxsys.mvvmfx.utils.commands.Command;
 import org.slf4j.Logger;
@@ -38,6 +38,7 @@ public class KeyBindingCommands {
             LOGGER.warn("not found {} command.", binding);
             return;
         }
+        if (command.isNotExecutable()) return;
         command.execute();
     }
 

@@ -1,4 +1,4 @@
-package com.github.k7t3.tcv.app.key;
+package com.github.k7t3.tcv.app.keyboard;
 
 import com.github.k7t3.tcv.app.core.Resources;
 import javafx.scene.input.KeyCombination;

@@ -134,7 +134,6 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
         });
 
         var footer = new HBox(openChatButton, deleteButton);
-        footer.setPadding(new Insets(4));
         footer.setAlignment(Pos.CENTER_RIGHT);
         footer.setSpacing(4);
         setFooter(footer);
@@ -270,6 +269,7 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
         pop.setCloseButtonEnabled(false);
         pop.setHeaderAlwaysVisible(true);
         pop.setDetachable(false);
+        pop.setAnimated(false);
         pop.setArrowLocation(Popover.ArrowLocation.TOP_LEFT);
 
         pop.addEventHandler(WindowEvent.WINDOW_SHOWING, e -> {
@@ -291,18 +291,18 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
             }
         });
 
-        node.setOnMousePressed(e -> {
-            if (channel.isLive() && !pop.isShowing()) {
-                pop.show(node);
-                e.consume();
-            }
-        });
-        node.setOnMouseEntered(e -> {
-            if (channel.isLive()) {
-                pop.show(node);
-            }
-        });
-        node.setOnMouseExited(e -> pop.hide());
+//        node.setOnMousePressed(e -> {
+//            if (channel.isLive() && !pop.isShowing()) {
+//                pop.show(node);
+//                e.consume();
+//            }
+//        });
+//        node.setOnMouseEntered(e -> {
+//            if (channel.isLive()) {
+//                pop.show(node);
+//            }
+//        });
+//        node.setOnMouseExited(e -> pop.hide());
     }
 
     @Override

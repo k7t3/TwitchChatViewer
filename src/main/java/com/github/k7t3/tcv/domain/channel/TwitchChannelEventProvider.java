@@ -27,12 +27,12 @@ class TwitchChannelEventProvider {
     }
 
     public void add(TwitchChannel channel) {
-        var channelId = channel.getChannelName();
+        var channelId = channel.getBroadcaster().getUserId();
         channelMap.put(channelId, channel);
     }
 
     public void remove(TwitchChannel channel) {
-        var channelId = channel.getChannelName();
+        var channelId = channel.getBroadcaster().getUserId();
         channelMap.remove(channelId);
     }
 

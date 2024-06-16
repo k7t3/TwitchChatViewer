@@ -1,4 +1,4 @@
-package com.github.k7t3.tcv.app.key;
+package com.github.k7t3.tcv.app.keyboard;
 
 import javafx.beans.property.*;
 import javafx.scene.input.KeyCombination;
@@ -34,6 +34,11 @@ public class KeyBindingCombination {
     public ObjectProperty<KeyCombination> combinationProperty() { return combination; }
     public KeyCombination getCombination() { return combination.get(); }
     public void setCombination(KeyCombination combination) { this.combination.set(combination); }
+
+    public void resetKeyCombination() {
+        var binding = getBinding();
+        setCombination(binding.getDefaultCombination());
+    }
 
     /**
      * キーコンビネーションが重複しているかを表すプロパティを返す

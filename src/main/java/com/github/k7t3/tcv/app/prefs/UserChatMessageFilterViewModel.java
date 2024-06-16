@@ -28,6 +28,12 @@ public class UserChatMessageFilterViewModel implements PreferencesViewModelBase 
         return users;
     }
 
+    @Override
+    public boolean canSync() {
+        return true;
+    }
+
+    @Override
     public void sync() {
         var filteredUsers = users.stream().map(HideUserViewModel::getAsFilteredUser).toList();
         var set = filterPrefs.getUserChatMessageFilter().getUsers();

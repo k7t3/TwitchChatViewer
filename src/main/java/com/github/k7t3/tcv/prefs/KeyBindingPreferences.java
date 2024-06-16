@@ -1,6 +1,6 @@
 package com.github.k7t3.tcv.prefs;
 
-import com.github.k7t3.tcv.app.key.KeyBinding;
+import com.github.k7t3.tcv.app.keyboard.KeyBinding;
 import javafx.scene.input.KeyCombination;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,8 +28,18 @@ public class KeyBindingPreferences extends PreferencesBase {
     }
 
     public void storeCombination(KeyBinding binding, KeyCombination combination) {
-        var code = combination.getDisplayText();
-        preferences.put(binding.getId(), code);
+        // デフォルトキーが指定されたときは既存のカスタムキーバインドを削除
+        if (binding.getDefaultCombination().equals(combination)) {
+            preferences.remove(binding.getId());
+        } else {
+            preferences.put(binding.getId(), combination.getName());
+        }
+    }
+
+    public void clear() {
+        for (var binding : KeyBinding.values()) {
+            preferences.remove(binding.getId());
+        }
     }
 
     @Override

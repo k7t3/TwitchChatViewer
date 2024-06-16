@@ -6,4 +6,6 @@ public interface PreferencesViewModelBase extends ViewModel {
 
     void sync();
 
+    boolean canSync();
+
 }

@@ -96,6 +96,7 @@ public class ChannelGroupListView implements FxmlView<ChannelGroupListViewModel>
      */
     public void onOpened() {
         Platform.runLater(() -> virtualFlow.show(0));
+        filterField.requestFocus();
     }
 
 }

@@ -19,6 +19,11 @@ public class ChatMessageFilterViewModel implements PreferencesViewModelBase {
         filters = FXCollections.observableList(new ArrayList<>(filterPrefs.getKeywordMessageFilter().getKeywords()));
     }
 
+    @Override
+    public boolean canSync() {
+        return true;
+    }
+
     public void sync() {
         var items = filters.stream().filter(f -> !f.trim().isEmpty()).toList();
         var set = filterPrefs.getKeywordMessageFilter().getKeywords();

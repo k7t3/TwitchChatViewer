@@ -1,0 +1,12 @@
+.key-binding-preferences-view {
+    -fx-pref-width: 640;
+    -fx-pref-height: 480;
+}
+
+.key-combination-cell: editing {
+    -fx-background-color: -color-accent-subtle;
+}
+
+.key-combination-cell: duplicated {
+    -fx-background-color: -color-danger-subtle;
+}

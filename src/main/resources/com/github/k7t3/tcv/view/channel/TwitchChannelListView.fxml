@@ -20,8 +20,14 @@
          <right>
             <MenuButton fx:id="optionMenuButton" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" text="MenuButton" BorderPane.alignment="CENTER">
               <items>
-                  <CheckMenuItem fx:id="onlyLiveMenuItem" mnemonicParsing="false" text="%channel.list.only.live" />
-                  <CheckMenuItem fx:id="onlyFollowMenuItem" mnemonicParsing="false" text="%channel.list.only.follow" />
+                  <CheckMenuItem fx:id="onlyLiveMenuItem" mnemonicParsing="false" text="%channel.list.only.live">
+                     <graphic>
+                        <FontIcon iconLiteral="fth-activity" />
+                     </graphic></CheckMenuItem>
+                  <CheckMenuItem fx:id="onlyFollowMenuItem" mnemonicParsing="false" text="%channel.list.only.follow">
+                     <graphic>
+                        <FontIcon iconLiteral="fth-users" />
+                     </graphic></CheckMenuItem>
               </items>
                <graphic>
                   <FontIcon iconLiteral="fth-more-vertical" />
