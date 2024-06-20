@@ -1,12 +1,13 @@
 package com.github.k7t3.tcv.view.clip;
 
-import atlantafx.base.controls.Popover;
 import atlantafx.base.theme.Styles;
 import com.github.k7t3.tcv.app.clip.EstimatedClipViewModel;
 import com.github.k7t3.tcv.app.clip.PostedClipRepository;
 import com.github.k7t3.tcv.app.clip.PostedClipViewModel;
-import com.github.k7t3.tcv.domain.channel.Broadcaster;
 import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.domain.channel.Broadcaster;
+import com.github.k7t3.tcv.view.core.BasicPopup;
+import com.github.k7t3.tcv.view.core.JavaFXHelper;
 import com.github.k7t3.tcv.view.web.BrowserController;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
@@ -158,22 +159,17 @@ public class PostedClipRepositoryView implements FxmlView<PostedClipRepository>,
         var label = new Label(Resources.getString("clip.help"));
         label.getStyleClass().addAll(Styles.TEXT_SMALL);
         label.setWrapText(true);
+        label.setPrefWidth(200);
 
-        var popOver = new Popover();
-        popOver.setDetachable(false);
-        popOver.setContentNode(label);
-        popOver.setArrowLocation(Popover.ArrowLocation.TOP_LEFT);
-        popOver.setPrefWidth(200);
-        popOver.setAutoHide(true);
-        //popOver.setCloseButtonEnabled(true);
-
-        // TitledPaneのスタイルに影響されてタイトルが巨大になってしまうため非表示
-        popOver.setHeaderAlwaysVisible(false);
-        popOver.setTitle("What is this?");
+        var popup = new BasicPopup(label);
+        popup.setAutoHide(true);
 
         helpIcon.setOnMouseClicked(e -> {
             e.consume();
-            popOver.show(helpIcon);
+            var bounds = JavaFXHelper.computeScreenBounds(helpIcon);
+            var x = bounds.getMinX() - label.getWidth() / 2 + bounds.getWidth() / 2;
+            var y = bounds.getMaxY();
+            popup.show(helpIcon, x, y);
         });
     }
 

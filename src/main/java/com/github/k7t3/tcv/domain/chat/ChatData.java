@@ -17,7 +17,7 @@ public record ChatData(String channelId, String channelName, String msgId,
         if (message == null || message.isEmpty())
             throw new IllegalArgumentException("message is null or empty");
 
-        var fragments = List.of(new ChatMessage.MessageFragment(ChatMessage.Type.MESSAGE, message));
+        var fragments = List.of(ChatMessageFragment.text(message));
         var chatMessage = new ChatMessage(message, fragments);
 
         return new ChatData(

@@ -11,6 +11,7 @@ public class OpenTermsCommand extends BasicCommand {
 
     public OpenTermsCommand(BrowserController controller) {
         this.controller = controller;
+        executable.set(true);
     }
 
     @Override

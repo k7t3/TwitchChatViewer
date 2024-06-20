@@ -1,7 +1,6 @@
 package com.github.k7t3.tcv.view.main;
 
 import atlantafx.base.controls.ModalPane;
-import atlantafx.base.controls.Popover;
 import atlantafx.base.theme.Styles;
 import atlantafx.base.util.Animations;
 import com.github.k7t3.tcv.app.core.AppHelper;
@@ -20,6 +19,8 @@ import com.github.k7t3.tcv.view.channel.LiveStateNotificatorView;
 import com.github.k7t3.tcv.view.channel.TwitchChannelListView;
 import com.github.k7t3.tcv.view.chat.ChatContainerView;
 import com.github.k7t3.tcv.view.command.*;
+import com.github.k7t3.tcv.view.core.BasicPopup;
+import com.github.k7t3.tcv.view.core.JavaFXHelper;
 import com.github.k7t3.tcv.view.keyboard.KeyBindingAccelerator;
 import com.github.k7t3.tcv.view.web.BrowserController;
 import de.saxsys.mvvmfx.FluentViewLoader;
@@ -34,7 +35,6 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 
 import java.net.URL;
-import java.util.Arrays;
 import java.util.ResourceBundle;
 
 public class MainView implements FxmlView<MainViewModel>, Initializable {
@@ -215,7 +215,7 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         searchChannelButton.disableProperty().bind(openSearchCommand.notExecutableProperty());
         searchChannelButton.setOnAction(openSearchCommand);
         termsMenuItem.setOnAction(openTermsCommand);
-        termsMenuItem.disableProperty().bind(openClipCommand.notExecutableProperty());
+        termsMenuItem.disableProperty().bind(openTermsCommand.notExecutableProperty());
         guidelineMenuItem.setOnAction(openCommunityGuidelineCommand);
         guidelineMenuItem.disableProperty().bind(openCommunityGuidelineCommand.notExecutableProperty());
 
@@ -274,17 +274,18 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
             }
         });
 
-        var popOver = new Popover(controller);
-        popOver.setArrowLocation(Popover.ArrowLocation.TOP_RIGHT);
-        popOver.setAnimated(false);
-//        liveStateLink.setOnAction(e -> {
-//            if (popOver.isShowing()) {
-//                popOver.hide();
-//                return;
-//            }
-//            popOver.show(liveStateLink);
-//            controller.scrollTo(notificator.getRecords().getLast());
-//        });
+        var popup = new BasicPopup(controller);
+        popup.setAutoHide(true);
+        liveStateLink.setOnAction(e -> {
+            if (popup.isShowing()) {
+                popup.hide();
+                return;
+            }
+            var bounds = JavaFXHelper.computeScreenBounds(liveStateLink);
+            var x = bounds.getMinX() - popup.getWidth() / 2 + bounds.getWidth() / 2;
+            var y = bounds.getMaxY();
+            popup.show(liveStateLink, x, y);
+        });
     }
 
     public void startMainView() {

@@ -1,7 +1,6 @@
 package com.github.k7t3.tcv.view.group;
 
 import atlantafx.base.controls.Card;
-import atlantafx.base.controls.Popover;
 import atlantafx.base.controls.Tile;
 import atlantafx.base.theme.Styles;
 import atlantafx.base.theme.Tweaks;
@@ -13,9 +12,11 @@ import com.github.k7t3.tcv.app.event.ChatOpeningEvent;
 import com.github.k7t3.tcv.app.group.ChannelGroup;
 import com.github.k7t3.tcv.app.group.ChannelGroupListViewModel;
 import com.github.k7t3.tcv.prefs.GeneralPreferences;
+import com.github.k7t3.tcv.view.channel.LiveInfoPopup;
 import com.github.k7t3.tcv.view.channel.menu.OpenBrowserMenuItem;
 import com.github.k7t3.tcv.view.channel.menu.OpenChatMenuItem;
 import com.github.k7t3.tcv.view.control.EditableLabel;
+import com.github.k7t3.tcv.view.core.JavaFXHelper;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -27,15 +28,12 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Rectangle;
-import javafx.stage.WindowEvent;
 import org.fxmisc.flowless.Cell;
 import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeRegular;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
-import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.Comparator;
 
 public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Region> {
@@ -264,45 +262,27 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
         vbox.setSpacing(4);
         vbox.setPadding(new Insets(10, 0, 10, 0));
 
-        var pop = new Popover(vbox);
-        pop.titleProperty().bind(channel.observableUserName());
-        pop.setCloseButtonEnabled(false);
-        pop.setHeaderAlwaysVisible(true);
-        pop.setDetachable(false);
-        pop.setAnimated(false);
-        pop.setArrowLocation(Popover.ArrowLocation.TOP_LEFT);
+        var popup = new LiveInfoPopup(channel);
+        popup.setAutoHide(true);
 
-        pop.addEventHandler(WindowEvent.WINDOW_SHOWING, e -> {
-            gameNameLabel.setText(channel.getStreamInfo().gameName());
-            streamTitleLabel.setText(channel.getStreamInfo().title());
-            viewerCountLabel.setText(Integer.toString(channel.getStreamInfo().viewerCount()));
-
-            var now = LocalDateTime.now();
-            var startedAt = channel.getStreamInfo().startedAt();
-            var between = Duration.between(startedAt, now);
-            var minutes = between.toMinutes();
-
-            if (minutes < 60) {
-                uptimeLabel.setText("%d m".formatted(minutes));
-            } else {
-                var hours = minutes / 60;
-                minutes = minutes - hours * 60;
-                uptimeLabel.setText("%d h %d m".formatted(hours, minutes));
+        node.setOnMousePressed(e -> {
+            if (channel.isLive() && !popup.isShowing()) {
+                var bounds = JavaFXHelper.computeScreenBounds(node);
+                var x = bounds.getMinX() - popup.getWidth() / 2 + bounds.getWidth() / 2;
+                var y = bounds.getMaxY();
+                popup.show(node, x, y);
+                e.consume();
             }
         });
-
-//        node.setOnMousePressed(e -> {
-//            if (channel.isLive() && !pop.isShowing()) {
-//                pop.show(node);
-//                e.consume();
-//            }
-//        });
-//        node.setOnMouseEntered(e -> {
-//            if (channel.isLive()) {
-//                pop.show(node);
-//            }
-//        });
-//        node.setOnMouseExited(e -> pop.hide());
+        node.setOnMouseEntered(e -> {
+            if (channel.isLive()) {
+                var bounds = JavaFXHelper.computeScreenBounds(node);
+                var x = bounds.getMinX() - popup.getWidth() / 2 + bounds.getWidth() / 2;
+                var y = bounds.getMaxY();
+                popup.show(node, x, y);
+            }
+        });
+        node.setOnMouseExited(e -> popup.hide());
     }
 
     @Override

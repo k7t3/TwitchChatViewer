@@ -11,6 +11,7 @@ public class OpenCommunityGuidelineCommand extends BasicCommand {
 
     public OpenCommunityGuidelineCommand(BrowserController controller) {
         this.controller = controller;
+        executable.set(true);
     }
 
     @Override

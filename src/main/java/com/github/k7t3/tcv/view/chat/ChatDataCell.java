@@ -228,12 +228,12 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
         for (var fragment : viewModel.getMessage()) {
             switch (fragment.type()) {
                 case EMOTE -> {
-                    var view = createEmoteNode(viewModel.getEmoteStore().get(fragment.fragment()));
+                    var view = createEmoteNode(viewModel.getEmoteStore().get(fragment.text()));
                     messageNodes.add(view);
                     getChildren().add(view);
                 }
-                case MESSAGE -> {
-                    var text = new Text(fragment.fragment());
+                case TEXT, EMOJI -> {
+                    var text = new Text(fragment.text());
                     text.getStyleClass().add(CHAT_STYLE_CLASS);
                     text.fontProperty().bind(font.map(f ->
                             viewModel.isSystem() ? f.getBoldFont() : f.getFont())
@@ -256,11 +256,11 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
         for (var fragment : viewModel.getMessage()) {
             switch (fragment.type()) {
                 case EMOTE -> {
-                    var view = createEmoteNode(viewModel.getEmoteStore().get(fragment.fragment()));
+                    var view = createEmoteNode(viewModel.getEmoteStore().get(fragment.text()));
                     getChildren().add(view);
                 }
-                case MESSAGE -> {
-                    var text = new Text(fragment.fragment());
+                case TEXT, EMOJI -> {
+                    var text = new Text(fragment.text());
                     text.getStyleClass().add(CHAT_STYLE_CLASS);
                     text.fontProperty().bind(font.map(ChatFont::getBoldFont));
                     getChildren().add(text);

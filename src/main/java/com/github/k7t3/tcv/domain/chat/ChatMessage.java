@@ -3,17 +3,13 @@ package com.github.k7t3.tcv.domain.chat;
 import java.util.AbstractList;
 import java.util.List;
 
-public class ChatMessage extends AbstractList<ChatMessage.MessageFragment> {
+public class ChatMessage extends AbstractList<ChatMessageFragment> {
 
-    public enum Type { EMOTE, MESSAGE }
-
-    public record MessageFragment(Type type, String fragment) {}
-
-    private final List<MessageFragment> fragments;
+    private final List<ChatMessageFragment> fragments;
 
     private final String plain;
 
-    public ChatMessage(String plain, List<MessageFragment> fragments) {
+    public ChatMessage(String plain, List<ChatMessageFragment> fragments) {
         this.plain = plain;
         this.fragments = fragments;
     }
@@ -23,7 +19,7 @@ public class ChatMessage extends AbstractList<ChatMessage.MessageFragment> {
     }
 
     @Override
-    public MessageFragment get(int index) {
+    public ChatMessageFragment get(int index) {
         return fragments.get(index);
     }
 

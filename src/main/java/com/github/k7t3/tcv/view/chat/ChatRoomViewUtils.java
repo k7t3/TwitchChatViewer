@@ -1,30 +1,23 @@
 package com.github.k7t3.tcv.view.chat;
 
-import atlantafx.base.controls.Popover;
-import atlantafx.base.theme.Styles;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.ChatRoomViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
+import com.github.k7t3.tcv.view.channel.LiveInfoPopup;
 import com.github.k7t3.tcv.view.core.FloatableStage;
+import com.github.k7t3.tcv.view.core.JavaFXHelper;
 import com.github.k7t3.tcv.view.core.WindowBoundsListener;
 import javafx.beans.property.BooleanProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
-import javafx.geometry.Insets;
 import javafx.scene.Node;
-import javafx.scene.control.Label;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
-import javafx.scene.layout.VBox;
-import javafx.stage.WindowEvent;
 import org.fxmisc.flowless.VirtualFlow;
-import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
-import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
-import java.time.LocalDateTime;
 
 public class ChatRoomViewUtils {
 
@@ -93,65 +86,16 @@ public class ChatRoomViewUtils {
     }
 
     public static void installStreamInfoPopOver(TwitchChannelViewModel channel, Node node) {
-        var gameNameLabel = new Label();
-        gameNameLabel.setWrapText(true);
-
-        var streamTitleLabel = new Label();
-        streamTitleLabel.setWrapText(true);
-        streamTitleLabel.getStyleClass().addAll(Styles.TEXT_SMALL);
-
-        var viewerCountLabel = new Label();
-        viewerCountLabel.setGraphic(new FontIcon(FontAwesomeSolid.USER));
-        viewerCountLabel.getStyleClass().add(Styles.DANGER);
-
-        // アップタイムはポップアップを表示したときに計算する
-        var uptimeLabel = new Label();
-        uptimeLabel.setGraphic(new FontIcon(FontAwesomeSolid.CLOCK));
-
-        var vbox = new VBox(gameNameLabel, streamTitleLabel, viewerCountLabel, uptimeLabel);
-        vbox.setPrefWidth(300);
-        vbox.setSpacing(4);
-        vbox.setPadding(new Insets(10, 0, 10, 0));
-
-        var pop = new Popover(vbox);
-        pop.titleProperty().bind(channel.observableUserName());
-        pop.setCloseButtonEnabled(false);
-        pop.setHeaderAlwaysVisible(true);
-        pop.setDetachable(false);
-        pop.setAnimated(false);
-        pop.setArrowLocation(Popover.ArrowLocation.TOP_LEFT);
-
-        pop.addEventHandler(WindowEvent.WINDOW_SHOWING, e -> {
-            gameNameLabel.setText(channel.getStreamInfo().gameName());
-            streamTitleLabel.setText(channel.getStreamInfo().title());
-            viewerCountLabel.setText(Integer.toString(channel.getStreamInfo().viewerCount()));
-
-            var now = LocalDateTime.now();
-            var startedAt = channel.getStreamInfo().startedAt();
-            var between = Duration.between(startedAt, now);
-            var minutes = between.toMinutes();
-
-            if (minutes < 60) {
-                uptimeLabel.setText("%d m".formatted(minutes));
-            } else {
-                var hours = minutes / 60;
-                minutes = minutes - hours * 60;
-                uptimeLabel.setText("%d h %d m".formatted(hours, minutes));
-            }
+        var popup = new LiveInfoPopup(channel);
+        popup.setAutoHide(true);
+        node.addEventHandler(MouseEvent.MOUSE_MOVED, e -> {
+            var bounds = JavaFXHelper.computeScreenBounds(node);
+            var x = bounds.getMinX() - popup.getWidth() / 2 + bounds.getWidth() / 2;
+            var y = bounds.getMaxY();
+            popup.show(node, x, y);
         });
-
-//        node.setOnMousePressed(e -> {
-//            if (channel.isLive() && !pop.isShowing()) {
-//                pop.show(node);
-//                e.consume();
-//            }
-//        });
-//        node.setOnMouseEntered(e -> {
-//            if (channel.isLive()) {
-//                pop.show(node);
-//            }
-//        });
-//        node.setOnMouseExited(e -> pop.hide());
+        node.addEventHandler(MouseEvent.MOUSE_EXITED, e -> popup.hide());
     }
+
 
 }
