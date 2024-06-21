@@ -9,7 +9,6 @@
 <?import javafx.scene.control.SeparatorMenuItem?>
 <?import javafx.scene.control.ToggleButton?>
 <?import javafx.scene.control.Tooltip?>
-<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
@@ -32,10 +31,6 @@
             <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
          </rowConstraints>
          <children>
-            <ImageView fx:id="profileImageView" fitHeight="32.0" fitWidth="32.0" pickOnBounds="true" preserveRatio="true" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
-               <GridPane.margin>
-                  <Insets bottom="4.0" left="4.0" right="4.0" top="4.0" />
-               </GridPane.margin></ImageView>
             <HBox GridPane.columnIndex="1">
                <children>
                   <VBox alignment="CENTER_LEFT" spacing="1.0">

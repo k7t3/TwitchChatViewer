@@ -6,7 +6,6 @@
 <?import javafx.scene.control.MenuItem?>
 <?import javafx.scene.control.SeparatorMenuItem?>
 <?import javafx.scene.control.Slider?>
-<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Pane?>
@@ -23,7 +22,6 @@
    <top>
       <HBox fx:id="headerPane" alignment="CENTER_LEFT" styleClass="chat-room-header" BorderPane.alignment="CENTER">
          <children>
-            <ImageView fx:id="profileImageView" fitHeight="48.0" fitWidth="48.0" pickOnBounds="true" preserveRatio="true" />
             <Pane HBox.hgrow="ALWAYS" />
             <MenuButton fx:id="menuButton" contentDisplay="GRAPHIC_ONLY" focusTraversable="false" mnemonicParsing="false" text="MenuButton">
               <items>

@@ -1,9 +1,9 @@
 package com.github.k7t3.tcv.app.chat;
 
+import com.github.k7t3.tcv.app.image.LazyImage;
+import com.github.k7t3.tcv.app.service.CachedImageStore;
 import com.github.k7t3.tcv.domain.chat.ChatBadge;
 import com.github.k7t3.tcv.domain.chat.GlobalChatBadges;
-import com.github.k7t3.tcv.app.service.CachedImageStore;
-import javafx.scene.image.Image;
 
 import java.time.Duration;
 
@@ -17,10 +17,10 @@ public class GlobalChatBadgeStore extends CachedImageStore<ChatBadge> {
     }
 
     @Override
-    protected Image loadImage(ChatBadge key) {
+    protected LazyImage loadImage(ChatBadge key) {
         var url = globalBadges.getBadgeUrl(key.id(), key.version()).orElse(null);
         if (url == null) return null;
-        return new Image(url, 0, 0, true, true, true);
+        return new LazyImage(url, 0, 0);
     }
 
 }

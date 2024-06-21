@@ -1,6 +1,7 @@
 package com.github.k7t3.tcv.view.channel;
 
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
+import com.github.k7t3.tcv.app.image.LazyImageView;
 import com.github.k7t3.tcv.view.core.JavaFXHelper;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -11,7 +12,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.Tooltip;
 import javafx.scene.effect.SepiaTone;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -32,7 +32,7 @@ public class TwitchChannelListCell extends ListCell<TwitchChannelViewModel> {
 
     private BorderPane layout;
 
-    private ImageView profileImageView;
+    private LazyImageView profileImageView;
 
     private Label userNameLabel;
 
@@ -52,7 +52,7 @@ public class TwitchChannelListCell extends ListCell<TwitchChannelViewModel> {
     }
 
     private void initialize() {
-        profileImageView = new ImageView();
+        profileImageView = new LazyImageView();
         profileImageView.getStyleClass().add(PROFILE_IMAGE_STYLE_CLASS);
         profileImageView.setFitWidth(PROFILE_IMAGE_WIDTH);
         profileImageView.setFitHeight(PROFILE_IMAGE_HEIGHT);
@@ -115,7 +115,7 @@ public class TwitchChannelListCell extends ListCell<TwitchChannelViewModel> {
     }
 
     private void update(TwitchChannelViewModel viewModel) {
-        profileImageView.imageProperty().bind(viewModel.profileImageProperty());
+        profileImageView.lazyImageProperty().bind(viewModel.profileImageProperty());
 
         // ユーザー名はそうそう変更されないことを見越してバインドしない
         var userName = viewModel.getUserName();

@@ -1,12 +1,15 @@
 package com.github.k7t3.tcv.app.clip;
 
+import com.github.k7t3.tcv.app.image.LazyImage;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
 import com.github.k7t3.tcv.domain.clip.VideoClip;
 import de.saxsys.mvvmfx.ViewModel;
-import javafx.beans.property.*;
-import javafx.scene.image.Image;
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.property.ReadOnlyStringProperty;
+import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
 
@@ -60,7 +63,7 @@ public class PostedClipViewModel extends AbstractPostedClip implements ViewModel
             return true;
         });
 
-        TaskWorker.getInstance().submit(task);
+        task.runAsync();
 
         return task;
     }
@@ -73,7 +76,7 @@ public class PostedClipViewModel extends AbstractPostedClip implements ViewModel
         cb.setContent(Map.of(DataFormat.PLAIN_TEXT, clip.url()));
     }
 
-    public Image getThumbnailImage() {
+    public LazyImage getThumbnailImage() {
         return repository.getThumbnailStore().get(this);
     }
 

@@ -3,6 +3,9 @@ package com.github.k7t3.tcv.view.chat;
 import atlantafx.base.theme.Styles;
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.app.image.LazyImage;
+import com.github.k7t3.tcv.app.image.LazyImageView;
+import com.github.k7t3.tcv.domain.chat.ChatMessageFragment;
 import com.github.k7t3.tcv.view.core.JavaFXHelper;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
@@ -12,8 +15,7 @@ import javafx.scene.Node;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.Pane;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
@@ -30,6 +32,9 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
     private static final double EMOTE_IMAGE_WIDTH = 24;
     private static final double EMOTE_IMAGE_HEIGHT = 24;
 
+    private static final double EMOJI_IMAGE_WIDTH = 20;
+    private static final double EMOJI_IMAGE_HEIGHT = 20;
+
     private static final String STYLE_CLASS = "chat-data-cell";
     private static final String IMAGE_STYLE_VIEW = "chat-image-view";
     private static final String NAME_STYLE_CLASS = "chat-name-label";
@@ -43,18 +48,17 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
     private final boolean mergedChat;
 
     private final BooleanProperty visibleBadges;
-
     private final BooleanProperty visibleName;
-
     private final ObservableValue<ChatFont> font;
-
     private final BooleanProperty deleted;
-
     private final BooleanProperty hidden;
 
     private final ChatDataViewModel viewModel;
 
     private ContextMenu contextMenu;
+
+    /** メッセージを構成する、非表示、削除した際に取り除くノード*/
+    private List<Node> deletableNodes;
 
     public static ChatDataCell of(ChatDataViewModel viewModel) {
         return new ChatDataCell(viewModel, false);
@@ -209,41 +213,47 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
 
 
         // メッセージを構成するノードリスト
-        var messageNodes = new ArrayList<Node>();
+        deletableNodes = new ArrayList<>();
         // 削除フラグが有効なときメッセージ要素を
         // すべてクリアして代替メッセージを表示する
         deleted.addListener((ob, o, n) -> {
             if (n) {
-                disabledMessage(messageNodes, Resources.getString("chat.message.deleted"));
-                messageNodes.clear();
+                disabledMessage(Resources.getString("chat.message.deleted"));
+                deletableNodes.clear();
             }
         });
         hidden.addListener((ob, o, n) -> {
             if (n) {
-                disabledMessage(messageNodes, Resources.getString("chat.message.hidden"));
-                messageNodes.clear();
+                disabledMessage(Resources.getString("chat.message.hidden"));
+                deletableNodes.clear();
             }
         });
+
+        buildMessageNodes();
+    }
+
+    private void buildMessageNodes() {
+        deletableNodes = new ArrayList<>();
 
         for (var fragment : viewModel.getMessage()) {
             switch (fragment.type()) {
                 case EMOTE -> {
-                    var view = createEmoteNode(viewModel.getEmoteStore().get(fragment.text()));
-                    messageNodes.add(view);
+                    var view = createEmoteNode(fragment);
+                    deletableNodes.add(view);
                     getChildren().add(view);
                 }
-                case TEXT, EMOJI -> {
-                    var text = new Text(fragment.text());
-                    text.getStyleClass().add(CHAT_STYLE_CLASS);
-                    text.fontProperty().bind(font.map(f ->
-                            viewModel.isSystem() ? f.getBoldFont() : f.getFont())
-                    );
-                    messageNodes.add(text);
-                    getChildren().add(text);
+                case EMOJI -> {
+                    var view = createEmojiNode(fragment);
+                    deletableNodes.add(view);
+                    getChildren().add(view);
+                }
+                case TEXT -> {
+                    var view = createTextNode(fragment);
+                    deletableNodes.add(view);
+                    getChildren().add(view);
                 }
             }
         }
-
     }
 
     private void initForSystemMessage() {
@@ -253,42 +263,34 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
 
         getChildren().addAll(spacer);
 
-        for (var fragment : viewModel.getMessage()) {
-            switch (fragment.type()) {
-                case EMOTE -> {
-                    var view = createEmoteNode(viewModel.getEmoteStore().get(fragment.text()));
-                    getChildren().add(view);
-                }
-                case TEXT, EMOJI -> {
-                    var text = new Text(fragment.text());
-                    text.getStyleClass().add(CHAT_STYLE_CLASS);
-                    text.fontProperty().bind(font.map(ChatFont::getBoldFont));
-                    getChildren().add(text);
-                }
-            }
-        }
+        buildMessageNodes();
     }
 
     private void disabledMessage(String localizedKey) {
-        var message = Resources.getString(localizedKey);
-        disabledMessage(List.of(), message);
-    }
-
-    private void disabledMessage(List<Node> messageNodes, String alternateMessage) {
-        if (!messageNodes.isEmpty()) {
+        if (!deletableNodes.isEmpty()) {
             // メッセージを構成するノードを除去
-            getChildren().removeAll(messageNodes);
+            getChildren().removeAll(deletableNodes);
         }
 
         // 代替メッセージ
-        var text = new Text(alternateMessage);
+        var message = Resources.getString(localizedKey);
+        var text = new Text(message);
         text.getStyleClass().addAll(CHAT_STYLE_CLASS, Styles.TEXT_MUTED);
         text.fontProperty().bind(font.map(ChatFont::getFont));
         getChildren().add(text);
     }
 
-    private Node createBadgeNode(Image image) {
-        var imageView = new ImageView(image);
+    private Node createTextNode(ChatMessageFragment fragment) {
+        var text = new Text(fragment.text());
+        text.getStyleClass().add(CHAT_STYLE_CLASS);
+        text.fontProperty().bind(font.map(f ->
+                viewModel.isSystem() ? f.getBoldFont() : f.getFont())
+        );
+        return text;
+    }
+
+    private Node createBadgeNode(LazyImage image) {
+        var imageView = new LazyImageView(image);
         imageView.getStyleClass().add(IMAGE_STYLE_VIEW);
         imageView.setPreserveRatio(true);
 
@@ -311,8 +313,8 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
         return node;
     }
 
-    private Node createEmoteNode(Image image) {
-        var imageView = new ImageView(image);
+    private Node createEmoteNode(ChatMessageFragment fragment) {
+        var imageView = new LazyImageView(viewModel.getEmoteStore().get(fragment.text()));
         imageView.getStyleClass().add(IMAGE_STYLE_VIEW);
         imageView.setPreserveRatio(true);
 
@@ -323,6 +325,34 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
         var imageHeight = Bindings.multiply(
                 Bindings.selectDouble(font.map(ChatFont::getFontScale)),
                 EMOTE_IMAGE_HEIGHT
+        );
+        imageView.fitWidthProperty().bind(imageWidth);
+        imageView.fitHeightProperty().bind(imageHeight);
+
+        var node = new Label(null, imageView);
+        node.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+        node.setTooltip(new Tooltip(fragment.additional()));
+        return node;
+    }
+
+    private Node createEmojiNode(ChatMessageFragment fragment) {
+        var image = viewModel.getEmojiImage(fragment);
+        // 非対応の絵文字のときはテキストとしてそのまま使う
+        if (image == null) {
+            return createTextNode(fragment);
+        }
+
+        var imageView = new LazyImageView(image);
+        imageView.getStyleClass().add(IMAGE_STYLE_VIEW);
+        imageView.setPreserveRatio(true);
+
+        var imageWidth = Bindings.multiply(
+                Bindings.selectDouble(font.map(ChatFont::getFontScale)),
+                EMOJI_IMAGE_WIDTH
+        );
+        var imageHeight = Bindings.multiply(
+                Bindings.selectDouble(font.map(ChatFont::getFontScale)),
+                EMOJI_IMAGE_HEIGHT
         );
         imageView.fitWidthProperty().bind(imageWidth);
         imageView.fitHeightProperty().bind(imageHeight);

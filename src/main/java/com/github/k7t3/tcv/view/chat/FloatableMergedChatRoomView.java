@@ -7,6 +7,7 @@ import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.chat.MergedChatRoomViewModel;
 import com.github.k7t3.tcv.app.chat.SingleChatRoomViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
+import com.github.k7t3.tcv.app.image.LazyImageView;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.view.core.FloatableStage;
 import com.github.k7t3.tcv.view.group.menu.ChannelGroupMenu;
@@ -19,7 +20,6 @@ import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.effect.SepiaTone;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Rectangle;
@@ -136,7 +136,7 @@ public class FloatableMergedChatRoomView implements FxmlView<MergedChatRoomViewM
      * ブロードキャスターのプロファイルイメージNode
      */
     private Node createProfileImageView(TwitchChannelViewModel channel) {
-        var imageView = new ImageView(channel.getProfileImage());
+        var imageView = new LazyImageView(channel.getProfileImage());
         imageView.setPreserveRatio(true);
         imageView.setSmooth(true);
         imageView.setFitWidth(PROFILE_IMAGE_SIZE);

@@ -117,7 +117,7 @@ public class AuthenticatorViewModel extends AbstractViewModel {
             var bufferedImage = MatrixToImageWriter.toBufferedImage(matrix);
             return SwingFXUtils.toFXImage(bufferedImage, null);
         });
-        t.setSucceeded(() -> qrcode.set(t.getValue()));
+        t.onDone(() -> qrcode.set(t.getValue()));
         t.runAsync();
     }
 

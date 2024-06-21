@@ -6,6 +6,7 @@ import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.chat.SingleChatRoomViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
+import com.github.k7t3.tcv.app.image.LazyImageView;
 import com.github.k7t3.tcv.domain.chat.ChatRoomState;
 import com.github.k7t3.tcv.view.core.JavaFXHelper;
 import com.github.k7t3.tcv.view.group.menu.ChannelGroupMenu;
@@ -17,7 +18,6 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import javafx.scene.effect.SepiaTone;
-import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.*;
 import javafx.scene.shape.Rectangle;
@@ -32,10 +32,9 @@ public class SingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, In
     private static final double PROFILE_IMAGE_SIZE = 48;
 
     @FXML
-    private Pane headerPane;
+    private GridPane headerPane;
 
-    @FXML
-    private ImageView profileImageView;
+    private LazyImageView profileImageView;
 
     @FXML
     private Label userNameLabel;
@@ -84,7 +83,9 @@ public class SingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, In
     public void initialize(URL location, ResourceBundle resources) {
         channel = viewModel.getChannel();
 
-        profileImageView.imageProperty().bind(channel.profileImageProperty());
+        profileImageView = new LazyImageView();
+        headerPane.add(profileImageView, 0, 0);
+        profileImageView.lazyImageProperty().bind(channel.profileImageProperty());
         profileImageView.setFitWidth(PROFILE_IMAGE_SIZE);
         profileImageView.setFitHeight(PROFILE_IMAGE_SIZE);
         var clip = new Rectangle();

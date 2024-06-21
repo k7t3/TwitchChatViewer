@@ -4,13 +4,11 @@ import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.PopupControl;
 import javafx.scene.control.Skin;
 import javafx.scene.layout.StackPane;
-import javafx.stage.WindowEvent;
 
 import java.util.Objects;
 
@@ -28,7 +26,7 @@ import java.util.Objects;
 public class BasicPopup extends PopupControl {
 
     private final ObjectProperty<Node> content = new SimpleObjectProperty<>();
-    private final DoubleProperty transparency = new SimpleDoubleProperty();
+    private final DoubleProperty transparency = new SimpleDoubleProperty(0.9);
 
     public BasicPopup() {
     }
@@ -80,15 +78,9 @@ public class BasicPopup extends PopupControl {
             control.content.addListener((ob, o, n) -> contentLayer.getChildren().setAll(n));
 
             // 初回表示時のみ位置を補正するイベントハンドラ
-            var once = new EventHandler<WindowEvent>() {
-                @Override
-                public void handle(WindowEvent windowEvent) {
-                    control.setX(control.getX() - control.getWidth() / 2);
-                    control.setOnShown(null);
-                    control.removeEventHandler(WindowEvent.WINDOW_SHOWN, this);
-                }
-            };
-            control.addEventHandler(WindowEvent.WINDOW_SHOWN, once);
+            JavaFXHelper.shownOnce(control, e -> {
+                control.setX(control.getX() - control.getWidth() / 2);
+            });
         }
 
         @Override

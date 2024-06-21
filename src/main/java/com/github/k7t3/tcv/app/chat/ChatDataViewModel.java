@@ -1,14 +1,16 @@
 package com.github.k7t3.tcv.app.chat;
 
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
+import com.github.k7t3.tcv.app.emoji.EmojiImageCache;
+import com.github.k7t3.tcv.app.image.LazyImage;
 import com.github.k7t3.tcv.domain.chat.ChatData;
 import com.github.k7t3.tcv.domain.chat.ChatMessage;
+import com.github.k7t3.tcv.domain.chat.ChatMessageFragment;
 import com.github.k7t3.tcv.view.chat.ChatFont;
 import de.saxsys.mvvmfx.ViewModel;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
 import javafx.scene.paint.Color;
@@ -31,7 +33,7 @@ public class ChatDataViewModel implements ViewModel {
 
     private final ReadOnlyObjectWrapper<ChatMessage> message = new ReadOnlyObjectWrapper<>();
 
-    private final ObservableList<Image> badges = FXCollections.observableArrayList();
+    private final ObservableList<LazyImage> badges = FXCollections.observableArrayList();
 
     private final BooleanProperty visibleName = new SimpleBooleanProperty(true);
 
@@ -53,6 +55,8 @@ public class ChatDataViewModel implements ViewModel {
 
     private final DefinedChatColors definedChatColors;
 
+    private final EmojiImageCache emojiCache;
+
     private boolean system = false;
     private boolean subs = false;
     private int bits = Integer.MIN_VALUE;
@@ -63,7 +67,8 @@ public class ChatDataViewModel implements ViewModel {
             GlobalChatBadgeStore globalBadgeStore,
             ChannelChatBadgeStore channelBadgeStore,
             ChatEmoteStore emoteStore,
-            DefinedChatColors definedChatColors
+            DefinedChatColors definedChatColors,
+            EmojiImageCache emojiCache
     ) {
         this.channel = new ReadOnlyObjectWrapper<>(channel);
         this.chatData = chatData;
@@ -71,11 +76,17 @@ public class ChatDataViewModel implements ViewModel {
         this.channelBadgeStore = channelBadgeStore;
         this.emoteStore = emoteStore;
         this.definedChatColors = definedChatColors;
+        this.emojiCache = emojiCache;
         update();
     }
 
     public ChatData getChatData() {
         return chatData;
+    }
+
+    public LazyImage getEmojiImage(ChatMessageFragment fragment) {
+        if (fragment.type() != ChatMessageFragment.Type.EMOJI) throw new IllegalArgumentException("fragment is not emoji");
+        return emojiCache.get(fragment.additional());
     }
 
     private void update() {
@@ -89,7 +100,7 @@ public class ChatDataViewModel implements ViewModel {
                 : Color.web(chatData.colorCode());
         this.color.set(color);
 
-        var badges = new ArrayList<Image>();
+        var badges = new ArrayList<LazyImage>();
         for (var chatBadge : chatData.badges()) {
             var i = channelBadgeStore.getNullable(chatBadge);
             if (i.isPresent()) {
@@ -105,7 +116,7 @@ public class ChatDataViewModel implements ViewModel {
         return emoteStore;
     }
 
-    public ObservableList<Image> getBadges() {
+    public ObservableList<LazyImage> getBadges() {
         return badges;
     }
 

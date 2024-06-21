@@ -8,6 +8,7 @@ import com.github.k7t3.tcv.app.chat.MergedChatRoomViewModel;
 import com.github.k7t3.tcv.app.chat.SingleChatRoomViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.app.image.LazyImageView;
 import com.github.k7t3.tcv.view.core.JavaFXHelper;
 import com.github.k7t3.tcv.view.group.menu.ChannelGroupMenu;
 import de.saxsys.mvvmfx.FxmlView;
@@ -19,7 +20,6 @@ import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.effect.SepiaTone;
-import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
@@ -133,7 +133,7 @@ public class MergedChatRoomView implements FxmlView<MergedChatRoomViewModel>, In
     }
 
     private Node createProfileImageView(TwitchChannelViewModel channel, SingleChatRoomViewModel chatRoom) {
-        var imageView = new ImageView(channel.getProfileImage());
+        var imageView = new LazyImageView(channel.getProfileImage());
         imageView.setPreserveRatio(true);
         imageView.setSmooth(true);
         imageView.setFitWidth(PROFILE_IMAGE_SIZE);

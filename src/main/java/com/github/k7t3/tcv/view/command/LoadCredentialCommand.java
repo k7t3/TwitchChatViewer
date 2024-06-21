@@ -52,8 +52,7 @@ public class LoadCredentialCommand extends BasicCommand {
 
         // 既存の資格情報を読み込む
         var loadAsync = viewModel.loadClientAsync();
-        FXTask.setOnSucceeded(loadAsync, e -> {
-
+        loadAsync.onDone(() -> {
             // 資格情報の取得に成功
             if (loadAsync.getValue().isPresent()) {
                 // 実行中フラグを終了
@@ -74,7 +73,6 @@ public class LoadCredentialCommand extends BasicCommand {
                 // 実行中フラグを終了
                 running.set(false);
             });
-
         });
     }
 

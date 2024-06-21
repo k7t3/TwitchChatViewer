@@ -1,9 +1,9 @@
 package com.github.k7t3.tcv.app.chat;
 
+import com.github.k7t3.tcv.app.image.LazyImage;
+import com.github.k7t3.tcv.app.service.CachedImageStore;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
 import com.github.k7t3.tcv.domain.chat.ChatBadge;
-import com.github.k7t3.tcv.app.service.CachedImageStore;
-import javafx.scene.image.Image;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
@@ -18,9 +18,9 @@ public class ChannelChatBadgeStore extends CachedImageStore<ChatBadge> {
     }
 
     @Override
-    protected @Nullable Image loadImage(ChatBadge key) {
+    protected @Nullable LazyImage loadImage(ChatBadge key) {
         var url = channel.getBadgeUrl(key).orElse(null);
         if (url == null) return null;
-        return new Image(url, 24, 24, true, true, true);
+        return new LazyImage(url, 24, 24);
     }
 }

@@ -11,6 +11,7 @@ import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.event.ChatOpeningEvent;
 import com.github.k7t3.tcv.app.group.ChannelGroup;
 import com.github.k7t3.tcv.app.group.ChannelGroupListViewModel;
+import com.github.k7t3.tcv.app.image.LazyImageView;
 import com.github.k7t3.tcv.prefs.GeneralPreferences;
 import com.github.k7t3.tcv.view.channel.LiveInfoPopup;
 import com.github.k7t3.tcv.view.channel.menu.OpenBrowserMenuItem;
@@ -22,7 +23,6 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.effect.SepiaTone;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.TilePane;
@@ -194,7 +194,7 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
             var repository = AppHelper.getInstance().getChannelGroupRepository();
             setDisable(true);
             var t = repository.saveAsync(group);
-            t.setSucceeded(() -> tilePane.getChildren().remove(tile));
+            t.onDone(() -> tilePane.getChildren().remove(tile));
             t.setFinally(() -> setDisable(false));
         });
 
@@ -213,8 +213,8 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
         );
         tile.setAction(menuButton);
 
-        var imageView = new ImageView();
-        imageView.imageProperty().bind(channel.profileImageProperty());
+        var imageView = new LazyImageView();
+        imageView.lazyImageProperty().bind(channel.profileImageProperty());
         imageView.setFitWidth(PROFILE_IMAGE_WIDTH);
         imageView.setFitHeight(PROFILE_IMAGE_HEIGHT);
         var clip = new Rectangle();

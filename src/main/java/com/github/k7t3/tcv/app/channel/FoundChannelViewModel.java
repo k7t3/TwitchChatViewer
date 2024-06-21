@@ -65,7 +65,7 @@ public class FoundChannelViewModel extends AbstractViewModel {
     public FXTask<?> joinChatAsync() {
         var broadcaster = getBroadcaster();
         var t = channelRepository.getChannelAsync(broadcaster);
-        t.setSucceeded(() -> {
+        t.onDone(() -> {
             var channel = t.getValue();
 
             // チャットを開くイベントを発行

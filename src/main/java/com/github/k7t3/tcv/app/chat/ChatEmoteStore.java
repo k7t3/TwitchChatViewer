@@ -1,7 +1,7 @@
 package com.github.k7t3.tcv.app.chat;
 
+import com.github.k7t3.tcv.app.image.LazyImage;
 import com.github.k7t3.tcv.app.service.CachedImageStore;
-import javafx.scene.image.Image;
 
 import java.time.Duration;
 
@@ -17,9 +17,9 @@ public class ChatEmoteStore extends CachedImageStore<String> {
     }
 
     @Override
-    protected Image loadImage(String key) {
+    protected LazyImage loadImage(String key) {
         var uri = CDN_FORMAT.formatted(key);
-        return new Image(uri, 0, 0, true, true, true);
+        return new LazyImage(uri, 0, 0);
     }
 
 }

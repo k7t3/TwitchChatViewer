@@ -3,10 +3,10 @@ package com.github.k7t3.tcv.view.clip;
 import atlantafx.base.theme.Styles;
 import com.github.k7t3.tcv.app.clip.PostedClipViewModel;
 import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.app.image.LazyImageView;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -17,7 +17,7 @@ public class PostedClipViewCell extends ListCell<PostedClipViewModel> {
 
     private HBox layout;
 
-    private ImageView thumbnail;
+    private LazyImageView thumbnail;
 
     private Label title;
 
@@ -28,7 +28,7 @@ public class PostedClipViewCell extends ListCell<PostedClipViewModel> {
     }
 
     private void initialize() {
-        thumbnail = new ImageView();
+        thumbnail = new LazyImageView();
         thumbnail.setFitWidth(64);
         thumbnail.setFitHeight(64);
         thumbnail.setPreserveRatio(true);
@@ -104,7 +104,7 @@ public class PostedClipViewCell extends ListCell<PostedClipViewModel> {
             initialize();
         }
 
-        thumbnail.setImage(item.getThumbnailImage());
+        thumbnail.setLazyImage(item.getThumbnailImage());
         title.setText(item.getTitle());
         description.setText("Creator: %s  Posted: %d times".formatted(item.getCreator(), item.getTimes()));
         setGraphic(layout);

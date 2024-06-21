@@ -73,7 +73,7 @@ public class UserDataFile {
             }
             return moveTo;
         });
-        t.setSucceeded(() -> this.filePath = t.getValue());
+        t.onDone(() -> this.filePath = t.getValue());
         t.runAsync();
         return t;
     }

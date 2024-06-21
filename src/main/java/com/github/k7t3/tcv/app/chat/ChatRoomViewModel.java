@@ -3,6 +3,7 @@ package com.github.k7t3.tcv.app.chat;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.filter.ChatMessageFilter;
 import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.app.emoji.EmojiImageCache;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
 import com.github.k7t3.tcv.domain.chat.ChatData;
@@ -48,16 +49,20 @@ public abstract class ChatRoomViewModel {
 
     private final DefinedChatColors definedChatColors;
 
+    private final EmojiImageCache emojiCache;
+
     protected final ChatRoomContainerViewModel containerViewModel;
 
     ChatRoomViewModel(
             GlobalChatBadgeStore globalChatBadgeStore,
             ChatEmoteStore emoteStore,
             DefinedChatColors definedChatColors,
+            EmojiImageCache emojiCache,
             ChatRoomContainerViewModel containerViewModel) {
         this.globalChatBadgeStore = globalChatBadgeStore;
         this.emoteStore = emoteStore;
         this.definedChatColors = definedChatColors;
+        this.emojiCache = emojiCache;
         this.containerViewModel = containerViewModel;
 
         chatCacheSize.addListener((ob, o, n) -> itemCountLimitChanged(n.intValue()));
@@ -109,7 +114,8 @@ public abstract class ChatRoomViewModel {
                 globalChatBadgeStore,
                 channel.getChatBadgeStore(),
                 emoteStore,
-                definedChatColors
+                definedChatColors,
+                emojiCache
         );
     }
 

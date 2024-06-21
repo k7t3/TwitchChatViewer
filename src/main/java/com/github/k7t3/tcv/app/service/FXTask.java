@@ -20,12 +20,14 @@ public abstract class FXTask<T> extends Task<T> {
         LOGGER.error("error occurred into task", getException());
     }
 
-    public void onDone(Consumer<T> consumer) {
+    public FXTask<T> onDone(Consumer<T> consumer) {
         addEventHandler(WorkerStateEvent.WORKER_STATE_SUCCEEDED, e -> consumer.accept(getValue()));
+        return this;
     }
 
-    public void onDone(Runnable runnable) {
+    public FXTask<T> onDone(Runnable runnable) {
         addEventHandler(WorkerStateEvent.WORKER_STATE_SUCCEEDED, e -> runnable.run());
+        return this;
     }
 
     public void waitForDone() {
@@ -38,10 +40,6 @@ public abstract class FXTask<T> extends Task<T> {
         }
     }
 
-    public void setSucceeded(Runnable runnable) {
-        addEventHandler(WorkerStateEvent.WORKER_STATE_SUCCEEDED, e -> runnable.run());
-    }
-
     public void setFinally(Runnable runnable) {
         EventHandler<WorkerStateEvent> handler = e -> runnable.run();
         addEventHandler(WorkerStateEvent.WORKER_STATE_SUCCEEDED, handler);
@@ -49,8 +47,9 @@ public abstract class FXTask<T> extends Task<T> {
         addEventHandler(WorkerStateEvent.WORKER_STATE_FAILED, handler);
     }
 
-    public void runAsync() {
+    public FXTask<T> runAsync() {
         TaskWorker.getInstance().submit(this);
+        return this;
     }
 
     public static <T> FXTask<T> task(Callable<T> callable) {
@@ -82,10 +81,6 @@ public abstract class FXTask<T> extends Task<T> {
         var t = task(() -> value);
         t.run();
         return t;
-    }
-
-    public static <T> void setOnSucceeded(FXTask<T> task, EventHandler<WorkerStateEvent> handler) {
-        task.addEventHandler(WorkerStateEvent.WORKER_STATE_SUCCEEDED, handler);
     }
 
 }

@@ -79,8 +79,7 @@ public class AuthenticationMenuItem extends MenuItem {
 
         // 既存の資格情報を読み込む
         var loadAsync = authenticator.loadClientAsync();
-        FXTask.setOnSucceeded(loadAsync, e -> {
-
+        loadAsync.onDone(() -> {
             // 資格情報の取得に成功
             if (loadAsync.getValue().isPresent()) {
                 return;
@@ -96,7 +95,6 @@ public class AuthenticationMenuItem extends MenuItem {
                 var exception = flowAsync.getException();
                 ExceptionHandler.handle(exception);
             });
-
         });
     }
 

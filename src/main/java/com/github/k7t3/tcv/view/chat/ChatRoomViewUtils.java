@@ -89,6 +89,9 @@ public class ChatRoomViewUtils {
         var popup = new LiveInfoPopup(channel);
         popup.setAutoHide(true);
         node.addEventHandler(MouseEvent.MOUSE_MOVED, e -> {
+            if (!channel.isLive())
+                return;
+
             var bounds = JavaFXHelper.computeScreenBounds(node);
             var x = bounds.getMinX() - popup.getWidth() / 2 + bounds.getWidth() / 2;
             var y = bounds.getMaxY();

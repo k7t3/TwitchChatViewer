@@ -4,6 +4,9 @@ import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.filter.ChatMessageFilter;
 import com.github.k7t3.tcv.app.core.AbstractViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
+import com.github.k7t3.tcv.app.core.OS;
+import com.github.k7t3.tcv.app.emoji.Emoji;
+import com.github.k7t3.tcv.app.emoji.EmojiImageCache;
 import com.github.k7t3.tcv.app.event.ChatOpeningEvent;
 import com.github.k7t3.tcv.app.reactive.ChatMessageSubscriber;
 import com.github.k7t3.tcv.app.reactive.DownCastFXSubscriber;
@@ -48,6 +51,8 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
     private GlobalChatBadgeStore globalBadgeStore;
     private ChatEmoteStore chatEmoteStore;
     private final DefinedChatColors definedChatColors = new DefinedChatColors();
+    private Emoji emoji;
+    private EmojiImageCache emojiCache;
 
     private final IntegerProperty chatCacheSize = new SimpleIntegerProperty();
     private final BooleanProperty showUserName = new SimpleBooleanProperty(true);
@@ -198,11 +203,22 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
         var helper = AppHelper.getInstance();
         var twitch = helper.getTwitch();
 
-        var task = FXTask.task(() -> {
+        var task = FXTask.<Void>task(() -> {
             var globalBadges = new GlobalChatBadges();
             globalBadges.load(twitch);
             globalBadgeStore = new GlobalChatBadgeStore(globalBadges);
             chatEmoteStore = new ChatEmoteStore();
+
+            var appDir = OS.current().getApplicationDirectory();
+            emoji = new Emoji(appDir);
+            emojiCache = new EmojiImageCache(emoji);
+
+            if (!emoji.validateArchive()) {
+                emoji.extractArchive();
+                emoji.validateArchive();
+            }
+
+            return null;
         });
 
         task.runAsync();
@@ -235,6 +251,7 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
                     globalBadgeStore,
                     chatEmoteStore,
                     definedChatColors,
+                    emojiCache,
                     c
             );
             bindChatRoomProperties(chatRoom);
@@ -246,6 +263,7 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
                 chatEmoteStore,
                 definedChatColors,
                 chatRooms,
+                emojiCache,
                 this
         );
 
@@ -277,6 +295,7 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
                 globalBadgeStore,
                 chatEmoteStore,
                 definedChatColors,
+                emojiCache,
                 channel
         );
 
@@ -404,6 +423,7 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
                 chatEmoteStore,
                 definedChatColors,
                 chatRooms,
+                emojiCache,
                 this
         );
 

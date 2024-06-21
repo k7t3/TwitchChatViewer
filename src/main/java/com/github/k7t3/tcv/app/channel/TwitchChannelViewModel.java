@@ -1,6 +1,7 @@
 package com.github.k7t3.tcv.app.channel;
 
 import com.github.k7t3.tcv.app.chat.ChannelChatBadgeStore;
+import com.github.k7t3.tcv.app.image.LazyImage;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
 import com.github.k7t3.tcv.domain.channel.StreamInfo;
@@ -18,7 +19,7 @@ public class TwitchChannelViewModel {
     private static final String CHANNEL_URL_FORMAT = "https://www.twitch.tv/%s";
 
     private final ReadOnlyObjectWrapper<Broadcaster> broadcaster;
-    private ReadOnlyObjectWrapper<Image> profileImage;
+    private ReadOnlyObjectWrapper<LazyImage> profileImage;
     private ReadOnlyObjectWrapper<Image> offlineImage;
     private ReadOnlyObjectWrapper<StreamInfo> streamInfo;
     private ReadOnlyBooleanWrapper live;
@@ -85,7 +86,7 @@ public class TwitchChannelViewModel {
             channel.loadBadgesIfNotLoaded();
             return channel.getOrJoinChatRoom();
         });
-        FXTask.setOnSucceeded(task, e -> chatJoinedWrapper().set(true));
+        task.onDone(() -> chatJoinedWrapper().set(true));
         task.runAsync();
         return task;
     }
@@ -130,21 +131,18 @@ public class TwitchChannelViewModel {
     public ObservableValue<String> observableGameName() { return streamInfoWrapper().map(StreamInfo::gameName).orElse(""); }
     public String getGameName() { return streamInfo == null ? "" : observableGameName().getValue(); }
 
-    private ReadOnlyObjectWrapper<Image> profileImageWrapper() {
+    private ReadOnlyObjectWrapper<LazyImage> profileImageWrapper() {
         if (profileImage == null) {
-            profileImage = new ReadOnlyObjectWrapper<>(new Image(
+            profileImage = new ReadOnlyObjectWrapper<>(new LazyImage(
                     channel.getBroadcaster().getProfileImageUrl(),
                     64,
-                    64,
-                    true,
-                    true,
-                    true
+                    64
             ));
         }
         return profileImage;
     }
-    public ReadOnlyObjectProperty<Image> profileImageProperty() { return profileImageWrapper().getReadOnlyProperty(); }
-    public Image getProfileImage() { return profileImageWrapper().get(); }
+    public ReadOnlyObjectProperty<LazyImage> profileImageProperty() { return profileImageWrapper().getReadOnlyProperty(); }
+    public LazyImage getProfileImage() { return profileImageWrapper().get(); }
 
     private ReadOnlyObjectWrapper<Image> offlineImageWrapper() {
         if (offlineImage == null) {
