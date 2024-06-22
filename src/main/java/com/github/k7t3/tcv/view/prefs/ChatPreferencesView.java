@@ -1,11 +1,9 @@
 package com.github.k7t3.tcv.view.prefs;
 
 import atlantafx.base.controls.ToggleSwitch;
-import com.github.k7t3.tcv.app.prefs.ChatPreferencesViewModel;
-import com.github.k7t3.tcv.app.service.FXTask;
-import com.github.k7t3.tcv.app.service.TaskWorker;
-import com.github.k7t3.tcv.view.chat.ChatFont;
 import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.app.prefs.ChatPreferencesViewModel;
+import com.github.k7t3.tcv.app.prefs.FontFamily;
 import com.github.k7t3.tcv.view.prefs.font.FontComboBoxCell;
 import com.github.k7t3.tcv.view.prefs.font.FontStringConverter;
 import de.saxsys.mvvmfx.InjectViewModel;
@@ -18,15 +16,13 @@ import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.net.URL;
-import java.util.List;
 import java.util.Locale;
 import java.util.ResourceBundle;
-import java.util.concurrent.TimeUnit;
 
 public class ChatPreferencesView implements PreferencesTabView<ChatPreferencesViewModel> {
 
     @FXML
-    private ComboBox<Font> fontComboBox;
+    private ComboBox<FontFamily> fontComboBox;
 
     @FXML
     private ComboBox<Double> fontSizeComboBox;
@@ -71,9 +67,9 @@ public class ChatPreferencesView implements PreferencesTabView<ChatPreferencesVi
     }
 
     private void loadPreviewFont() {
-        var font = fontComboBox.getValue();
+        var family = fontComboBox.getValue();
         var size = fontSizeComboBox.getValue();
-        font = Font.font(font.getFamily(), size);
+        var font = Font.font(family.getFamily(), size);
         previewLabel.setFont(font);
         defaultPreviewLabel.setFont(font);
     }
@@ -83,16 +79,11 @@ public class ChatPreferencesView implements PreferencesTabView<ChatPreferencesVi
         defaultPreviewLabel.setDisable(true);
         previewLabel.setDisable(true);
 
+        fontComboBox.setItems(viewModel.getFontFamilies());
         fontComboBox.setConverter(new FontStringConverter(fontComboBox.getItems()));
         fontComboBox.setCellFactory(param -> new FontComboBoxCell());
 
-        var fontLoader = FXTask.task(() -> {
-            TimeUnit.MILLISECONDS.sleep(400);
-            return Font.getFamilies().stream().map(Font::font).toList();
-        });
-        fontLoader.setOnSucceeded(e -> {
-            fontComboBox.getItems().addAll(fontLoader.getValue());
-
+        viewModel.loadFontsAsync().onDone(() -> {
             fontComboBox.setDisable(false);
             defaultPreviewLabel.setDisable(false);
             previewLabel.setDisable(false);
@@ -100,7 +91,6 @@ public class ChatPreferencesView implements PreferencesTabView<ChatPreferencesVi
             fontComboBox.getSelectionModel().select(viewModel.getFont());
             viewModel.fontProperty().bind(fontComboBox.valueProperty());
         });
-        TaskWorker.getInstance().submit(fontLoader);
     }
 
     private void initFontSizeComboBox() {

@@ -8,6 +8,7 @@ public record ChannelGroupEntity(
         UUID id,
         String name,
         String comment,
+        boolean pinned,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         Set<String> channelIds

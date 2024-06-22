@@ -1,12 +1,13 @@
 package com.github.k7t3.tcv.app.user;
 
-import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.database.DBConnector;
+import com.github.k7t3.tcv.database.DatabaseVersion;
 import com.github.k7t3.tcv.database.SQLiteDBConnector;
-import com.github.k7t3.tcv.database.TableCreator;
+import com.github.k7t3.tcv.database.table.TableCreatorFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
@@ -31,51 +32,50 @@ public class UserDataFile {
         this.filePath = Objects.requireNonNull(filePath);
     }
 
-    public FXTask<DBConnector> connectDatabaseAsync() {
+    public void connectDatabase(DatabaseVersion current) throws IOException {
         var connector = connectorRef.get();
         if (connector != null && connector.isConnected()) {
-            return FXTask.of(connector);
+            return;
         }
         var filePath = getFilePath();
-        FXTask<DBConnector> t = FXTask.task(() -> {
-            var parent = filePath.getParent();
-            if (!Files.exists(parent)) {
-                Files.createDirectories(parent);
-            }
+        var parent = filePath.getParent();
+        if (!Files.exists(parent)) {
+            Files.createDirectories(parent);
+        }
 
-            var c = new SQLiteDBConnector(filePath, TableCreator.DEFAULT);
-            c.connect();
-            connectorRef.set(c);
-            return c;
-        });
-        t.runAsync();
-        return t;
+        SQLiteDBConnector c;
+
+        var version = DatabaseVersion.latest();
+        if (current == version) {
+            c = new SQLiteDBConnector(filePath);
+        } else {
+            var creator = TableCreatorFactory.create(current, version);
+            c = new SQLiteDBConnector(filePath, creator);
+        }
+
+        c.connect();
+        connectorRef.set(c);
     }
 
-    public FXTask<?> fileMoveAsync(Path moveTo) {
+    public void fileMove(Path moveTo) throws IOException {
         var moveFrom = this.filePath;
 
-        var t = FXTask.task(() -> {
-            boolean exists = Files.exists(moveFrom);
-            if (exists) {
-                Files.copy(moveFrom, moveTo);
+        boolean exists = Files.exists(moveFrom);
+        if (exists) {
+            Files.copy(moveFrom, moveTo);
+        }
+        var connector = connectorRef.get();
+        if (connector != null) {
+            connector.reconnect(moveTo);
+            this.filePath = moveTo;
+        }
+        if (exists) {
+            try {
+                Files.delete(moveFrom);
+            } catch (Exception e) {
+                LOGGER.warn("failed to delete an older user data file.");
             }
-            var connector = connectorRef.get();
-            if (connector != null) {
-                connector.updateFilePath(moveTo);
-            }
-            if (exists) {
-                try {
-                    Files.delete(moveFrom);
-                } catch (Exception e) {
-                    LOGGER.warn("failed to delete an older user data file.");
-                }
-            }
-            return moveTo;
-        });
-        t.onDone(() -> this.filePath = t.getValue());
-        t.runAsync();
-        return t;
+        }
     }
 
     public void closeDatabase() {

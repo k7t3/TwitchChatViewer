@@ -1,10 +1,7 @@
 package com.github.k7t3.tcv.app.group;
 
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
+import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableSet;
@@ -19,6 +16,7 @@ public class ChannelGroup {
     private final StringProperty name = new SimpleStringProperty();
     private StringProperty comment;
     private final ObservableSet<TwitchChannelViewModel> channels = FXCollections.observableSet(new HashSet<>());
+    private final BooleanProperty pinned = new SimpleBooleanProperty();
     private final ObjectProperty<LocalDateTime> createdAt = new SimpleObjectProperty<>();
     private final ObjectProperty<LocalDateTime> updatedAt = new SimpleObjectProperty<>();
 
@@ -51,6 +49,10 @@ public class ChannelGroup {
     public ObjectProperty<LocalDateTime> updatedAtProperty() { return updatedAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt.get(); }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt.set(updatedAt); }
+
+    public BooleanProperty pinnedProperty() { return pinned; }
+    public boolean isPinned() { return pinned.get(); }
+    public void setPinned(boolean pinned) { this.pinned.set(pinned); }
 
     public StringProperty nameProperty() { return name; }
     public String getName() { return name.get(); }

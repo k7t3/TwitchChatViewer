@@ -2,7 +2,6 @@ package com.github.k7t3.tcv.database;
 
 import org.sqlite.SQLiteConfig;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -24,7 +23,7 @@ public class SQLiteDBConnector extends AbstractDBConnector {
 
     private Path filePath;
 
-    private final String connectionURL;
+    private String connectionURL;
 
     private final TableCreator tableCreator;
 
@@ -33,18 +32,16 @@ public class SQLiteDBConnector extends AbstractDBConnector {
      */
     SQLiteDBConnector(TableCreator creator) {
         this.filePath = null;
-        this.connectionURL = HEADER + ":memory:";
         this.tableCreator = creator;
+    }
+
+    public SQLiteDBConnector(Path filePath) {
+        this(filePath, null);
     }
 
     public SQLiteDBConnector(Path filePath, TableCreator creator) {
         this.filePath = filePath;
-        this.connectionURL = HEADER + filePath.toAbsolutePath();
         this.tableCreator = creator;
-    }
-
-    private void createTable() {
-        this.tableCreator.create(this);
     }
 
     @Override
@@ -62,11 +59,24 @@ public class SQLiteDBConnector extends AbstractDBConnector {
         }
     }
 
+    private void constructPath() {
+        if (filePath == null) {
+            this.connectionURL = HEADER + ":memory:";
+        } else {
+            this.connectionURL = HEADER + filePath.toAbsolutePath();
+        }
+    }
+
+    private void createTable() {
+        this.tableCreator.create(this);
+    }
+
     @Override
     public void connect() {
         // メモリモードのときか、対象のファイルが存在しないとき
         boolean empty = (filePath == null || !Files.exists(filePath));
 
+        constructPath();
         super.connect();
 
         if (empty) {
@@ -77,25 +87,10 @@ public class SQLiteDBConnector extends AbstractDBConnector {
         setAutoCommit(false);
     }
 
-    /**
-     * 接続するファイルを変更する
-     * <p>
-     *     接続済みの場合は切断後、新しいファイルパスに対して接続を試行する。
-     * </p>
-     * <p>
-     *     SQLiteの使用中に移動することを考えたくないので自由に切断できるタイミングで実行すること。
-     * </p>
-     * @param filePath 接続先を切り替えるファイル
-     */
-    public void updateFilePath(Path filePath) {
-        var connected = isConnected();
-        if (connected) {
-            close();
-        }
+    public void reconnect(Path filePath) {
+        if (isConnected()) throw new IllegalStateException("connected");
         this.filePath = filePath;
-        if (connected) {
-            connect();
-        }
+        connect();
     }
 
 }

@@ -1,10 +1,14 @@
 package com.github.k7t3.tcv.app.core;
 
 import javafx.scene.image.Image;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
 public class Resources {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(Resources.class);
 
     private static final ResourceBundle RESOURCE_BUNDLE;
 
@@ -47,7 +51,12 @@ public class Resources {
     }
 
     public static String getString(String key) {
-        return RESOURCE_BUNDLE.getString(key);
+        try {
+            return RESOURCE_BUNDLE.getString(key);
+        } catch (MissingResourceException e) {
+            LOGGER.warn("missing resource name '{}'", key);
+            return "[%s]".formatted(key);
+        }
     }
 
 }

@@ -34,6 +34,7 @@ public class ChannelGroupEntityService {
                   g.id,
                   g.name,
                   g.comment,
+                  g.pinned,
                   g.created_at,
                   g.updated_at,
                   u.user_id
@@ -54,6 +55,7 @@ public class ChannelGroupEntityService {
                 var id = rs.getString("id");
                 var name = rs.getString("name");
                 var comment = rs.getString("comment");
+                var pinned = rs.getBoolean("pinned");
                 var createdAt = rs.getTimestamp("created_at").toLocalDateTime();
                 var updatedAt = rs.getTimestamp("updated_at").toLocalDateTime();
                 var userId = rs.getString("user_id");
@@ -63,7 +65,7 @@ public class ChannelGroupEntityService {
                 if (entity == null || !entity.id().equals(uuid)) {
                     var ids = new HashSet<String>();
                     ids.add(userId);
-                    entity = new ChannelGroupEntity(uuid, name, comment, createdAt, updatedAt, ids);
+                    entity = new ChannelGroupEntity(uuid, name, comment, pinned, createdAt, updatedAt, ids);
                     list.add(entity);
                 } else {
                     entity.channelIds().add(userId);
@@ -84,13 +86,14 @@ public class ChannelGroupEntityService {
     }
 
     private void insert(ChannelGroupEntity entity) {
-        var groupInsert = "insert into groups values(?, ?, ?, ?, ?);";
+        var groupInsert = "insert into groups values(?, ?, ?, ?, ?, ?);";
 
         connector.prepared(groupInsert, stmt -> {
             int i = 0;
             stmt.setString(++i, entity.id().toString());
             stmt.setString(++i, entity.name());
             stmt.setString(++i, entity.comment());
+            stmt.setBoolean(++i, entity.pinned());
             stmt.setTimestamp(++i, Timestamp.valueOf(entity.createdAt()));
             stmt.setTimestamp(++i, Timestamp.valueOf(entity.updatedAt()));
             stmt.executeUpdate();
@@ -118,6 +121,7 @@ public class ChannelGroupEntityService {
                 set
                   name = ?,
                   comment = ?,
+                  pinned = ?,
                   updated_at = ?
                 where
                   id = ?;
@@ -126,6 +130,7 @@ public class ChannelGroupEntityService {
             int i = 0;
             stmt.setString(++i, entity.name());
             stmt.setString(++i, entity.comment());
+            stmt.setBoolean(++i, entity.pinned());
             stmt.setTimestamp(++i, Timestamp.valueOf(entity.updatedAt()));
             stmt.setString(++i, entity.id().toString());
             stmt.executeUpdate();

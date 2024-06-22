@@ -48,7 +48,7 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
         var joined = channels.keySet().stream()
                 .map(TwitchChannelViewModel::getUserLogin)
                 .sorted()
-                .collect(Collectors.joining());
+                .collect(Collectors.joining(","));
         return Base64.getEncoder().encodeToString(joined.getBytes(StandardCharsets.UTF_8));
     }
 

@@ -62,12 +62,10 @@ public class ChatRoomViewUtils {
     }
 
     public static void initializeFloatableStage(FloatableStage stage, ChatRoomViewModel chatRoom) {
-        // ウインドウの座標設定を取り出す
+        // チャットルームの識別子を取得
+        var identity = chatRoom.getIdentity();
+
         var helper = AppHelper.getInstance();
-
-        // チャットにおける識別子を使用して設定を取り出す
-        var identity = computeHash(chatRoom.getIdentity());
-
         var windowService = helper.getWindowBoundsService();
 
         // 保存されている座標を割り当て

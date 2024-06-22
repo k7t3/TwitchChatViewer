@@ -20,6 +20,7 @@ public class OpenPreferencesCommand extends BasicCommand {
         var stage = new Stage();
         stage.initOwner(helper.getPrimaryStage());
         stage.initModality(Modality.WINDOW_MODAL);
+        stage.getIcons().addAll(Resources.getIcons());
         stage.setTitle(Resources.getString("prefs.window.title"));
 
         var tuple = FluentViewLoader.fxmlView(PreferencesView.class)

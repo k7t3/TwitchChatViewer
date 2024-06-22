@@ -57,7 +57,7 @@ public class ChannelGroupListViewModel extends AbstractViewModel {
     }
 
     public void setComparator(Comparator<ChannelGroup> comparator) {
-        sorted.setComparator(comparator);
+        sorted.setComparator(ChannelGroupPinnedComparator.INSTANCE.thenComparing(comparator));
     }
 
     public ObservableList<ChannelGroup> getChannelGroups() {

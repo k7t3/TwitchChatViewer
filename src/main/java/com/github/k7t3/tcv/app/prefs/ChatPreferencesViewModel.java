@@ -1,13 +1,17 @@
 package com.github.k7t3.tcv.app.prefs;
 
+import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.prefs.AppPreferences;
-import com.github.k7t3.tcv.view.chat.ChatFont;
 import com.github.k7t3.tcv.prefs.ChatPreferences;
+import com.github.k7t3.tcv.view.chat.ChatFont;
+import javafx.application.Platform;
 import javafx.beans.property.*;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.scene.text.Font;
 
 import java.util.List;
-import java.util.Objects;
+import java.util.stream.IntStream;
 
 public class ChatPreferencesViewModel implements PreferencesViewModelBase {
 
@@ -19,15 +23,13 @@ public class ChatPreferencesViewModel implements PreferencesViewModelBase {
             8d, 9d, 10d, 10.5, 11d, 12d, 13d, 14d, 16d, 18d
     );
 
-    private final ObjectProperty<Font> font;
-
+    private final ObjectProperty<FontFamily> font;
     private final DoubleProperty fontSize;
-
     private final BooleanProperty showUserName;
-
     private final BooleanProperty showBadges;
-
     private final IntegerProperty chatCacheSize;
+
+    private final ObservableList<FontFamily> fontFamilies = FXCollections.observableArrayList();
 
     private final ChatPreferences prefs;
 
@@ -38,8 +40,27 @@ public class ChatPreferencesViewModel implements PreferencesViewModelBase {
         chatCacheSize = new SimpleIntegerProperty(prefs.getChatCacheSize());
 
         var font = prefs.getFont();
-        this.font = new SimpleObjectProperty<>(font.getFont());
+        this.font = new SimpleObjectProperty<>(new FontFamily(font.getFamily()));
         this.fontSize = new SimpleDoubleProperty(font.getSize());
+    }
+
+    public FXTask<Void> loadFontsAsync() {
+        final var partSize = 100;
+        return FXTask.task(() -> {
+            var families = Font.getFamilies();
+            var familySize = families.size();
+            var div = families.size() / partSize;
+            var times = families.size() % partSize == 0 ? div : div + 1;
+
+            IntStream.range(0, times)
+                    .mapToObj(i -> families.subList(i * partSize, Math.min(familySize, (i + 1) * partSize)))
+                    .map(chunk -> chunk.stream().map(FontFamily::new).toList())
+                    .forEach(ff -> Platform.runLater(() -> fontFamilies.addAll(ff)));
+        }).runAsync();
+    }
+
+    public ObservableList<FontFamily> getFontFamilies() {
+        return fontFamilies;
     }
 
     @Override
@@ -51,8 +72,10 @@ public class ChatPreferencesViewModel implements PreferencesViewModelBase {
     public void sync() {
         var font = getFont();
         var size = getFontSize();
-        if (!Objects.equals(prefs.getFont().getFont(), font)
-                || prefs.getFont().getSize() != size) {
+
+        var currentFont = prefs.getFont();
+        if (!font.getFamily().equals(currentFont.getFamily())
+                || size != currentFont.getSize()) {
             prefs.setFont(new ChatFont(font.getFamily(), size));
         }
 
@@ -62,9 +85,9 @@ public class ChatPreferencesViewModel implements PreferencesViewModelBase {
 
     // ******************** PROPERTIES ********************
 
-    public ObjectProperty<Font> fontProperty() { return font; }
-    public Font getFont() { return font.get(); }
-    public void setFont(Font font) { this.font.set(font); }
+    public ObjectProperty<FontFamily> fontProperty() { return font; }
+    public FontFamily getFont() { return font.get(); }
+    public void setFont(FontFamily font) { this.font.set(font); }
 
     public DoubleProperty fontSizeProperty() { return fontSize; }
     public double getFontSize() { return fontSize.get(); }

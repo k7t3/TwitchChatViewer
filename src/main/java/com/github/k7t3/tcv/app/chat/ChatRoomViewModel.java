@@ -10,7 +10,6 @@ import com.github.k7t3.tcv.domain.chat.ChatData;
 import com.github.k7t3.tcv.domain.chat.ChatRoom;
 import com.github.k7t3.tcv.domain.event.chat.*;
 import com.github.k7t3.tcv.view.chat.ChatFont;
-import javafx.application.Platform;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -120,34 +119,29 @@ public abstract class ChatRoomViewModel {
     }
 
     public void addChat(ChatDataViewModel chat) {
-        Platform.runLater(() -> {
+        chat.visibleNameProperty().bind(showName);
+        chat.visibleBadgeProperty().bind(showBadges);
+        chat.fontProperty().bind(font);
 
-            chat.visibleNameProperty().bind(showName);
-            chat.visibleBadgeProperty().bind(showBadges);
-            chat.fontProperty().bind(font);
-
-            // 上限制限
-            if (getChatCacheSize() <= chatDataList.size()) {
-                chatDataList.removeFirst();
-            }
-            chatDataList.add(chat);
-        });
+        // 上限制限
+        if (getChatCacheSize() <= chatDataList.size()) {
+            chatDataList.removeFirst();
+        }
+        chatDataList.add(chat);
     }
 
     public void deleteChatMessage(String msgId) {
-        Platform.runLater(() -> {
-            for (var item : chatDataList) {
-                if (item.getChatData().msgId().equalsIgnoreCase(msgId)) {
-                    item.setDeleted(true);
-                    break;
-                }
+        for (var item : chatDataList) {
+            if (item.getChatData().msgId().equalsIgnoreCase(msgId)) {
+                item.setDeleted(true);
+                break;
             }
-        });
+        }
     }
 
     public void clearChatMessages(ChatRoom chatRoom) {
         var broadcaster = chatRoom.getBroadcaster();
-        Platform.runLater(() -> chatDataList.removeIf(chatData -> chatData.getChannel().getBroadcaster().equals(broadcaster)));
+        chatDataList.removeIf(chatData -> chatData.getChannel().getBroadcaster().equals(broadcaster));
     }
 
     public abstract void onStateUpdated(ChatRoomStateUpdatedEvent e);

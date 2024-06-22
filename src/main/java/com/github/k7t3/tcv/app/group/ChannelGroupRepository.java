@@ -23,7 +23,7 @@ public class ChannelGroupRepository extends AbstractViewModel {
     private final ChannelGroupEntityService service;
 
     private final ObservableList<ChannelGroup> groups = FXCollections.observableArrayList(
-            g -> new Observable[] { g.nameProperty(), g.updatedAtProperty() }
+            g -> new Observable[] { g.pinnedProperty(), g.nameProperty(), g.updatedAtProperty() }
     );
 
     public ChannelGroupRepository(ChannelGroupEntityService service) {
@@ -99,6 +99,7 @@ public class ChannelGroupRepository extends AbstractViewModel {
                     group.getId(),
                     group.getName(),
                     group.getComment(),
+                    group.isPinned(),
                     group.getCreatedAt(),
                     group.getUpdatedAt(),
                     userIds
@@ -123,6 +124,7 @@ public class ChannelGroupRepository extends AbstractViewModel {
                     group.getId(),
                     group.getName(),
                     group.getComment(),
+                    group.isPinned(),
                     group.getCreatedAt(),
                     group.getUpdatedAt(),
                     Set.of()

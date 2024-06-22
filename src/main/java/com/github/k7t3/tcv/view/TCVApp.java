@@ -1,6 +1,7 @@
 package com.github.k7t3.tcv.view;
 
 import com.github.k7t3.tcv.app.core.AppHelper;
+import com.github.k7t3.tcv.app.core.ExceptionHandler;
 import com.github.k7t3.tcv.app.core.LoggerInitializer;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.main.MainViewModel;
@@ -18,6 +19,8 @@ import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 
 public class TCVApp extends Application {
 
@@ -52,13 +55,16 @@ public class TCVApp extends Application {
         var helper = AppHelper.getInstance();
         helper.setPrimaryStage(primaryStage);
 
-        // TODO キーボードバインドを復元
-
-        // ユーザーファイルを接続
-        var generalPrefs = preferences.getGeneralPreferences();
-        var userDataFile = new UserDataFile(generalPrefs.getUserDataFilePath());
-        userDataFile.connectDatabaseAsync().waitForDone();
-        helper.setUserDataFile(userDataFile);
+        try {
+            // ユーザーファイルを接続
+            var generalPrefs = preferences.getGeneralPreferences();
+            var userDataFile = new UserDataFile(generalPrefs.getUserDataFilePath());
+            userDataFile.connectDatabase(generalPrefs.getDatabaseVersion());
+            helper.setUserDataFile(userDataFile);
+        } catch (IOException e) {
+            ExceptionHandler.handle(e);
+            Platform.exit();
+        }
 
         // ViewModel
         viewModel = new MainViewModel(helper.getChannelGroupRepository());
