@@ -2,10 +2,9 @@ package com.github.k7t3.tcv.view.command;
 
 import atlantafx.base.controls.ModalPane;
 import com.github.k7t3.tcv.app.auth.AuthenticatorViewModel;
-import com.github.k7t3.tcv.app.command.BasicCommand;
+import com.github.k7t3.tcv.app.service.BasicCommand;
 import com.github.k7t3.tcv.app.core.ExceptionHandler;
 import com.github.k7t3.tcv.app.core.Resources;
-import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.domain.auth.CredentialStore;
 import com.github.k7t3.tcv.view.auth.AuthenticatorView;
 import de.saxsys.mvvmfx.FluentViewLoader;

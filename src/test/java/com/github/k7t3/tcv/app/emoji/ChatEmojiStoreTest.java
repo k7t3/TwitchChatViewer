@@ -12,16 +12,16 @@ import java.nio.file.Files;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class EmojiImageCacheTest {
+class ChatEmojiStoreTest {
 
     private static Logger log;
 
     private Emoji emoji;
-    private EmojiImageCache emojiCache;
+    private ChatEmojiStore emojiCache;
 
     @BeforeAll
     static void init() {
-        log = LoggerProvider.getLogger(EmojiImageCacheTest.class);
+        log = LoggerProvider.getLogger(ChatEmojiStoreTest.class);
     }
 
     @BeforeEach
@@ -29,7 +29,7 @@ class EmojiImageCacheTest {
         var dir = Files.createTempDirectory("tcv");
         emoji = new Emoji(dir);
         emoji.extractArchive();
-        emojiCache = new EmojiImageCache(emoji);
+        emojiCache = new ChatEmojiStore(emoji);
     }
 
     @AfterEach

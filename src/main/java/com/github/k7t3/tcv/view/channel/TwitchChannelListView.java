@@ -88,7 +88,7 @@ public class TwitchChannelListView implements FxmlView<TwitchChannelListViewMode
             groupMenu = new ChannelGroupMenu(channelGroupRepository, viewModel.getSelectedChannels());
             groupMenu.disableProperty().bind(Bindings.isEmpty(viewModel.getSelectedChannels()));
             groupMenu.refreshItems();
-            contextMenu.getItems().add(groupMenu);
+            contextMenu.getItems().add(1, groupMenu);
 
             // イベントを削除
             channels.setOnContextMenuRequested(null);
@@ -120,7 +120,11 @@ public class TwitchChannelListView implements FxmlView<TwitchChannelListViewMode
         open.setOnAction(e -> openChats());
         open.disableProperty().bind(Bindings.isEmpty(viewModel.getSelectedChannels()));
 
-        contextMenu = new ContextMenu(open);
+        var openBrowser = new MenuItem(Resources.getString("channel.open.browser"), new FontIcon(Feather.GLOBE));
+        openBrowser.setOnAction(e -> openChannelPageOnBrowser());
+        open.disableProperty().bind(Bindings.isEmpty(viewModel.getSelectedChannels()));
+
+        contextMenu = new ContextMenu(open, new SeparatorMenuItem(), openBrowser);
 
         channels.setContextMenu(contextMenu);
     }
@@ -136,7 +140,7 @@ public class TwitchChannelListView implements FxmlView<TwitchChannelListViewMode
             var content = Resources.getString("container.confirm.open.content.format").formatted(selected.size());
             var dialog = new Alert(Alert.AlertType.CONFIRMATION, content, ButtonType.YES, ButtonType.NO);
             dialog.initOwner(AppHelper.getInstance().getPrimaryStage());
-            dialog.setTitle("CONFIRMATION");
+            dialog.setTitle(Resources.getString("alert.title.confirmation"));
             dialog.setHeaderText(Resources.getString("container.confirm.open.header"));
             var result = dialog.showAndWait().orElse(ButtonType.NO);
             if (result != ButtonType.YES) {
@@ -145,6 +149,28 @@ public class TwitchChannelListView implements FxmlView<TwitchChannelListViewMode
         }
 
         viewModel.joinChat();
+    }
+
+    private void openChannelPageOnBrowser() {
+        var selected = viewModel.getSelectedChannels();
+
+        if (selected.isEmpty())
+            return;
+
+        // 選択数が多いときは本当に開くか確認する
+        if (5 < selected.size()) {
+            var content = Resources.getString("container.confirm.open.content.format").formatted(selected.size());
+            var dialog = new Alert(Alert.AlertType.CONFIRMATION, content, ButtonType.YES, ButtonType.NO);
+            dialog.initOwner(AppHelper.getInstance().getPrimaryStage());
+            dialog.setTitle(Resources.getString("alert.title.confirmation"));
+            dialog.setHeaderText(Resources.getString("container.confirm.open.browser.header"));
+            var result = dialog.showAndWait().orElse(ButtonType.NO);
+            if (result != ButtonType.YES) {
+                return;
+            }
+        }
+
+        viewModel.openSelectedChannelPageOnBrowser();
     }
 
 }

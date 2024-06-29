@@ -1,5 +1,6 @@
 package com.github.k7t3.tcv.app.core;
 
+import com.github.k7t3.tcv.app.chat.filter.ChatFilters;
 import com.github.k7t3.tcv.app.group.ChannelGroupRepository;
 import com.github.k7t3.tcv.app.keyboard.KeyBindingCombinations;
 import com.github.k7t3.tcv.app.service.FXTask;
@@ -10,6 +11,8 @@ import com.github.k7t3.tcv.domain.Twitch;
 import com.github.k7t3.tcv.domain.event.EventPublishers;
 import com.github.k7t3.tcv.domain.event.EventSubscribers;
 import com.github.k7t3.tcv.entity.service.ChannelGroupEntityService;
+import com.github.k7t3.tcv.entity.service.ChatKeywordFilterEntityService;
+import com.github.k7t3.tcv.entity.service.ChatUserFilterEntityService;
 import com.github.k7t3.tcv.entity.service.WindowBoundsEntityService;
 import javafx.beans.property.*;
 import javafx.stage.Stage;
@@ -33,6 +36,7 @@ public class AppHelper implements Closeable {
     private ChannelGroupRepository channelGroupRepository;
     private WindowBoundsService windowBoundsService;
     private KeyBindingCombinations keyBindingCombinations;
+    private ChatFilters chatFilters;
 
     private AppHelper() {
         userId.bind(twitch.map(Twitch::getUserId));
@@ -71,6 +75,16 @@ public class AppHelper implements Closeable {
             keyBindingCombinations = new KeyBindingCombinations();
         }
         return keyBindingCombinations;
+    }
+
+    public ChatFilters getChatFilters() {
+        if (chatFilters == null) {
+            var userDataFile = Objects.requireNonNull(getUserDataFile());
+            var a = new ChatKeywordFilterEntityService(userDataFile.getConnector());
+            var b = new ChatUserFilterEntityService(userDataFile.getConnector());
+            chatFilters = new ChatFilters(a, b);
+        }
+        return chatFilters;
     }
 
     public EventPublishers getPublishers() {

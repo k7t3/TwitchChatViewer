@@ -76,7 +76,6 @@ public class TCVApp extends Application {
         // チャットに関する設定のバインド
         var chatContainer = viewModel.getChatContainer();
         chatContainer.bindChatPreferences(preferences.getChatPreferences());
-        chatContainer.bindChatMessageFilterPreferences(preferences.getMessageFilterPreferences());
 
         // Viewのロード
         var tuple = FluentViewLoader.fxmlView(MainView.class)

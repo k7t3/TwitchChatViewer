@@ -4,10 +4,11 @@
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.layout.StackPane?>
 
-<StackPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.prefs.UserChatMessageFilterView">
+<StackPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.prefs.UserFilterView">
    <children>
       <TableView fx:id="users" editable="true" prefWidth="400.0">
         <columns>
+            <TableColumn fx:id="userIdColumn" editable="false" prefWidth="150.0" sortable="false" text="%chat.filter.user.id" />
           <TableColumn fx:id="userNameColumn" editable="false" prefWidth="150.0" sortable="false" text="%prefs.filter.user.column.username" />
           <TableColumn fx:id="commentColumn" minWidth="100.0" prefWidth="200.0" sortable="false" text="%prefs.filter.user.column.comment" />
             <TableColumn fx:id="trashColumn" editable="false" minWidth="50.0" prefWidth="-1.0" resizable="false" sortable="false" />

@@ -52,6 +52,7 @@ public class ChannelGroupRepository extends AbstractViewModel {
             var group = new ChannelGroup(entity.id());
             group.setName(entity.name());
             group.setComment(entity.comment());
+            group.setPinned(entity.pinned());
             group.setCreatedAt(entity.createdAt());
             group.setUpdatedAt(entity.updatedAt());
             var groupChannels = entity.channelIds().stream().map(channels::get).toList();

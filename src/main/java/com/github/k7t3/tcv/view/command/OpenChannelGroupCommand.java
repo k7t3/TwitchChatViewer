@@ -1,7 +1,7 @@
 package com.github.k7t3.tcv.view.command;
 
 import atlantafx.base.controls.ModalPane;
-import com.github.k7t3.tcv.app.command.BasicCommand;
+import com.github.k7t3.tcv.app.service.BasicCommand;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.group.ChannelGroupListViewModel;
 import com.github.k7t3.tcv.app.group.ChannelGroupRepository;

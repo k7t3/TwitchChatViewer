@@ -1,9 +1,10 @@
 package com.github.k7t3.tcv.view.chat;
 
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
-import com.github.k7t3.tcv.app.chat.filter.UserChatMessageFilter;
+import com.github.k7t3.tcv.app.chat.filter.KeywordFilterEntry;
+import com.github.k7t3.tcv.app.chat.filter.UserFilterEntry;
+import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.Resources;
-import com.github.k7t3.tcv.prefs.AppPreferences;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
@@ -25,8 +26,6 @@ public class ChatDataContextMenu extends ContextMenu {
 
         if (viewModel.isSystem())
             return;
-
-        var prefs = AppPreferences.getInstance().getMessageFilterPreferences();
 
         // チャットメッセージをコピー
         var copy = new MenuItem(Resources.getString("chat.menu.copy.message"));
@@ -60,19 +59,12 @@ public class ChatDataContextMenu extends ContextMenu {
     }
 
     private void addHiddenRegexMessage() {
-        var prefs = AppPreferences.getInstance().getMessageFilterPreferences();
-
-        var message = viewModel.getMessage().getPlain();
-        var filter = prefs.getKeywordMessageFilter();
-        filter.getKeywords().add(message);
-
-        // 非表示
-        viewModel.setHidden(true);
+        viewModel.keywordFilter();
     }
 
     private void addHiddenUser() {
         var dialog = new TextInputDialog("");
-        dialog.setTitle("Hide User");
+        dialog.setTitle(Resources.getString("alert.title.confirmation"));
         dialog.setHeaderText(
                 Resources.getString("chat.filter.user.dialog.header.format")
                         .formatted(viewModel.getUserName())
@@ -83,13 +75,7 @@ public class ChatDataContextMenu extends ContextMenu {
             var c = comment == null || comment.trim().isEmpty()
                     ? viewModel.getUserName()
                     : comment.trim();
-            var chat = viewModel.getChatData();
-            var prefs = AppPreferences.getInstance().getMessageFilterPreferences();
-            var user = new UserChatMessageFilter.FilteredUser(chat.userId(), chat.userName(), c);
-            prefs.getUserChatMessageFilter().getUsers().add(user);
-
-            // 非表示
-            viewModel.setHidden(true);
+            viewModel.userFilter(c);
         });
     }
 

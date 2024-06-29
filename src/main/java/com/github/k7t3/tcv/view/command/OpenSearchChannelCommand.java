@@ -3,7 +3,7 @@ package com.github.k7t3.tcv.view.command;
 import atlantafx.base.controls.ModalPane;
 import com.github.k7t3.tcv.app.channel.ChannelViewModelRepository;
 import com.github.k7t3.tcv.app.channel.SearchChannelViewModel;
-import com.github.k7t3.tcv.app.command.BasicCommand;
+import com.github.k7t3.tcv.app.service.BasicCommand;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.view.channel.SearchChannelView;

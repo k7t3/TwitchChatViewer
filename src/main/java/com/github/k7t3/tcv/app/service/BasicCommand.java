@@ -1,4 +1,4 @@
-package com.github.k7t3.tcv.app.command;
+package com.github.k7t3.tcv.app.service;
 
 import de.saxsys.mvvmfx.utils.commands.CommandBase;
 import javafx.beans.property.ReadOnlyDoubleProperty;

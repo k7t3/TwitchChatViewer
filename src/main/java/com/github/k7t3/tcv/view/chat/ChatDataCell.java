@@ -189,13 +189,13 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
 
         // 削除済みのメッセージ
         if (deleted.get()) {
-            disabledMessage("chat.message.deleted");
+            disabledMessage(Resources.getString("chat.message.deleted"));
             return;
         }
 
         // 非表示にしたメッセージ
         if (hidden.get()) {
-            disabledMessage("chat.message.hidden");
+            disabledMessage(Resources.getString("chat.message.hidden"));
             return;
         }
 
@@ -212,8 +212,6 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
         });
 
 
-        // メッセージを構成するノードリスト
-        deletableNodes = new ArrayList<>();
         // 削除フラグが有効なときメッセージ要素を
         // すべてクリアして代替メッセージを表示する
         deleted.addListener((ob, o, n) -> {
@@ -266,14 +264,13 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
         buildMessageNodes();
     }
 
-    private void disabledMessage(String localizedKey) {
-        if (!deletableNodes.isEmpty()) {
+    private void disabledMessage(String message) {
+        if (deletableNodes != null && !deletableNodes.isEmpty()) {
             // メッセージを構成するノードを除去
             getChildren().removeAll(deletableNodes);
         }
 
         // 代替メッセージ
-        var message = Resources.getString(localizedKey);
         var text = new Text(message);
         text.getStyleClass().addAll(CHAT_STYLE_CLASS, Styles.TEXT_MUTED);
         text.fontProperty().bind(font.map(ChatFont::getFont));

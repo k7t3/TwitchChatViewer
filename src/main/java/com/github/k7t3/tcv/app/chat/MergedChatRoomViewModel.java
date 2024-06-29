@@ -1,7 +1,8 @@
 package com.github.k7t3.tcv.app.chat;
 
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
-import com.github.k7t3.tcv.app.emoji.EmojiImageCache;
+import com.github.k7t3.tcv.app.chat.filter.ChatFilters;
+import com.github.k7t3.tcv.app.emoji.ChatEmojiStore;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
 import com.github.k7t3.tcv.domain.event.chat.ChatRoomStateUpdatedEvent;
@@ -28,10 +29,11 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
             ChatEmoteStore emoteStore,
             DefinedChatColors definedChatColors,
             List<SingleChatRoomViewModel> chatRooms,
-            EmojiImageCache emojiCache,
-            ChatRoomContainerViewModel containerViewModel
+            ChatEmojiStore emojiCache,
+            ChatRoomContainerViewModel containerViewModel,
+            ChatFilters chatFilters
     ) {
-        super(globalChatBadgeStore, emoteStore, definedChatColors, emojiCache, containerViewModel);
+        super(globalChatBadgeStore, emoteStore, definedChatColors, emojiCache, containerViewModel, chatFilters);
         setChatCacheSize(DEFAULT_ITEM_COUNT_LIMIT);
 
         initChatRooms(chatRooms);

@@ -43,7 +43,9 @@ public class TwitchAPI implements Closeable {
 
     private final Twitch twitch;
 
-    private final Lock lock = new ReentrantLock(true);
+    // トークンのリフレッシュ時のロック
+    private final Lock refreshLock = new ReentrantLock(true);
+    private long refreshTimestamp = Long.MIN_VALUE;
 
     private final ChannelListener channelListener = new ChannelListener();
 
@@ -233,8 +235,6 @@ public class TwitchAPI implements Closeable {
 
     private <T> T hystrixCommandWrapper(Function<TwitchHelix, HystrixCommand<T>> function) {
 
-        lock.lock();
-
         try {
             var helix = twitch.getClient().getHelix();
             var command = function.apply(helix);
@@ -272,15 +272,22 @@ public class TwitchAPI implements Closeable {
 
         } catch (Exception e) {
             throw new RuntimeException(e);
-        } finally {
-            lock.unlock();
         }
     }
 
     private void refreshAccessToken() {
-        LOGGER.info("start refresh");
+
+        var now = System.nanoTime();
+        refreshLock.lock();
 
         try {
+            if (now < refreshTimestamp) {
+                LOGGER.info("already refreshed");
+                return;
+            }
+
+            LOGGER.info("start refresh");
+
             var controller = new CredentialController(twitch.getCredentialStore());
             var credential = controller.refreshToken();
 
@@ -294,11 +301,15 @@ public class TwitchAPI implements Closeable {
             twitch.updateCredential(credential);
             LOGGER.info("done refresh");
 
+            refreshTimestamp = System.nanoTime();
+
         } catch (InvalidCredentialException e) {
             throw e;
         } catch (Exception e) {
             LOGGER.error(e.getMessage(), e);
             throw new RuntimeException(e);
+        } finally {
+            refreshLock.unlock();
         }
     }
 

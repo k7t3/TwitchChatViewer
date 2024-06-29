@@ -1,6 +1,6 @@
 package com.github.k7t3.tcv.view.command;
 
-import com.github.k7t3.tcv.app.command.BasicCommand;
+import com.github.k7t3.tcv.app.service.BasicCommand;
 import com.github.k7t3.tcv.view.web.BrowserController;
 
 public class OpenTermsCommand extends BasicCommand {

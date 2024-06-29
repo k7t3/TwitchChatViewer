@@ -23,6 +23,7 @@ import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.net.URL;
 import java.util.ResourceBundle;
+import java.util.function.Supplier;
 
 public class ChannelGroupListView implements FxmlView<ChannelGroupListViewModel>, Initializable {
 
@@ -71,7 +72,8 @@ public class ChannelGroupListView implements FxmlView<ChannelGroupListViewModel>
         var prefs = AppPreferences.getInstance();
 
         // VirtualFlow
-        virtualFlow = VirtualFlow.createVertical(viewModel.getChannelGroups(), g -> new ChannelGroupListCell(prefs.getGeneralPreferences(), g, viewModel));
+        Supplier<VirtualFlow<ChannelGroup, ChannelGroupListCell>> vfInjector = () -> virtualFlow; // 力技ではあるか？
+        virtualFlow = VirtualFlow.createVertical(viewModel.getChannelGroups(), g -> new ChannelGroupListCell(prefs.getGeneralPreferences(), g, viewModel, vfInjector));
         channelGroupListContainer.getChildren().add(new VirtualizedScrollPane<>(virtualFlow));
 
         // ダイアログとして表示するための初期化

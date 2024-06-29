@@ -41,6 +41,7 @@ class ChannelGroupEntityServiceTest {
                 UUID.randomUUID(),
                 "test entity",
                 "comment",
+                false,
                 LocalDateTime.now().withYear(1900).truncatedTo(ChronoUnit.MILLIS),
                 LocalDateTime.now().truncatedTo(ChronoUnit.MILLIS),
                 Set.of("first")
@@ -54,6 +55,7 @@ class ChannelGroupEntityServiceTest {
                 inserted.id(),
                 "name updated",
                 "comment",
+                false,
                 inserted.createdAt(),
                 LocalDateTime.now().truncatedTo(ChronoUnit.MILLIS),
                 Set.of("second", "first")
@@ -71,6 +73,7 @@ class ChannelGroupEntityServiceTest {
                 UUID.randomUUID(),
                 "test entity",
                 "comment",
+                false,
                 LocalDateTime.now().withYear(1900).truncatedTo(ChronoUnit.MILLIS),
                 LocalDateTime.now().truncatedTo(ChronoUnit.MILLIS),
                 Set.of("first")

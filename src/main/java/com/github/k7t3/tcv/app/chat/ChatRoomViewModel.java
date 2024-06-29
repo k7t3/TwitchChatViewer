@@ -1,9 +1,12 @@
 package com.github.k7t3.tcv.app.chat;
 
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
-import com.github.k7t3.tcv.app.chat.filter.ChatMessageFilter;
+import com.github.k7t3.tcv.app.chat.filter.ChatFilters;
+import com.github.k7t3.tcv.app.chat.filter.KeywordFilterEntry;
 import com.github.k7t3.tcv.app.core.Resources;
-import com.github.k7t3.tcv.app.emoji.EmojiImageCache;
+import com.github.k7t3.tcv.app.emoji.ChatEmojiStore;
+import com.github.k7t3.tcv.app.event.KeywordFilteringEvent;
+import com.github.k7t3.tcv.app.event.UserFilteringEvent;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
 import com.github.k7t3.tcv.domain.chat.ChatData;
@@ -34,8 +37,6 @@ public abstract class ChatRoomViewModel {
 
     private final ObjectProperty<ChatFont> font = new SimpleObjectProperty<>();
 
-    private final ObjectProperty<ChatMessageFilter> chatMessageFilter = new SimpleObjectProperty<>(ChatMessageFilter.DEFAULT);
-
     private final ReadOnlyBooleanWrapper chatJoined = new ReadOnlyBooleanWrapper(false);
 
     private final BooleanProperty selected = new SimpleBooleanProperty(false);
@@ -48,21 +49,25 @@ public abstract class ChatRoomViewModel {
 
     private final DefinedChatColors definedChatColors;
 
-    private final EmojiImageCache emojiCache;
+    private final ChatEmojiStore emojiStore;
 
     protected final ChatRoomContainerViewModel containerViewModel;
+
+    private final ChatFilters chatFilters;
 
     ChatRoomViewModel(
             GlobalChatBadgeStore globalChatBadgeStore,
             ChatEmoteStore emoteStore,
             DefinedChatColors definedChatColors,
-            EmojiImageCache emojiCache,
-            ChatRoomContainerViewModel containerViewModel) {
+            ChatEmojiStore emojiStore,
+            ChatRoomContainerViewModel containerViewModel,
+            ChatFilters chatFilters) {
         this.globalChatBadgeStore = globalChatBadgeStore;
         this.emoteStore = emoteStore;
         this.definedChatColors = definedChatColors;
-        this.emojiCache = emojiCache;
+        this.emojiStore = emojiStore;
         this.containerViewModel = containerViewModel;
+        this.chatFilters = chatFilters;
 
         chatCacheSize.addListener((ob, o, n) -> itemCountLimitChanged(n.intValue()));
     }
@@ -73,6 +78,20 @@ public abstract class ChatRoomViewModel {
 
     public void restoreToContainer() {
         containerViewModel.restoreToContainer(this);
+    }
+
+    public void chatFilter(KeywordFilteringEvent event) {
+        var entry = event.entry();
+        chatDataList.stream()
+                .filter(c -> entry.test(c.getChatData()))
+                .forEach(c -> c.setHidden(true));
+    }
+
+    public void chatFilter(UserFilteringEvent event) {
+        var entry = event.entry();
+        chatDataList.stream()
+                .filter(c -> entry.test(c.getChatData()))
+                .forEach(c -> c.setHidden(true));
     }
 
     private void itemCountLimitChanged(int limit) {
@@ -114,7 +133,8 @@ public abstract class ChatRoomViewModel {
                 channel.getChatBadgeStore(),
                 emoteStore,
                 definedChatColors,
-                emojiCache
+                emojiStore,
+                chatFilters
         );
     }
 
@@ -146,17 +166,18 @@ public abstract class ChatRoomViewModel {
 
     public abstract void onStateUpdated(ChatRoomStateUpdatedEvent e);
 
-    public void onChatAdded(ChatMessageEvent e) {
+    void onChatAdded(ChatMessageEvent e, boolean hidden) {
         var chatRoom = e.getChatRoom();
         var channel = getChannel(chatRoom.getChannel());
 
         var viewModel = createChatDataViewModel(channel, e.getChatData());
         viewModel.fontProperty().bind(font);
+        viewModel.setHidden(hidden);
 
         addChat(viewModel);
     }
 
-    public void onCheered(CheeredEvent e) {
+    void onCheered(CheeredEvent e) {
         var chatRoom = e.getChatRoom();
         var channel = getChannel(chatRoom.getChannel());
         var cheer = e.getCheer();
@@ -168,7 +189,7 @@ public abstract class ChatRoomViewModel {
         addChat(viewModel);
     }
 
-    public void onRaidReceived(RaidReceivedEvent e) {
+    void onRaidReceived(RaidReceivedEvent e) {
         var format = Resources.getString("chat.raid.received.format");
         var chatData = ChatData.createSystemData(format.formatted(e.getRaiderName(), e.getViewerCount()));
         var channel = getChannel(e.getChatRoom().getChannel());
@@ -180,7 +201,7 @@ public abstract class ChatRoomViewModel {
         addChat(viewModel);
     }
 
-    public void onGiftedSubsEvent(UserGiftedSubscribeEvent e) {
+    void onGiftedSubsEvent(UserGiftedSubscribeEvent e) {
         var message = "%s sub gifted by %s.".formatted(e.getReceiverName(), e.getGiverName());
         var chatData = ChatData.createSystemData(message);
 
@@ -194,7 +215,7 @@ public abstract class ChatRoomViewModel {
         addChat(viewModel);
     }
 
-    public void onUserSubsEvent(UserSubscribedEvent e) {
+    void onUserSubsEvent(UserSubscribedEvent e) {
         var chatRoom = e.getChatRoom();
         var channel = getChannel(chatRoom.getChannel());
 
@@ -226,10 +247,6 @@ public abstract class ChatRoomViewModel {
     public ObjectProperty<ChatFont> fontProperty() { return font; }
     public ChatFont getFont() { return font.get(); }
     public void setFont(ChatFont font) { this.font.set(font); }
-
-    public ObjectProperty<ChatMessageFilter> chatMessageFilterProperty() { return chatMessageFilter; }
-    public ChatMessageFilter getChatMessageFilter() { return chatMessageFilter.get(); }
-    public void setChatMessageFilter(ChatMessageFilter chatMessageFilter) { this.chatMessageFilter.set(chatMessageFilter); }
 
     protected ReadOnlyBooleanWrapper chatJoinedWrapper() { return chatJoined; }
     public ReadOnlyBooleanProperty chatJoinedProperty() { return chatJoined.getReadOnlyProperty(); }

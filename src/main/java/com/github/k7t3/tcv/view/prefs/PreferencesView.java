@@ -111,10 +111,11 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
     }
 
     private void loadFilterViewModel() {
-        var filterViewModel = new ChatMessageFilterViewModel();
+        var helper = AppHelper.getInstance();
+        var filterViewModel = new KeywordFilterViewModel(helper.getChatFilters());
         viewModels.add(filterViewModel);
 
-        var tuple = FluentViewLoader.fxmlView(ChatMessageFilterView.class)
+        var tuple = FluentViewLoader.fxmlView(KeywordFilterView.class)
                 .viewModel(filterViewModel)
                 .resourceBundle(Resources.getResourceBundle())
                 .load();
@@ -130,10 +131,11 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
     }
 
     private void loadUserFilterViewModel() {
-        var userFilterViewModel = new UserChatMessageFilterViewModel();
+        var helper = AppHelper.getInstance();
+        var userFilterViewModel = new UserFilterViewModel(helper.getChatFilters());
         viewModels.add(userFilterViewModel);
 
-        var tuple = FluentViewLoader.fxmlView(UserChatMessageFilterView.class)
+        var tuple = FluentViewLoader.fxmlView(UserFilterView.class)
                 .viewModel(userFilterViewModel)
                 .resourceBundle(Resources.getResourceBundle())
                 .load();

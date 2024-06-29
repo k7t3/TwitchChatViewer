@@ -29,13 +29,13 @@ public class Resources {
 
     private static Image smallerIcon(double size) {
         return new Image(
-                Objects.requireNonNull(Resources.class.getResource("/icons/twitch-chat-viewer-32.png")).toExternalForm(),
+                Objects.requireNonNull(Resources.class.getResource("/icons/TwitchChatViewer-64.png")).toExternalForm(),
                 size, size, true, true);
     }
 
     private static Image loadIcon(double size) {
         return new Image(
-                Objects.requireNonNull(Resources.class.getResource("/icons/twitch-chat-viewer-512.png")).toExternalForm(),
+                Objects.requireNonNull(Resources.class.getResource("/icons/TwitchChatViewer-512.png")).toExternalForm(),
                 size, size, true, true);
     }
 

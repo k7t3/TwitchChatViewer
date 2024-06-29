@@ -1,7 +1,8 @@
 package com.github.k7t3.tcv.app.chat;
 
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
-import com.github.k7t3.tcv.app.emoji.EmojiImageCache;
+import com.github.k7t3.tcv.app.chat.filter.ChatFilters;
+import com.github.k7t3.tcv.app.emoji.ChatEmojiStore;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
 import com.github.k7t3.tcv.domain.chat.ChatRoomState;
@@ -33,10 +34,11 @@ public class SingleChatRoomViewModel extends ChatRoomViewModel implements ViewMo
             GlobalChatBadgeStore globalChatBadgeStore,
             ChatEmoteStore emoteStore,
             DefinedChatColors definedChatColors,
-            EmojiImageCache emojiCache,
-            TwitchChannelViewModel channel
+            ChatEmojiStore emojiCache,
+            TwitchChannelViewModel channel,
+            ChatFilters chatFilters
     ) {
-        super(globalChatBadgeStore, emoteStore, definedChatColors, emojiCache, containerViewModel);
+        super(globalChatBadgeStore, emoteStore, definedChatColors, emojiCache, containerViewModel, chatFilters);
         this.channel = new ReadOnlyObjectWrapper<>(channel);
     }
 

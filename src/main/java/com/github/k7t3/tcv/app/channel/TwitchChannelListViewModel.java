@@ -2,6 +2,7 @@ package com.github.k7t3.tcv.app.channel;
 
 import com.github.k7t3.tcv.app.core.AbstractViewModel;
 import com.github.k7t3.tcv.app.event.ChatOpeningEvent;
+import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.domain.event.EventSubscribers;
 import com.github.k7t3.tcv.prefs.GeneralPreferences;
 import javafx.beans.Observable;
@@ -12,6 +13,7 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 
+import java.util.Collections;
 import java.util.Comparator;
 
 /**
@@ -92,6 +94,17 @@ public class TwitchChannelListViewModel extends AbstractViewModel {
 
     public ObservableList<TwitchChannelViewModel> getLoadedChannels() {
         return transformedChannels;
+    }
+
+    public void openSelectedChannelPageOnBrowser() {
+        var selectedChannels = getSelectedChannels();
+        if (selectedChannels.isEmpty()) return;
+
+        var channels = Collections.unmodifiableList(selectedChannels);
+
+        FXTask.task(() -> {
+            channels.forEach(TwitchChannelViewModel::openChannelPageOnBrowser);
+        }).runAsync();
     }
 
     public void joinChat() {

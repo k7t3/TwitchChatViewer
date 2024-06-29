@@ -2,6 +2,7 @@ package com.github.k7t3.tcv.view.channel.menu;
 
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.app.service.FXTask;
 import javafx.event.ActionEvent;
 import javafx.scene.control.MenuItem;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
@@ -19,6 +20,6 @@ public class OpenBrowserMenuItem extends MenuItem  {
 
     private void action(ActionEvent e) {
         e.consume();
-        channel.openChannelPageOnBrowser();
+        FXTask.task(channel::openChannelPageOnBrowser).runAsync();
     }
 }

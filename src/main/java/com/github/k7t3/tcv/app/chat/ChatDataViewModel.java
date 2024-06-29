@@ -1,12 +1,18 @@
 package com.github.k7t3.tcv.app.chat;
 
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
-import com.github.k7t3.tcv.app.emoji.EmojiImageCache;
+import com.github.k7t3.tcv.app.chat.filter.ChatFilters;
+import com.github.k7t3.tcv.app.chat.filter.KeywordFilterEntry;
+import com.github.k7t3.tcv.app.chat.filter.UserFilterEntry;
+import com.github.k7t3.tcv.app.emoji.ChatEmojiStore;
+import com.github.k7t3.tcv.app.event.KeywordFilteringEvent;
+import com.github.k7t3.tcv.app.event.UserFilteringEvent;
 import com.github.k7t3.tcv.app.image.LazyImage;
 import com.github.k7t3.tcv.domain.chat.ChatData;
 import com.github.k7t3.tcv.domain.chat.ChatMessage;
 import com.github.k7t3.tcv.domain.chat.ChatMessageFragment;
 import com.github.k7t3.tcv.view.chat.ChatFont;
+import de.saxsys.mvvmfx.MvvmFX;
 import de.saxsys.mvvmfx.ViewModel;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
@@ -21,7 +27,7 @@ import java.util.Map;
 /**
  * チャットメッセージのViewModel
  */
-public class ChatDataViewModel implements ViewModel {
+public class ChatDataViewModel {
 
     private final ReadOnlyObjectWrapper<TwitchChannelViewModel> channel;
 
@@ -55,7 +61,9 @@ public class ChatDataViewModel implements ViewModel {
 
     private final DefinedChatColors definedChatColors;
 
-    private final EmojiImageCache emojiCache;
+    private final ChatEmojiStore emojiStore;
+
+    private final ChatFilters chatFilters;
 
     private boolean system = false;
     private boolean subs = false;
@@ -68,7 +76,8 @@ public class ChatDataViewModel implements ViewModel {
             ChannelChatBadgeStore channelBadgeStore,
             ChatEmoteStore emoteStore,
             DefinedChatColors definedChatColors,
-            EmojiImageCache emojiCache
+            ChatEmojiStore emojiStore,
+            ChatFilters chatFilters
     ) {
         this.channel = new ReadOnlyObjectWrapper<>(channel);
         this.chatData = chatData;
@@ -76,7 +85,8 @@ public class ChatDataViewModel implements ViewModel {
         this.channelBadgeStore = channelBadgeStore;
         this.emoteStore = emoteStore;
         this.definedChatColors = definedChatColors;
-        this.emojiCache = emojiCache;
+        this.emojiStore = emojiStore;
+        this.chatFilters = chatFilters;
         update();
     }
 
@@ -86,7 +96,7 @@ public class ChatDataViewModel implements ViewModel {
 
     public LazyImage getEmojiImage(ChatMessageFragment fragment) {
         if (fragment.type() != ChatMessageFragment.Type.EMOJI) throw new IllegalArgumentException("fragment is not emoji");
-        return emojiCache.get(fragment.additional());
+        return emojiStore.get(fragment.additional());
     }
 
     private void update() {
@@ -155,6 +165,24 @@ public class ChatDataViewModel implements ViewModel {
 
     public boolean isCheered() {
         return bits != Integer.MIN_VALUE;
+    }
+
+    public void keywordFilter() {
+        var message = getMessage().getPlain();
+        var filter = KeywordFilterEntry.exactMatch(message);
+        chatFilters.saveKeywordFilter(filter);
+
+        var event = new KeywordFilteringEvent(filter);
+        MvvmFX.getNotificationCenter().publish(event.getClass().getName(), event);
+    }
+
+    public void userFilter(String comment) {
+        var chat = getChatData();
+        var filter = new UserFilterEntry(chat.userId(), chat.userName(), comment);
+        chatFilters.saveUserFilter(filter);
+
+        var event = new UserFilteringEvent(filter);
+        MvvmFX.getNotificationCenter().publish(event.getClass().getName(), event);
     }
 
     // ********** PROPERTIES **********

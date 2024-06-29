@@ -4,7 +4,7 @@ import java.util.Comparator;
 
 public interface ChannelGroupPinnedComparator extends Comparator<ChannelGroup> {
 
-    Comparator<ChannelGroup> INSTANCE = new ChannelGroupPinnedComparator() { };
+    Comparator<ChannelGroup> INSTANCE = new ChannelGroupPinnedComparator() { }.reversed();
 
     @Override
     default int compare(ChannelGroup o1, ChannelGroup o2) {

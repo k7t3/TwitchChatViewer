@@ -21,3 +21,10 @@
 .channel-group-cell .comment>.label {
     -fx-cursor: text;
 }
+
+.channel-group-cell .toggle-button > .ikonli-font-icon {
+    -fx-icon-code: fth-square;
+}
+.channel-group-cell .toggle-button:selected > .ikonli-font-icon {
+    -fx-icon-code: fth-check-square;
+}

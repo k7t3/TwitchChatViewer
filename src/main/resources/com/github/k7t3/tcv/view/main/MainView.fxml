@@ -49,7 +49,7 @@
                            <children>
                               <ImageView fitHeight="32.0" fitWidth="32.0" pickOnBounds="true" preserveRatio="true">
                                  <image>
-                                    <Image url="@../../../../../../icons/twitch-chat-viewer-32.png" />
+                                    <Image url="@../../../../../../icons/TwitchChatViewer-64.png" />
                                  </image>
                               </ImageView>
                               <Label text="Twitch Chat Viewer">

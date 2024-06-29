@@ -2,7 +2,6 @@ package com.github.k7t3.tcv.app.clip;
 
 import com.github.k7t3.tcv.app.image.LazyImage;
 import com.github.k7t3.tcv.app.service.FXTask;
-import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
 import com.github.k7t3.tcv.domain.clip.VideoClip;
 import de.saxsys.mvvmfx.ViewModel;

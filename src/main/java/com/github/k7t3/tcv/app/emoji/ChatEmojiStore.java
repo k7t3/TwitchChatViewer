@@ -6,11 +6,11 @@ import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
 
-public class EmojiImageCache extends CachedImageStore<String> {
+public class ChatEmojiStore extends CachedImageStore<String> {
 
     private final Emoji emoji;
 
-    public EmojiImageCache(Emoji emoji) {
+    public ChatEmojiStore(Emoji emoji) {
         super(64, Duration.ofHours(1));
         this.emoji = emoji;
     }

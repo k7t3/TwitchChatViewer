@@ -1,10 +1,7 @@
 package com.github.k7t3.tcv.app.clip;
 
 import com.github.k7t3.tcv.app.service.FXTask;
-import com.github.k7t3.tcv.app.service.TaskWorker;
-import com.github.k7t3.tcv.domain.channel.Broadcaster;
 import com.github.k7t3.tcv.domain.chat.ClipChatMessage;
-import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.scene.input.Clipboard;
@@ -13,7 +10,6 @@ import javafx.scene.input.DataFormat;
 import java.awt.*;
 import java.net.URI;
 import java.util.Map;
-import java.util.Set;
 
 public class EstimatedClipViewModel extends AbstractPostedClip {
 
@@ -48,8 +44,7 @@ public class EstimatedClipViewModel extends AbstractPostedClip {
             desktop.browse(new URI(url));
             return true;
         });
-
-        TaskWorker.getInstance().submit(task);
+        task.runAsync();
 
         return task;
     }

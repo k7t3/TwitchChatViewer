@@ -41,6 +41,20 @@ public class DefaultTableCreator extends AbstractTableCreator {
                     maximized boolean not null
                 );
                 """);
+        connector.execute("""
+                create table chat_keyword_filter (
+                    id integer primary key autoincrement,
+                    type integer not null,
+                    keyword text not null
+                );
+                """);
+        connector.execute("""
+                create table chat_user_filter (
+                    user_id text primary key,
+                    user_name text not null,
+                    comment text not null
+                );
+                """);
     }
 
 }

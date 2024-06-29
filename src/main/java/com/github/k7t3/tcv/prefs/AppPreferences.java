@@ -26,8 +26,6 @@ public class AppPreferences extends PreferencesBase {
 
     private PlayerPreferences playerPreferences;
 
-    private ChatMessageFilterPreferences messageFilterPreferences;
-
     private ChatPreferences chatPreferences;
 
     private KeyBindingPreferences keyBindingPreferences;
@@ -55,18 +53,12 @@ public class AppPreferences extends PreferencesBase {
         if (playerPreferences != null)
             playerPreferences.readFromPreferences();
 
-        if (messageFilterPreferences != null)
-            messageFilterPreferences.readFromPreferences();
-
         if (chatPreferences != null)
             chatPreferences.readFromPreferences();
     }
 
     @Override
     protected void writeToPreferences() {
-        if (messageFilterPreferences != null)
-            messageFilterPreferences.writeToPreferences();
-
         if (chatPreferences != null)
             chatPreferences.writeToPreferences();
     }
@@ -111,13 +103,6 @@ public class AppPreferences extends PreferencesBase {
             playerPreferences = new PlayerPreferences(preferences, defaults);
         }
         return playerPreferences;
-    }
-
-    public ChatMessageFilterPreferences getMessageFilterPreferences() {
-        if (messageFilterPreferences == null) {
-            messageFilterPreferences = new ChatMessageFilterPreferences(preferences, defaults);
-        }
-        return messageFilterPreferences;
     }
 
     public ChatPreferences getChatPreferences() {

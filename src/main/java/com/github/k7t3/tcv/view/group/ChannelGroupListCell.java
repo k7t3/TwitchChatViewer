@@ -18,23 +18,23 @@ import com.github.k7t3.tcv.view.channel.menu.OpenBrowserMenuItem;
 import com.github.k7t3.tcv.view.channel.menu.OpenChatMenuItem;
 import com.github.k7t3.tcv.view.control.EditableLabel;
 import com.github.k7t3.tcv.view.core.JavaFXHelper;
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.effect.SepiaTone;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.TilePane;
-import javafx.scene.layout.VBox;
 import javafx.scene.shape.Rectangle;
 import org.fxmisc.flowless.Cell;
+import org.fxmisc.flowless.VirtualFlow;
 import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeRegular;
-import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.util.Comparator;
+import java.util.function.Supplier;
 
 public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Region> {
 
@@ -45,36 +45,48 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
     private static final double PROFILE_IMAGE_HEIGHT = 48;
 
     private final EditableLabel header = new EditableLabel();
+    private final ToggleButton pin = new ToggleButton(null, new FontIcon());
     private final EditableLabel subHeader = new EditableLabel();
     private final TilePane tilePane = new TilePane();
 
     private final GeneralPreferences generalPrefs;
     private final ChannelGroup group;
     private final ChannelGroupListViewModel viewModel;
+    private final Supplier<VirtualFlow<ChannelGroup, ChannelGroupListCell>> vfInjector;
 
     public ChannelGroupListCell(
             GeneralPreferences generalPrefs,
             ChannelGroup group,
-            ChannelGroupListViewModel viewModel
+            ChannelGroupListViewModel viewModel,
+            Supplier<VirtualFlow<ChannelGroup, ChannelGroupListCell>> vfInjector
     ) {
         this.generalPrefs = generalPrefs;
         this.group = group;
         this.viewModel = viewModel;
+        this.vfInjector = vfInjector;
         init();
         update();
     }
 
     private void init() {
         getStyleClass().add(STYLE_CLASS);
-        setHeader(header);
-        setSubHeader(subHeader);
         setBody(tilePane);
+
+        var headerPane = new HBox();
 
         header.getStyleClass().add(Styles.TITLE_3);
         header.setTooltip(new Tooltip(Resources.getString("group.tooltip.title")));
         header.getStyleClass().add("title");
+        HBox.setHgrow(header, Priority.ALWAYS);
+
+        pin.getStyleClass().addAll(Styles.BUTTON_ICON);
+
+        headerPane.getChildren().addAll(header, pin);
+        setHeader(headerPane);
+
         subHeader.setTooltip(new Tooltip(Resources.getString("group.tooltip.comment")));
         subHeader.getStyleClass().add("comment");
+        setSubHeader(subHeader);
 
         // ****************************************
         // チャットを開くボタン
@@ -136,6 +148,12 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
         footer.setSpacing(4);
         setFooter(footer);
 
+        pin.setOnAction(e -> {
+            setDisable(true);
+            var t = viewModel.update(group);
+            t.setFinally(() -> setDisable(false));
+            t.onDone(() -> vfInjector.get().show(0));
+        });
         header.setOnEditCommit(e -> {
             setDisable(true);
             var t = viewModel.update(group);
@@ -165,6 +183,7 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
         tilePane.getChildren().clear();
         tilePane.setHgap(4);
         tilePane.setVgap(2);
+        pin.selectedProperty().bindBidirectional(group.pinnedProperty());
 
         group.getChannels().stream()
                 .sorted(Comparator.comparing(TwitchChannelViewModel::getUserName))
@@ -242,26 +261,6 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
     }
 
     public static void installStreamInfoPopOver(TwitchChannelViewModel channel, Node node) {
-        var gameNameLabel = new Label();
-        gameNameLabel.setWrapText(true);
-
-        var streamTitleLabel = new Label();
-        streamTitleLabel.setWrapText(true);
-        streamTitleLabel.getStyleClass().addAll(Styles.TEXT_SMALL);
-
-        var viewerCountLabel = new Label();
-        viewerCountLabel.setGraphic(new FontIcon(FontAwesomeSolid.USER));
-        viewerCountLabel.getStyleClass().add(Styles.DANGER);
-
-        // アップタイムはポップアップを表示したときに計算する
-        var uptimeLabel = new Label();
-        uptimeLabel.setGraphic(new FontIcon(FontAwesomeSolid.CLOCK));
-
-        var vbox = new VBox(gameNameLabel, streamTitleLabel, viewerCountLabel, uptimeLabel);
-        vbox.setPrefWidth(300);
-        vbox.setSpacing(4);
-        vbox.setPadding(new Insets(10, 0, 10, 0));
-
         var popup = new LiveInfoPopup(channel);
         popup.setAutoHide(true);
 

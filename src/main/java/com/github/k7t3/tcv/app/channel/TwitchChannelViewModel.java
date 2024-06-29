@@ -12,7 +12,9 @@ import javafx.beans.value.ObservableValue;
 import javafx.scene.image.Image;
 
 import java.awt.*;
+import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 
 public class TwitchChannelViewModel {
 
@@ -67,16 +69,16 @@ public class TwitchChannelViewModel {
     public void openChannelPageOnBrowser() {
         var login = getBroadcaster().getUserLogin();
 
-        var t = FXTask.task(() -> {
-            var desktop = Desktop.getDesktop();
-            if (!desktop.isSupported(Desktop.Action.BROWSE)) {
-                return false;
-            }
+        var desktop = Desktop.getDesktop();
+        if (!desktop.isSupported(Desktop.Action.BROWSE)) {
+            return;
+        }
 
+        try {
             desktop.browse(new URI(CHANNEL_URL_FORMAT.formatted(login)));
-            return true;
-        });
-        t.runAsync();
+        } catch (IOException | URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public FXTask<ChatRoom> joinChatAsync() {

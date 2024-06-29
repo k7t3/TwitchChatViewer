@@ -1,13 +1,15 @@
 package com.github.k7t3.tcv.app.chat;
 
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
-import com.github.k7t3.tcv.app.chat.filter.ChatMessageFilter;
+import com.github.k7t3.tcv.app.chat.filter.ChatFilters;
 import com.github.k7t3.tcv.app.core.AbstractViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.OS;
+import com.github.k7t3.tcv.app.emoji.ChatEmojiStore;
 import com.github.k7t3.tcv.app.emoji.Emoji;
-import com.github.k7t3.tcv.app.emoji.EmojiImageCache;
 import com.github.k7t3.tcv.app.event.ChatOpeningEvent;
+import com.github.k7t3.tcv.app.event.KeywordFilteringEvent;
+import com.github.k7t3.tcv.app.event.UserFilteringEvent;
 import com.github.k7t3.tcv.app.reactive.ChatMessageSubscriber;
 import com.github.k7t3.tcv.app.reactive.DownCastFXSubscriber;
 import com.github.k7t3.tcv.app.service.FXTask;
@@ -15,7 +17,6 @@ import com.github.k7t3.tcv.domain.channel.TwitchChannel;
 import com.github.k7t3.tcv.domain.chat.GlobalChatBadges;
 import com.github.k7t3.tcv.domain.event.EventSubscribers;
 import com.github.k7t3.tcv.domain.event.chat.*;
-import com.github.k7t3.tcv.prefs.ChatMessageFilterPreferences;
 import com.github.k7t3.tcv.prefs.ChatPreferences;
 import com.github.k7t3.tcv.reactive.FlowableSubscriber;
 import com.github.k7t3.tcv.view.chat.ChatFont;
@@ -52,13 +53,13 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
     private ChatEmoteStore chatEmoteStore;
     private final DefinedChatColors definedChatColors = new DefinedChatColors();
     private Emoji emoji;
-    private EmojiImageCache emojiCache;
+    private ChatEmojiStore emojiStore;
+    private ChatFilters chatFilters;
 
     private final IntegerProperty chatCacheSize = new SimpleIntegerProperty();
     private final BooleanProperty showUserName = new SimpleBooleanProperty(true);
     private final BooleanProperty showBadges = new SimpleBooleanProperty(true);
     private final ObjectProperty<ChatFont> font = new SimpleObjectProperty<>(null);
-    private final ObjectProperty<ChatMessageFilter> chatMessageFilter = new SimpleObjectProperty<>(ChatMessageFilter.DEFAULT);
 
     private final List<FlowableSubscriber<?>> subscribers = new ArrayList<>();
 
@@ -78,10 +79,6 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
         showUserName.bind(chatPreferences.showUserNameProperty());
         showBadges.bind(chatPreferences.showBadgesProperty());
         font.bind(chatPreferences.fontProperty());
-    }
-
-    public void bindChatMessageFilterPreferences(ChatMessageFilterPreferences filterPreferences) {
-        chatMessageFilter.bind(filterPreferences.chatMessageFilterProperty());
     }
 
     private void injectionItemListener(ListChangeListener.Change<? extends ChatRoomViewModel> c) {
@@ -128,8 +125,9 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
                 chatSub
         ));
 
-        // チャットを開くイベント
         subscribe(ChatOpeningEvent.class, this::onChatOpened);
+        subscribe(KeywordFilteringEvent.class, this::onKeywordFiltered);
+        subscribe(UserFilteringEvent.class, this::onUserFiltered);
     }
 
     private Optional<ChatRoomViewModel> find(TwitchChannel channel) {
@@ -139,7 +137,19 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
     private void onChatPosted(ChatMessageEvent e) {
         var chatRoom = e.getChatRoom();
         var channel = chatRoom.getChannel();
-        find(channel).ifPresent(c -> c.onChatAdded(e));
+        find(channel).ifPresent(c -> {
+            var filter = chatFilters.getFilter();
+            var hidden = filter.test(e.getChatData());
+            c.onChatAdded(e, hidden);
+        });
+    }
+
+    private void onKeywordFiltered(KeywordFilteringEvent event) {
+        allChatRooms.forEach(c -> c.chatFilter(event));
+    }
+
+    private void onUserFiltered(UserFilteringEvent event) {
+        allChatRooms.forEach(c -> c.chatFilter(event));
     }
 
     private void onChatCleared(ChatClearedEvent e) {
@@ -203,20 +213,31 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
         var helper = AppHelper.getInstance();
         var twitch = helper.getTwitch();
 
+        chatFilters = helper.getChatFilters();
+
         var task = FXTask.<Void>task(() -> {
             var globalBadges = new GlobalChatBadges();
-            globalBadges.load(twitch);
+            var gbt = FXTask.task(() -> globalBadges.load(twitch)).runAsync();
             globalBadgeStore = new GlobalChatBadgeStore(globalBadges);
             chatEmoteStore = new ChatEmoteStore();
 
+            var cft = FXTask.task(() -> chatFilters.loadAll()).runAsync();
+
             var appDir = OS.current().getApplicationDirectory();
             emoji = new Emoji(appDir);
-            emojiCache = new EmojiImageCache(emoji);
+            emojiStore = new ChatEmojiStore(emoji);
 
-            if (!emoji.validateArchive()) {
-                emoji.extractArchive();
-                emoji.validateArchive();
-            }
+            var eit = FXTask.task(() -> {
+                if (!emoji.validateArchive()) {
+                    emoji.extractArchive();
+                    emoji.validateArchive();
+                }
+                return null;
+            }).runAsync();
+
+            gbt.waitForDone();
+            cft.waitForDone();
+            eit.waitForDone();
 
             return null;
         });
@@ -251,8 +272,9 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
                     globalBadgeStore,
                     chatEmoteStore,
                     definedChatColors,
-                    emojiCache,
-                    c
+                    emojiStore,
+                    c,
+                    chatFilters
             );
             bindChatRoomProperties(chatRoom);
             return chatRoom;
@@ -263,8 +285,9 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
                 chatEmoteStore,
                 definedChatColors,
                 chatRooms,
-                emojiCache,
-                this
+                emojiStore,
+                this,
+                chatFilters
         );
 
         chatRooms.forEach(SingleChatRoomViewModel::joinChatAsync);
@@ -295,8 +318,9 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
                 globalBadgeStore,
                 chatEmoteStore,
                 definedChatColors,
-                emojiCache,
-                channel
+                emojiStore,
+                channel,
+                chatFilters
         );
 
         bindChatRoomProperties(chatRoomViewModel);
@@ -308,7 +332,6 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
         viewModel.showNameProperty().bind(showUserName);
         viewModel.showBadgesProperty().bind(showBadges);
         viewModel.fontProperty().bind(font);
-        viewModel.chatMessageFilterProperty().bind(chatMessageFilter);
         viewModel.selectModeProperty().bind(selectMode);
     }
 
@@ -338,12 +361,12 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
         chatRoomList.remove(last);
     }
 
-    public void popOutAsFloatableStage(ChatRoomViewModel chatRoom) {
+    void popOutAsFloatableStage(ChatRoomViewModel chatRoom) {
         chatRoomList.remove(chatRoom);
         floatingChatRoomList.add(chatRoom);
     }
 
-    public void restoreToContainer(ChatRoomViewModel chatRoom) {
+    void restoreToContainer(ChatRoomViewModel chatRoom) {
         if (floatingChatRoomList.remove(chatRoom)) {
             chatRoomList.add(chatRoom);
         }
@@ -423,8 +446,9 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
                 chatEmoteStore,
                 definedChatColors,
                 chatRooms,
-                emojiCache,
-                this
+                emojiStore,
+                this,
+                chatFilters
         );
 
         bindChatRoomProperties(chatRoomViewModel);
