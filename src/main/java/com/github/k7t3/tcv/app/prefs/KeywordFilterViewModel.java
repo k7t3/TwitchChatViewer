@@ -3,6 +3,7 @@ package com.github.k7t3.tcv.app.prefs;
 import com.github.k7t3.tcv.app.chat.filter.ChatFilters;
 import com.github.k7t3.tcv.app.chat.filter.KeywordFilterEntry;
 import com.github.k7t3.tcv.app.chat.filter.KeywordFilterType;
+import com.github.k7t3.tcv.app.event.KeywordFilteringEvent;
 import javafx.beans.Observable;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
@@ -45,7 +46,12 @@ public class KeywordFilterViewModel implements PreferencesViewModelBase {
 
     @Override
     public void sync() {
-        keywordEntries.stream().filter(Wrapper::isDirty).forEach(Wrapper::save);
+        keywordEntries.stream().filter(Wrapper::isDirty).forEach(w -> {
+            w.save();
+            var entry = w.entry;
+            var event = new KeywordFilteringEvent(entry);
+            publish(event);
+        });
     }
 
     public static class Wrapper {

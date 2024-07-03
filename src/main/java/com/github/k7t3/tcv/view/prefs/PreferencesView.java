@@ -11,15 +11,22 @@ import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
+import javafx.scene.control.SelectionMode;
+import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeView;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 
 import java.net.URL;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.ResourceBundle;
 
 public class PreferencesView implements FxmlView<PreferencesViewModel>, Initializable {
 
@@ -27,7 +34,10 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
     private Pane root;
 
     @FXML
-    private TabPane tabPane;
+    private TreeView<PreferencesPage<?>> pagesTreeView;
+
+    @FXML
+    private StackPane contentPane;
 
     @FXML
     private ButtonBar buttonBar;
@@ -47,18 +57,36 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
     @InjectViewModel
     private PreferencesViewModel viewModel;
 
+    private TreeItem<PreferencesPage<?>> pagesRoot;
+
     private AppPreferences preferences;
     private GeneralPreferencesViewModel generalViewModel;
     private List<PreferencesViewModelBase> viewModels;
-    private Map<PreferencesViewModelBase, Tab> tabMap;
+    private Map<PreferencesViewModelBase, TreeItem<PreferencesPage<?>>> pageMap;
+    private Map<PreferencesPage<?>, Node> viewMap;
 
     private Stage preferencesStage;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         viewModels = new ArrayList<>();
-        tabMap = new HashMap<>();
+        pageMap = new HashMap<>();
+        viewMap = new HashMap<>();
+        pagesRoot = new TreeItem<>();
         preferences = AppPreferences.getInstance();
+
+        pagesTreeView.setRoot(pagesRoot);
+        pagesTreeView.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
+        pagesTreeView.setCellFactory(v -> new PreferencesPageTreeCell());
+        pagesTreeView.getSelectionModel().selectedItemProperty().addListener((ob, o, n) -> {
+            if (n == null) {
+                contentPane.getChildren().clear();
+            } else {
+                var node = viewMap.get(n.getValue());
+                contentPane.getChildren().setAll(node);
+            }
+        });
+
         loadGeneralViewModel();
         loadChatViewModel();
         loadFilterViewModel();
@@ -66,6 +94,8 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         loadKeyBindingViewModel();
 
         initButtons();
+
+        pagesTreeView.getSelectionModel().select(0);
     }
 
     public void setPreferencesStage(Stage preferencesStage) {
@@ -84,11 +114,10 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         var view = tuple.getView();
         var codeBehind = tuple.getCodeBehind();
 
-        var tab = new Tab(codeBehind.getName(), view);
-        tab.setGraphic(codeBehind.getGraphic());
-        tab.setClosable(false);
-        tabPane.getTabs().addFirst(tab);
-        tabMap.put(generalViewModel, tab);
+        var item = new TreeItem<PreferencesPage<?>>(codeBehind);
+        pagesRoot.getChildren().add(item);
+        viewMap.put(codeBehind, view);
+        pageMap.put(generalViewModel, item);
     }
 
     private void loadChatViewModel() {
@@ -103,11 +132,10 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         var view = tuple.getView();
         var codeBehind = tuple.getCodeBehind();
 
-        var tab = new Tab(codeBehind.getName(), view);
-        tab.setGraphic(codeBehind.getGraphic());
-        tab.setClosable(false);
-        tabPane.getTabs().add(tab);
-        tabMap.put(chatViewModel, tab);
+        var item = new TreeItem<PreferencesPage<?>>(codeBehind);
+        pagesRoot.getChildren().add(item);
+        viewMap.put(codeBehind, view);
+        pageMap.put(generalViewModel, item);
     }
 
     private void loadFilterViewModel() {
@@ -123,11 +151,10 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         var view = tuple.getView();
         var codeBehind = tuple.getCodeBehind();
 
-        var tab = new Tab(codeBehind.getName(), view);
-        tab.setGraphic(codeBehind.getGraphic());
-        tab.setClosable(false);
-        tabPane.getTabs().add(tab);
-        tabMap.put(filterViewModel, tab);
+        var item = new TreeItem<PreferencesPage<?>>(codeBehind);
+        pagesRoot.getChildren().add(item);
+        viewMap.put(codeBehind, view);
+        pageMap.put(generalViewModel, item);
     }
 
     private void loadUserFilterViewModel() {
@@ -143,11 +170,10 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         var view = tuple.getView();
         var codeBehind = tuple.getCodeBehind();
 
-        var tab = new Tab(codeBehind.getName(), view);
-        tab.setGraphic(codeBehind.getGraphic());
-        tab.setClosable(false);
-        tabPane.getTabs().add(tab);
-        tabMap.put(userFilterViewModel, tab);
+        var item = new TreeItem<PreferencesPage<?>>(codeBehind);
+        pagesRoot.getChildren().add(item);
+        viewMap.put(codeBehind, view);
+        pageMap.put(generalViewModel, item);
     }
 
     private void loadKeyBindingViewModel() {
@@ -166,11 +192,10 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         var view = tuple.getView();
         var codeBehind = tuple.getCodeBehind();
 
-        var tab = new Tab(codeBehind.getName(), view);
-        tab.setGraphic(codeBehind.getGraphic());
-        tab.setClosable(false);
-        tabPane.getTabs().add(tab);
-        tabMap.put(keyBindingViewModel, tab);
+        var item = new TreeItem<PreferencesPage<?>>(codeBehind);
+        pagesRoot.getChildren().add(item);
+        viewMap.put(codeBehind, view);
+        pageMap.put(generalViewModel, item);
     }
 
     private void initButtons() {
@@ -193,10 +218,10 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
     private void save() {
         for (var viewModel : viewModels) {
             if (!viewModel.canSync()) {
-                var tab = tabMap.get(viewModel);
-                tabPane.getSelectionModel().select(tab);
+                var page = pageMap.get(viewModel);
+                pagesTreeView.getSelectionModel().select(page);
 
-                var view = tab.getContent();
+                var view = viewMap.get(page.getValue());
                 Animations.flash(view).play();
                 return;
             }

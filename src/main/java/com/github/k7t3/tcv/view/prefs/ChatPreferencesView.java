@@ -19,7 +19,7 @@ import java.net.URL;
 import java.util.Locale;
 import java.util.ResourceBundle;
 
-public class ChatPreferencesView implements PreferencesTabView<ChatPreferencesViewModel> {
+public class ChatPreferencesView implements PreferencesPage<ChatPreferencesViewModel> {
 
     @FXML
     private ComboBox<FontFamily> fontComboBox;

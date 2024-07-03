@@ -21,7 +21,7 @@ import org.kordamp.ikonli.javafx.FontIcon;
 import java.net.URL;
 import java.util.ResourceBundle;
 
-public class KeyBindingPreferencesView implements PreferencesTabView<KeyBindingPreferencesViewModel> {
+public class KeyBindingPreferencesView implements PreferencesPage<KeyBindingPreferencesViewModel> {
 
     @FXML
     private Pane root;

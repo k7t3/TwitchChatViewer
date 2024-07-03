@@ -22,7 +22,6 @@ import com.github.k7t3.tcv.view.command.*;
 import com.github.k7t3.tcv.view.core.BasicPopup;
 import com.github.k7t3.tcv.view.core.JavaFXHelper;
 import com.github.k7t3.tcv.view.keyboard.KeyBindingAccelerator;
-import com.github.k7t3.tcv.view.web.BrowserController;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
@@ -174,15 +173,13 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
         var authCondition = viewModel.authorizedProperty();
 
-        var browserController = new BrowserController(mainContainer);
-
         // チャンネルグループを開くコマンド
         var openChannelGroupCommand = new OpenChannelGroupCommand(modalPane, helper.getChannelGroupRepository(), authCondition);
         commands.updateCommand(KeyBinding.OPEN_GROUPS_VIEW, openChannelGroupCommand);
 
         // クリップ一覧を開くコマンド
         var clipCondition = authCondition.and(viewModel.clipCountProperty().greaterThan(0));
-        var openClipCommand = new OpenClipCommand(modalPane, browserController, viewModel.getClipRepository(), clipCondition);
+        var openClipCommand = new OpenClipCommand(modalPane, viewModel.getClipRepository(), clipCondition);
         commands.updateCommand(KeyBinding.OPEN_CLIPS_VIEW, openClipCommand);
 
         // 設定を開くコマンド
@@ -195,8 +192,8 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
         // Twitchの利用規約、コミュニティガイドライン
         // これらはショートカットに登録しない
-        var openTermsCommand = new OpenTermsCommand(browserController);
-        var openCommunityGuidelineCommand = new OpenCommunityGuidelineCommand(browserController);
+        var openTermsCommand = new OpenTermsCommand();
+        var openCommunityGuidelineCommand = new OpenCommunityGuidelineCommand();
 
         // コマンド実行ハンドラを登録
         var accelerator = new KeyBindingAccelerator(helper.getKeyBindingCombinations(), commands);

@@ -1,5 +1,7 @@
 package com.github.k7t3.tcv.view.prefs;
 
+import atlantafx.base.theme.Styles;
+import atlantafx.base.theme.Tweaks;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.prefs.UserFilterViewModel;
 import com.github.k7t3.tcv.view.core.DeleteButtonTableColumn;
@@ -16,10 +18,10 @@ import org.kordamp.ikonli.javafx.StackedFontIcon;
 import java.net.URL;
 import java.util.ResourceBundle;
 
-public class UserFilterView implements PreferencesTabView<UserFilterViewModel> {
+public class UserFilterView implements PreferencesPage<UserFilterViewModel> {
 
     @FXML
-    private TableView<UserFilterViewModel.Wrapper> users;
+    private TableView<UserFilterViewModel.Wrapper> userTables;
 
     @FXML
     private TableColumn<UserFilterViewModel.Wrapper, String> userIdColumn;
@@ -50,7 +52,8 @@ public class UserFilterView implements PreferencesTabView<UserFilterViewModel> {
         trashColumn.setCellFactory(DeleteButtonTableColumn.create(w -> w.setRemoved(true)));
         trashColumn.setCellValueFactory(features -> new ReadOnlyObjectWrapper<>(features.getValue()));
 
-        users.setItems(viewModel.getUsers());
+        userTables.setItems(viewModel.getUsers());
+        userTables.getStyleClass().addAll(Styles.BORDERED, Tweaks.EDGE_TO_EDGE);
     }
 
     @Override

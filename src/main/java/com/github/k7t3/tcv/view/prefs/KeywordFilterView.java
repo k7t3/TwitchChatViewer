@@ -26,7 +26,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.ResourceBundle;
 
-public class KeywordFilterView implements PreferencesTabView<KeywordFilterViewModel> {
+public class KeywordFilterView implements PreferencesPage<KeywordFilterViewModel> {
 
     @FXML
     private TableView<KeywordFilterViewModel.Wrapper> keywordTableView;

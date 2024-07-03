@@ -2,11 +2,12 @@
 
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
-<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
 
-<StackPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.prefs.UserFilterView">
+
+<VBox xmlns="http://javafx.com/javafx/22" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.prefs.UserFilterView">
    <children>
-      <TableView fx:id="users" editable="true" prefWidth="400.0">
+      <TableView fx:id="userTables" editable="true" prefWidth="400.0">
         <columns>
             <TableColumn fx:id="userIdColumn" editable="false" prefWidth="150.0" sortable="false" text="%chat.filter.user.id" />
           <TableColumn fx:id="userNameColumn" editable="false" prefWidth="150.0" sortable="false" text="%prefs.filter.user.column.username" />
@@ -15,4 +16,4 @@
         </columns>
       </TableView>
    </children>
-</StackPane>
+</VBox>

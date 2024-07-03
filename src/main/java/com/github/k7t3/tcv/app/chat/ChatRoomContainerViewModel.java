@@ -216,13 +216,6 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
         chatFilters = helper.getChatFilters();
 
         var task = FXTask.<Void>task(() -> {
-            var globalBadges = new GlobalChatBadges();
-            var gbt = FXTask.task(() -> globalBadges.load(twitch)).runAsync();
-            globalBadgeStore = new GlobalChatBadgeStore(globalBadges);
-            chatEmoteStore = new ChatEmoteStore();
-
-            var cft = FXTask.task(() -> chatFilters.loadAll()).runAsync();
-
             var appDir = OS.current().getApplicationDirectory();
             emoji = new Emoji(appDir);
             emojiStore = new ChatEmojiStore(emoji);
@@ -234,6 +227,13 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
                 }
                 return null;
             }).runAsync();
+
+            var globalBadges = new GlobalChatBadges();
+            var gbt = FXTask.task(() -> globalBadges.load(twitch)).runAsync();
+            globalBadgeStore = new GlobalChatBadgeStore(globalBadges);
+            chatEmoteStore = new ChatEmoteStore();
+
+            var cft = FXTask.task(() -> chatFilters.loadAll()).runAsync();
 
             gbt.waitForDone();
             cft.waitForDone();
@@ -485,6 +485,10 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
 
         var singles = getChatRoomList();
         var floatings = getFloatingChatRoomList();
+
+        if (emoji != null) {
+            emoji.close();
+        }
 
         var chatRooms = new ArrayList<ChatRoomViewModel>();
         chatRooms.addAll(singles);

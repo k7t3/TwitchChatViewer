@@ -5,7 +5,7 @@ import de.saxsys.mvvmfx.ViewModel;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
 
-public interface PreferencesTabView<T extends ViewModel> extends FxmlView<T>, Initializable {
+public interface PreferencesPage<T extends ViewModel> extends FxmlView<T>, Initializable {
 
     String getName();
 

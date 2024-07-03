@@ -4,7 +4,7 @@ import atlantafx.base.theme.Styles;
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.image.LazyImage;
-import com.github.k7t3.tcv.app.image.LazyImageView;
+import com.github.k7t3.tcv.view.image.LazyImageView;
 import com.github.k7t3.tcv.domain.chat.ChatMessageFragment;
 import com.github.k7t3.tcv.view.core.JavaFXHelper;
 import javafx.beans.binding.Bindings;

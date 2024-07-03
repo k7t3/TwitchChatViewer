@@ -18,7 +18,7 @@ import java.net.URL;
 import java.util.Map;
 import java.util.ResourceBundle;
 
-public class GeneralPreferencesView implements PreferencesTabView<GeneralPreferencesViewModel> {
+public class GeneralPreferencesView implements PreferencesPage<GeneralPreferencesViewModel> {
 
     @FXML
     private ChoiceBox<Theme> themeChoiceBox;

@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
-public class TCVApp extends Application {
+public class Launcher extends Application {
 
     private Logger log;
 
@@ -41,7 +41,7 @@ public class TCVApp extends Application {
         // ロガーの初期化
         LoggerInitializer.initialize();
 
-        log = LoggerFactory.getLogger(TCVApp.class);
+        log = LoggerFactory.getLogger(Launcher.class);
         log.info("logger initialized");
 
         preferences = AppPreferences.getInstance();

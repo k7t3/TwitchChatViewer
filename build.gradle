@@ -30,11 +30,11 @@ javafx {
     version = '22.0.1'
     // 非モジュールアプリケーション向けに完全なモジュール定義
     // https://github.com/openjfx/javafx-gradle-plugin
-    modules = [ 'javafx.base', 'javafx.graphics', 'javafx.controls', 'javafx.fxml', 'javafx.web', 'javafx.swing' ]
+    modules = [ 'javafx.base', 'javafx.graphics', 'javafx.controls', 'javafx.fxml', 'javafx.swing' ]
 }
 
 application {
-    mainClass = 'com.github.k7t3.tcv.view.TCVApp'
+    mainClass = 'com.github.k7t3.tcv.view.Launcher'
     applicationName = 'Twitch Chat Viewer'
 }
 

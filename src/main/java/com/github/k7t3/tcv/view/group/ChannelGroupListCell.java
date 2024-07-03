@@ -11,7 +11,7 @@ import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.event.ChatOpeningEvent;
 import com.github.k7t3.tcv.app.group.ChannelGroup;
 import com.github.k7t3.tcv.app.group.ChannelGroupListViewModel;
-import com.github.k7t3.tcv.app.image.LazyImageView;
+import com.github.k7t3.tcv.view.image.LazyImageView;
 import com.github.k7t3.tcv.prefs.GeneralPreferences;
 import com.github.k7t3.tcv.view.channel.LiveInfoPopup;
 import com.github.k7t3.tcv.view.channel.menu.OpenBrowserMenuItem;

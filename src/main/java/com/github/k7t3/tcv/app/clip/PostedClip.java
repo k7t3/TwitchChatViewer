@@ -37,9 +37,10 @@ public interface PostedClip {
 
     /**
      * クリップのリンクをブラウザ(JVMの実装に基づく)で開く
+     *
      * @return バックグラウンドでクリップを開くタスク
      */
-    FXTask<Boolean> openClipPageOnBrowser();
+    FXTask<?> browseClipPage();
 
     /**
      * クリップのリンクをクリップボードにコピーする

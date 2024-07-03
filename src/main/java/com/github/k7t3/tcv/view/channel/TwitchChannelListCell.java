@@ -1,7 +1,7 @@
 package com.github.k7t3.tcv.view.channel;
 
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
-import com.github.k7t3.tcv.app.image.LazyImageView;
+import com.github.k7t3.tcv.view.image.LazyImageView;
 import com.github.k7t3.tcv.view.core.JavaFXHelper;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;

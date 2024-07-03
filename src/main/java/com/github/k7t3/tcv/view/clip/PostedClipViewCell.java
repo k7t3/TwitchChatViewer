@@ -1,19 +1,25 @@
 package com.github.k7t3.tcv.view.clip;
 
 import atlantafx.base.theme.Styles;
-import com.github.k7t3.tcv.app.clip.PostedClipViewModel;
+import com.github.k7t3.tcv.app.clip.PostedClipItem;
 import com.github.k7t3.tcv.app.core.Resources;
-import com.github.k7t3.tcv.app.image.LazyImageView;
+import com.github.k7t3.tcv.view.image.LazyImageView;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
-public class PostedClipViewCell extends ListCell<PostedClipViewModel> {
+public class PostedClipViewCell extends ListCell<PostedClipItem> {
 
     private HBox layout;
 
@@ -22,6 +28,8 @@ public class PostedClipViewCell extends ListCell<PostedClipViewModel> {
     private Label title;
 
     private Label description;
+
+    private final BooleanProperty unknown = new SimpleBooleanProperty(false);
 
     public PostedClipViewCell() {
         setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
@@ -51,40 +59,39 @@ public class PostedClipViewCell extends ListCell<PostedClipViewModel> {
         vbox.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(vbox, Priority.ALWAYS);
 
-        var openBrowser = new Button("", new FontIcon(FontAwesomeSolid.GLOBE));
-        openBrowser.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.ACCENT);
-        openBrowser.setTooltip(new Tooltip(Resources.getString("clip.open.browser")));
-        openBrowser.setOnAction(e -> {
-            var task = getItem().openClipPageOnBrowser();
-            task.setOnSucceeded(e2 -> {
-                if (task.getValue()) return;
+        var clipCondition = unknown.not();
 
-                var alert = new Alert(Alert.AlertType.WARNING);
-                alert.setTitle("Warning");
-                alert.setHeaderText("Failed to open Browser!");
-                alert.setContentText("Failed to Open Browser!");
-                alert.show();
-            });
+        var browseButton = new Button("", new FontIcon(FontAwesomeSolid.GLOBE));
+        browseButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.ACCENT);
+        browseButton.setTooltip(new Tooltip(Resources.getString("clip.open.browser")));
+        browseButton.visibleProperty().bind(clipCondition);
+        browseButton.managedProperty().bind(clipCondition);
+        browseButton.setOnAction(e -> {
+            getItem().browseClipPageAsync();
         });
 
         var clipURLButton = new Button("", new FontIcon(FontAwesomeSolid.COPY));
         clipURLButton.getStyleClass().addAll(Styles.BUTTON_ICON);
         clipURLButton.setTooltip(new Tooltip(Resources.getString("clip.copy.link")));
+        clipURLButton.visibleProperty().bind(clipCondition);
+        clipURLButton.managedProperty().bind(clipCondition);
         clipURLButton.setOnAction(e -> getItem().copyClipURL());
 
         var removeButton = new Button("", new FontIcon(FontAwesomeSolid.TRASH));
         removeButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.DANGER);
         removeButton.setTooltip(new Tooltip(Resources.getString("clip.remove")));
+        removeButton.visibleProperty().bind(clipCondition);
+        removeButton.managedProperty().bind(clipCondition);
         removeButton.setOnAction(e -> getItem().remove());
 
         vbox.maxWidthProperty().bind(widthProperty()
                 .subtract(thumbnail.fitWidthProperty().multiply(2))
-                .subtract(openBrowser.widthProperty())
+                .subtract(browseButton.widthProperty())
                 .subtract(clipURLButton.widthProperty())
                 .subtract(removeButton.widthProperty())
         );
 
-        layout = new HBox(thumbnail, vbox, openBrowser, clipURLButton, removeButton);
+        layout = new HBox(thumbnail, vbox, browseButton, clipURLButton, removeButton);
         layout.setAlignment(Pos.CENTER_LEFT);
         layout.setSpacing(4);
 
@@ -92,7 +99,7 @@ public class PostedClipViewCell extends ListCell<PostedClipViewModel> {
     }
 
     @Override
-    protected void updateItem(PostedClipViewModel item, boolean empty) {
+    protected void updateItem(PostedClipItem item, boolean empty) {
         super.updateItem(item, empty);
 
         if (item == null || empty) {
@@ -104,9 +111,19 @@ public class PostedClipViewCell extends ListCell<PostedClipViewModel> {
             initialize();
         }
 
-        thumbnail.setLazyImage(item.getThumbnailImage());
-        title.setText(item.getTitle());
-        description.setText("Creator: %s  Posted: %d times".formatted(item.getCreator(), item.getTimes()));
+        var clip = item.getClip();
+
+        if (clip != null) {
+            unknown.set(false);
+            thumbnail.setLazyImage(item.getThumbnailImage());
+            title.setText(item.getTitle());
+            description.setText("Creator: %s  Posted: %d times".formatted(item.getCreator(), item.getTimes()));
+        } else {
+            unknown.set(true);
+            thumbnail.setLazyImage(null);
+            title.setText("UNKNOWN");
+            description.setText(item.getUrl());
+        }
         setGraphic(layout);
     }
 }

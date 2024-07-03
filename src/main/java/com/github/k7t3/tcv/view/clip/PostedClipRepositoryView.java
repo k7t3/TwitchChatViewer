@@ -1,14 +1,8 @@
 package com.github.k7t3.tcv.view.clip;
 
-import atlantafx.base.theme.Styles;
-import com.github.k7t3.tcv.app.clip.EstimatedClipViewModel;
+import com.github.k7t3.tcv.app.clip.PostedClipItem;
 import com.github.k7t3.tcv.app.clip.PostedClipRepository;
-import com.github.k7t3.tcv.app.clip.PostedClipViewModel;
-import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
-import com.github.k7t3.tcv.view.core.BasicPopup;
-import com.github.k7t3.tcv.view.core.JavaFXHelper;
-import com.github.k7t3.tcv.view.web.BrowserController;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.collections.FXCollections;
@@ -18,12 +12,13 @@ import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.Node;
-import javafx.scene.control.*;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.ListView;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.MouseButton;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 
@@ -33,42 +28,27 @@ import java.util.ResourceBundle;
 public class PostedClipRepositoryView implements FxmlView<PostedClipRepository>, Initializable {
 
     @FXML
-    private SplitPane root;
+    private BorderPane root;
 
     @FXML
     private HBox channelOwnersContainer;
 
     @FXML
-    private ListView<PostedClipViewModel> videoClips;
-
-    @FXML
-    private Node helpIcon;
-
-    @FXML
-    private ListView<EstimatedClipViewModel> estimatedClipURLs;
+    private ListView<PostedClipItem> videoClips;
 
     @InjectViewModel
     private PostedClipRepository repository;
 
-    private BrowserController browserController;
-
-    private ObservableList<PostedClipViewModel> postedClips;
-    private FilteredList<PostedClipViewModel> filteredClips;
-
-    private ObservableList<EstimatedClipViewModel> estimatedClips;
+    private ObservableList<PostedClipItem> postedClips;
+    private FilteredList<PostedClipItem> filteredClips;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         postedClips = FXCollections.observableArrayList();
-        postedClips.addAll(repository.getPostedClips().values());
-        repository.getPostedClips().addListener(this::onPostedClipChanged);
-
-        estimatedClips = FXCollections.observableArrayList();
-        estimatedClips.addAll(repository.getEstimatedClipURLs().values());
-        repository.getEstimatedClipURLs().addListener(this::onPostedEstimatedClipChanged);
+        postedClips.addAll(repository.getItems().values());
+        repository.getItems().addListener(this::onPostedClipChanged);
 
         initializeButtons();
-        installHelpMessage();
 
         filteredClips = new FilteredList<>(postedClips);
         var sortedClips = new SortedList<>(filteredClips);
@@ -76,20 +56,6 @@ public class PostedClipRepositoryView implements FxmlView<PostedClipRepository>,
 
         videoClips.setItems(sortedClips);
         videoClips.setCellFactory(param -> new PostedClipViewCell());
-
-        videoClips.setOnKeyPressed(e -> {
-            if (e.getCode() == KeyCode.ENTER) {
-                openBrowser();
-            }
-        });
-        videoClips.setOnMouseClicked(e -> {
-            if (e.getButton() == MouseButton.PRIMARY && e.getClickCount() == 2) {
-                openBrowser();
-            }
-        });
-
-        estimatedClipURLs.setItems(estimatedClips);
-        estimatedClipURLs.setCellFactory(p -> new EstimatedClipURLCell(browserController));
 
         root.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
         root.parentProperty().addListener((ob, o, n) -> {
@@ -99,35 +65,13 @@ public class PostedClipRepositoryView implements FxmlView<PostedClipRepository>,
         });
     }
 
-    private void onPostedClipChanged(MapChangeListener.Change<? extends String, ? extends PostedClipViewModel> change) {
+    private void onPostedClipChanged(MapChangeListener.Change<? extends String, ? extends PostedClipItem> change) {
         if (change.wasAdded()) {
             postedClips.add(change.getValueAdded());
         }
         if (change.wasRemoved()) {
             postedClips.remove(change.getValueRemoved());
         }
-    }
-
-    private void onPostedEstimatedClipChanged(MapChangeListener.Change<? extends String, ? extends EstimatedClipViewModel> change) {
-        if (change.wasAdded()) {
-            estimatedClips.add(change.getValueAdded());
-        }
-        if (change.wasRemoved()) {
-            estimatedClips.remove(change.getValueRemoved());
-        }
-    }
-
-    public void setBrowserController(BrowserController browserController) {
-        this.browserController = browserController;
-    }
-
-    private void openBrowser() {
-        var selected = videoClips.getSelectionModel().getSelectedItem();
-        if (selected == null) return;
-
-        var url = selected.getClip().url();
-        browserController.load(url);
-        browserController.show();
     }
 
     private void initializeButtons() {
@@ -153,24 +97,6 @@ public class PostedClipRepositoryView implements FxmlView<PostedClipRepository>,
             }
         });
         return button;
-    }
-
-    private void installHelpMessage() {
-        var label = new Label(Resources.getString("clip.help"));
-        label.getStyleClass().addAll(Styles.TEXT_SMALL);
-        label.setWrapText(true);
-        label.setPrefWidth(200);
-
-        var popup = new BasicPopup(label);
-        popup.setAutoHide(true);
-
-        helpIcon.setOnMouseClicked(e -> {
-            e.consume();
-            var bounds = JavaFXHelper.computeScreenBounds(helpIcon);
-            var x = bounds.getMinX() - label.getWidth() / 2 + bounds.getWidth() / 2;
-            var y = bounds.getMaxY();
-            popup.show(helpIcon, x, y);
-        });
     }
 
 }

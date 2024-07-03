@@ -51,4 +51,14 @@ public class ClipChatMessage {
     public String getPlainMessage() {
         return plainMessage;
     }
+
+    @Override
+    public String toString() {
+        return "ClipChatMessage{" +
+                "clip=" + clip +
+                ", id='" + id + '\'' +
+                ", estimatedURL='" + estimatedURL + '\'' +
+                ", plainMessage='" + plainMessage + '\'' +
+                '}';
+    }
 }

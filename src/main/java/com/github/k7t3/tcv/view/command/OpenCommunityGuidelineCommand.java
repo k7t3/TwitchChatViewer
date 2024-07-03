@@ -1,22 +1,22 @@
 package com.github.k7t3.tcv.view.command;
 
+import com.github.k7t3.tcv.app.core.DesktopUtils;
 import com.github.k7t3.tcv.app.service.BasicCommand;
-import com.github.k7t3.tcv.view.web.BrowserController;
+import com.github.k7t3.tcv.app.service.FXTask;
 
 public class OpenCommunityGuidelineCommand extends BasicCommand {
 
     private static final String GUIDELINE_URL = "https://safety.twitch.tv/s/article/Community-Guidelines";
 
-    private final BrowserController controller;
-
-    public OpenCommunityGuidelineCommand(BrowserController controller) {
-        this.controller = controller;
+    public OpenCommunityGuidelineCommand() {
         executable.set(true);
     }
 
     @Override
     public void execute() {
-        controller.load(GUIDELINE_URL);
-        controller.show();
+        FXTask.task(() -> {
+            DesktopUtils.browse(GUIDELINE_URL);
+            return null;
+        }).runAsync();
     }
 }

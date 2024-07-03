@@ -1,5 +1,6 @@
-package com.github.k7t3.tcv.app.image;
+package com.github.k7t3.tcv.view.image;
 
+import com.github.k7t3.tcv.app.image.LazyImage;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ObjectPropertyBase;
 import javafx.scene.image.ImageView;

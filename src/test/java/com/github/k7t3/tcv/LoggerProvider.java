@@ -13,6 +13,10 @@ public class LoggerProvider {
         initialize(() -> LoggerProvider.class.getResourceAsStream("/logging_test.properties"));
     }
 
+    public static void init() {
+        // dummy
+    }
+
     public static Logger getLogger(Class<?> cls) {
         return LoggerFactory.getLogger(cls);
     }
