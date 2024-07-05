@@ -24,8 +24,6 @@ public class AppPreferences extends PreferencesBase {
 
     private final GeneralPreferences generalPreferences;
 
-    private PlayerPreferences playerPreferences;
-
     private ChatPreferences chatPreferences;
 
     private KeyBindingPreferences keyBindingPreferences;
@@ -50,9 +48,6 @@ public class AppPreferences extends PreferencesBase {
 
     @Override
     protected void readFromPreferences() {
-        if (playerPreferences != null)
-            playerPreferences.readFromPreferences();
-
         if (chatPreferences != null)
             chatPreferences.readFromPreferences();
     }
@@ -96,13 +91,6 @@ public class AppPreferences extends PreferencesBase {
 
     public GeneralPreferences getGeneralPreferences() {
         return generalPreferences;
-    }
-
-    public PlayerPreferences getPlayerPreferences() {
-        if (playerPreferences == null) {
-            playerPreferences = new PlayerPreferences(preferences, defaults);
-        }
-        return playerPreferences;
     }
 
     public ChatPreferences getChatPreferences() {

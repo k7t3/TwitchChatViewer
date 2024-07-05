@@ -32,6 +32,12 @@ public enum KeyBinding {
             KeyCombination.keyCombination("Shortcut+G")
     ),
 
+    TOGGLE_CHANNEL_LIST(
+            "keybind.toggle.channels",
+            Resources.getString("command.toggle.channels"),
+            KeyCombination.keyCombination("Shortcut+T")
+    ),
+
     QUIT(
             "keybind.quit",
             Resources.getString("command.quit"),

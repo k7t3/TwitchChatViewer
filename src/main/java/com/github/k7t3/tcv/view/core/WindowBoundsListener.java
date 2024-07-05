@@ -70,17 +70,12 @@ public class WindowBoundsListener {
     }
 
     private void setMaximized() {
-        if (OS.isMac() && stage instanceof FloatableStage) {
-
-            // MacOSにおいてFloatableStageが意図せずmaximized判定になるため特例処理
-            // 最大化プロパティのリスナがなぜかtrueを検出してしまう。(JavaFX 21.0.2)
+        // OS_Xのときはウインドウの最大化をサポートしない
+        if (OS.isMac()) {
             maximized = false;
-
         } else {
-
             maximized = stage.isMaximized();
             stage.maximizedProperty().addListener(maximizeListener);
-
         }
     }
 

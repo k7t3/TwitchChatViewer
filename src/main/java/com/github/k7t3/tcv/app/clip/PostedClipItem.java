@@ -30,15 +30,11 @@ public class PostedClipItem {
     private final ReadOnlyStringWrapper url = new ReadOnlyStringWrapper();
 
     private ReadOnlyObjectWrapper<VideoClip> clip;
-    private ReadOnlyStringWrapper thumbnailLink;
 
     private final PostedClipRepository repository;
 
-    public PostedClipItem(PostedClipRepository repository, String id, String url) {
-        this(repository, id, url, null);
-    }
-
     public PostedClipItem(PostedClipRepository repository, String id, String url, VideoClip clip) {
+        if (!url.startsWith("https")) throw new IllegalArgumentException("illegal url: " + url);
         this.repository = repository;
         this.id.set(id);
         this.url.set(url);
@@ -54,7 +50,11 @@ public class PostedClipItem {
         var url = getUrl();
 
         var task = FXTask.task(() -> finder.findClip(url).flatMap(ClipChatMessage::getClip).orElse(null));
-        return task.onDone(c -> clip().set(c)).runAsync();
+        return task.onDone(c -> {
+            if (c != null) {
+                clip().set(c);
+            }
+        }).runAsync();
     }
 
     public void remove() {

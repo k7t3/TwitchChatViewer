@@ -8,6 +8,12 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.prefs.Preferences;
 
+/**
+ * キーバインドの設定クラス
+ * <p>
+ *     キーバインドの規定値は{@link KeyBinding}列挙クラスの通り。
+ * </p>
+ */
 public class KeyBindingPreferences extends PreferencesBase {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KeyBindingPreferences.class);

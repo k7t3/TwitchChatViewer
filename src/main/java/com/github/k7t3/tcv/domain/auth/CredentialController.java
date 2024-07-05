@@ -100,7 +100,7 @@ public class CredentialController {
             credentialManager.getCredentials().clear();
         }
         var auth = authController.startOAuth2DeviceAuthorizationGrantType(identityProvider, scopes, r -> callback(r, callback));
-        return new DeviceFlow(auth.getUserCode(), auth.getCompleteUri());
+        return new DeviceFlow(auth.getUserCode(), auth.getVerificationUri(), auth.getCompleteUri());
     }
 
     /**
@@ -120,6 +120,6 @@ public class CredentialController {
         authController.close();
     }
 
-    public record DeviceFlow(String userCode, String verificationURL) {}
+    public record DeviceFlow(String userCode, String verificationURL, String completeURL) {}
 
 }

@@ -104,7 +104,7 @@ public class AuthenticationMenuItem extends MenuItem {
         var confirm = new Alert(Alert.AlertType.CONFIRMATION);
         confirm.initOwner(parent);
         confirm.getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
-        confirm.setTitle("Confirmation");
+        confirm.setTitle(Resources.getString("alert.title.confirmation"));
         confirm.setHeaderText(Resources.getString("logout.confirm.header"));
         confirm.setContentText(Resources.getString("logout.confirm.content"));
 

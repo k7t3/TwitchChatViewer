@@ -135,7 +135,7 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         var item = new TreeItem<PreferencesPage<?>>(codeBehind);
         pagesRoot.getChildren().add(item);
         viewMap.put(codeBehind, view);
-        pageMap.put(generalViewModel, item);
+        pageMap.put(chatViewModel, item);
     }
 
     private void loadFilterViewModel() {
@@ -154,7 +154,7 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         var item = new TreeItem<PreferencesPage<?>>(codeBehind);
         pagesRoot.getChildren().add(item);
         viewMap.put(codeBehind, view);
-        pageMap.put(generalViewModel, item);
+        pageMap.put(filterViewModel, item);
     }
 
     private void loadUserFilterViewModel() {
@@ -173,7 +173,7 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         var item = new TreeItem<PreferencesPage<?>>(codeBehind);
         pagesRoot.getChildren().add(item);
         viewMap.put(codeBehind, view);
-        pageMap.put(generalViewModel, item);
+        pageMap.put(userFilterViewModel, item);
     }
 
     private void loadKeyBindingViewModel() {
@@ -195,7 +195,7 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         var item = new TreeItem<PreferencesPage<?>>(codeBehind);
         pagesRoot.getChildren().add(item);
         viewMap.put(codeBehind, view);
-        pageMap.put(generalViewModel, item);
+        pageMap.put(keyBindingViewModel, item);
     }
 
     private void initButtons() {

@@ -81,6 +81,7 @@ public class ChatPreferencesViewModel implements PreferencesViewModelBase {
 
         prefs.setShowUserName(isShowUserName());
         prefs.setShowBadges(isShowBadges());
+        prefs.setChatCacheSize(getChatCacheSize());
     }
 
     // ******************** PROPERTIES ********************

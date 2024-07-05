@@ -1,11 +1,12 @@
 package com.github.k7t3.tcv.database.table;
 
 import com.github.k7t3.tcv.database.DBConnector;
+import com.github.k7t3.tcv.database.DatabaseVersion;
 
 public class DefaultTableCreator extends AbstractTableCreator {
 
-    public DefaultTableCreator(int tableVersion) {
-        super(-1, tableVersion);
+    public DefaultTableCreator(DatabaseVersion version) {
+        super(DatabaseVersion.EMPTY, version);
     }
 
     @Override

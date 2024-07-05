@@ -11,14 +11,17 @@ public class TableCreatorFactory {
     private TableCreatorFactory() {
     }
 
-    public static TableCreator create(DatabaseVersion current, DatabaseVersion create) {
-        return create(current.getVersion(), create.getVersion());
-    }
-
-    private static TableCreator create(int current, int preferred) {
-        if (current == preferred) throw new IllegalArgumentException();
-        if (current < 0) throw new IllegalArgumentException();
-        if (current == 0)
+    /**
+     * 現在のデータベースのバージョンと期待するデータベースのバージョンの
+     * 組み合わせに一致したテーブルクリエイターを生成するメソッド
+     * @param current 現在のバージョン
+     * @param preferred 期待するバージョン
+     * @return 適したテーブルクリエイター
+     */
+    public static TableCreator create(DatabaseVersion current, DatabaseVersion preferred) {
+        if (current == preferred) throw new IllegalArgumentException("");
+        if (current == DatabaseVersion.UNKNOWN) throw new IllegalArgumentException();
+        if (current == DatabaseVersion.EMPTY)
             return new DefaultTableCreator(preferred);
         throw new UnsupportedOperationException();
     }

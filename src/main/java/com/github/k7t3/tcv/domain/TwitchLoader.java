@@ -14,7 +14,7 @@ public class TwitchLoader {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TwitchLoader.class);
 
-    public record DeviceFlow(String userCode, String verificationURL) {}
+    public record DeviceFlow(String userCode, String verificationURL, String completeURL) {}
     private final CredentialStore credentialStore;
     private final CredentialController controller;
 
@@ -33,7 +33,7 @@ public class TwitchLoader {
                 consumer.accept(Optional.empty());
             }
         });
-        return new DeviceFlow(flow.userCode(), flow.verificationURL());
+        return new DeviceFlow(flow.userCode(), flow.verificationURL(), flow.completeURL());
     }
 
     public Optional<Twitch> load() {

@@ -111,11 +111,11 @@ public class FloatableMergedChatRoomView implements FxmlView<MergedChatRoomViewM
         autoScrollMenuItem.selectedProperty().bindBidirectional(viewModel.autoScrollProperty());
 
         // 透過度
-        floatableStage.backgroundOpacityProperty().bindBidirectional(prefs.floatableChatOpacityProperty());
+        floatableStage.backgroundOpacityProperty().bindBidirectional(prefs.floatingChatOpacityProperty());
         opacitySlider.valueProperty().bindBidirectional(floatableStage.backgroundOpacityProperty());
 
         // 常に最前面に表示
-        alwaysOnTopMenuItem.selectedProperty().bindBidirectional(prefs.floatableChatAlwaysTopProperty());
+        alwaysOnTopMenuItem.selectedProperty().bindBidirectional(prefs.floatingChatAlwaysTopProperty());
         alwaysOnTopMenuItem.selectedProperty().addListener((ob, o, n) -> floatableStage.setAlwaysOnTop(n));
         floatableStage.setAlwaysOnTop(alwaysOnTopMenuItem.isSelected());
 

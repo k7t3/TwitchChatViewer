@@ -33,7 +33,7 @@ public class ChatPreferences extends PreferencesBase {
     private static final String FLOATABLE_CHAT_TOP = "floatable.chat.always.top";
 
     /**
-     * チャンネルごとにチャットをキャッシュする数
+     * チャンネルビューごとにチャットをキャッシュする数
      */
     private static final String CHAT_CACHE_SIZE = "chat.cache.size";
 
@@ -43,9 +43,9 @@ public class ChatPreferences extends PreferencesBase {
 
     private BooleanProperty showBadges;
 
-    private DoubleProperty floatableChatOpacity;
+    private DoubleProperty floatingChatOpacity;
 
-    private BooleanProperty floatableChatAlwaysTop;
+    private BooleanProperty floatingChatAlwaysTop;
 
     private IntegerProperty chatCacheSize;
 
@@ -75,12 +75,12 @@ public class ChatPreferences extends PreferencesBase {
             setShowUserName(getBoolean(CHAT_SHOW_USERNAME));
         }
 
-        if (isFloatableChatAlwaysTop() != getBoolean(FLOATABLE_CHAT_TOP)) {
-            setFloatableChatAlwaysTop(getBoolean(FLOATABLE_CHAT_TOP));
+        if (getFloatingChatAlwaysTop() != getBoolean(FLOATABLE_CHAT_TOP)) {
+            setFloatingChatAlwaysTop(getBoolean(FLOATABLE_CHAT_TOP));
         }
 
-        if (getFloatableChatOpacity() != getDouble(FLOATABLE_CHAT_OPACITY)) {
-            setFloatableChatOpacity(getDouble(FLOATABLE_CHAT_OPACITY));
+        if (getFloatingChatOpacity() != getDouble(FLOATABLE_CHAT_OPACITY)) {
+            setFloatingChatOpacity(getDouble(FLOATABLE_CHAT_OPACITY));
         }
 
         var chatCacheSize = getInt(CHAT_CACHE_SIZE);
@@ -104,12 +104,12 @@ public class ChatPreferences extends PreferencesBase {
             preferences.putBoolean(CHAT_SHOW_BADGES, showBadges.get());
         }
 
-        if (floatableChatOpacity != null) {
-            preferences.putDouble(FLOATABLE_CHAT_OPACITY, floatableChatOpacity.get());
+        if (floatingChatOpacity != null) {
+            preferences.putDouble(FLOATABLE_CHAT_OPACITY, floatingChatOpacity.get());
         }
 
-        if (floatableChatAlwaysTop != null) {
-            preferences.putBoolean(FLOATABLE_CHAT_TOP, floatableChatAlwaysTop.get());
+        if (floatingChatAlwaysTop != null) {
+            preferences.putBoolean(FLOATABLE_CHAT_TOP, floatingChatAlwaysTop.get());
         }
     }
 
@@ -138,19 +138,19 @@ public class ChatPreferences extends PreferencesBase {
     public boolean isShowBadges() { return showBadgesProperty().get(); }
     public void setShowBadges(boolean showBadges) { this.showBadgesProperty().set(showBadges); }
 
-    public DoubleProperty floatableChatOpacityProperty() {
-        if (floatableChatOpacity == null) floatableChatOpacity = createDoubleProperty(FLOATABLE_CHAT_OPACITY);
-        return floatableChatOpacity;
+    public DoubleProperty floatingChatOpacityProperty() {
+        if (floatingChatOpacity == null) floatingChatOpacity = createDoubleProperty(FLOATABLE_CHAT_OPACITY);
+        return floatingChatOpacity;
     }
-    public double getFloatableChatOpacity() { return floatableChatOpacityProperty().get(); }
-    public void setFloatableChatOpacity(double floatableChatOpacity) { floatableChatOpacityProperty().set(floatableChatOpacity); }
+    public double getFloatingChatOpacity() { return floatingChatOpacityProperty().get(); }
+    public void setFloatingChatOpacity(double floatingChatOpacity) { floatingChatOpacityProperty().set(floatingChatOpacity); }
 
-    public BooleanProperty floatableChatAlwaysTopProperty() {
-        if (floatableChatAlwaysTop == null) floatableChatAlwaysTop = createBooleanProperty(FLOATABLE_CHAT_TOP);
-        return floatableChatAlwaysTop;
+    public BooleanProperty floatingChatAlwaysTopProperty() {
+        if (floatingChatAlwaysTop == null) floatingChatAlwaysTop = createBooleanProperty(FLOATABLE_CHAT_TOP);
+        return floatingChatAlwaysTop;
     }
-    public boolean isFloatableChatAlwaysTop() { return floatableChatAlwaysTopProperty().get(); }
-    public void setFloatableChatAlwaysTop(boolean floatableChatAlwaysTop) { floatableChatAlwaysTopProperty().set(floatableChatAlwaysTop); }
+    public boolean getFloatingChatAlwaysTop() { return floatingChatAlwaysTopProperty().get(); }
+    public void setFloatingChatAlwaysTop(boolean floatingChatAlwaysTop) { floatingChatAlwaysTopProperty().set(floatingChatAlwaysTop); }
 
     public IntegerProperty chatCacheSizeProperty() {
         if (chatCacheSize == null) chatCacheSize = createIntegerProperty(CHAT_CACHE_SIZE);

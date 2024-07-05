@@ -38,7 +38,7 @@ public class GeneralPreferences extends PreferencesBase {
         super(preferences, defaults);
 
         defaults.put(THEME, ThemeManager.DEFAULT_THEME.getName());
-        defaults.put(MULTIPLE_OPEN_TYPE, MultipleChatOpenType.MERGED.name());
+        defaults.put(MULTIPLE_OPEN_TYPE, MultipleChatOpenType.SEPARATED.name());
         defaults.put(DATABASE_VERSION, DatabaseVersion.EMPTY.name());
         defaults.put(USER_DATA_FILE_PATH, OS.current().getApplicationDirectory()
                 .toAbsolutePath()

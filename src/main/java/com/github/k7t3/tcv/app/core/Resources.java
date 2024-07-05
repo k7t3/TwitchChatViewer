@@ -59,4 +59,14 @@ public class Resources {
         }
     }
 
+    public static Image getQuestionImage() {
+        return Holder.QUESTION;
+    }
+
+    private static class Holder {
+        private static final Image QUESTION = new Image(
+                Objects.requireNonNull(Resources.class.getResource("/image/question.png")).toExternalForm(),
+                64, 64, true, true);
+    }
+
 }

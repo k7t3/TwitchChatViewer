@@ -13,6 +13,8 @@ public enum DatabaseVersion {
      * <li>グループ</li>
      * <li>グループ・ユーザー</li>
      * <li>ウィンドウ</li>
+     * <li>キーワードフィルタ</li>
+     * <li>ユーザーフィルタ</li>
      */
     V_1(1);
 

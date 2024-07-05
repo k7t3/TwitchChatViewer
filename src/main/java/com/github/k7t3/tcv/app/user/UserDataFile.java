@@ -32,10 +32,10 @@ public class UserDataFile {
         this.filePath = Objects.requireNonNull(filePath);
     }
 
-    public void connectDatabase(DatabaseVersion current) throws IOException {
+    public DatabaseVersion connectDatabase(DatabaseVersion current) throws IOException {
         var connector = connectorRef.get();
         if (connector != null && connector.isConnected()) {
-            return;
+            return current;
         }
         var filePath = getFilePath();
         var parent = filePath.getParent();
@@ -55,6 +55,8 @@ public class UserDataFile {
 
         c.connect();
         connectorRef.set(c);
+
+        return version;
     }
 
     public void fileMove(Path moveTo) throws IOException {

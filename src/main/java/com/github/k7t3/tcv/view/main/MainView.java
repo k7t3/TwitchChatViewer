@@ -126,7 +126,6 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         var preferences = AppPreferences.getInstance();
         var credentialStore = new PreferencesCredentialStorage(preferences.getPreferences());
         var authMenuItem = new AuthenticationMenuItem(modalPane, credentialStore, rootPane, viewModel);
-        authMenuItem.authorizedProperty().bind(viewModel.authorizedProperty());
         userMenuButton.getItems().add(authMenuItem);
 
         // ライブ状態が更新されたときの表示ラベル
@@ -190,6 +189,10 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         var openSearchCommand = new OpenSearchChannelCommand(modalPane, viewModel.getChannelRepository(), authCondition);
         commands.updateCommand(KeyBinding.OPEN_SEARCH_VIEW, openSearchCommand);
 
+        // チャンネルリストの表示をトグルするコマンド
+        var toggleChannelsCommand = new ToggleCommand(followerToggle.selectedProperty(), authCondition);
+        commands.updateCommand(KeyBinding.TOGGLE_CHANNEL_LIST, toggleChannelsCommand);
+
         // Twitchの利用規約、コミュニティガイドライン
         // これらはショートカットに登録しない
         var openTermsCommand = new OpenTermsCommand();
@@ -211,6 +214,7 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         prefsMenuItem.setOnAction(openPrefCommand);
         searchChannelButton.disableProperty().bind(openSearchCommand.notExecutableProperty());
         searchChannelButton.setOnAction(openSearchCommand);
+        followerToggle.disableProperty().bind(toggleChannelsCommand.notExecutableProperty());
         termsMenuItem.setOnAction(openTermsCommand);
         termsMenuItem.disableProperty().bind(openTermsCommand.notExecutableProperty());
         guidelineMenuItem.setOnAction(openCommunityGuidelineCommand);

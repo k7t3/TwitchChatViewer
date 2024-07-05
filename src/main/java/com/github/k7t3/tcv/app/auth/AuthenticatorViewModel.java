@@ -91,12 +91,14 @@ public class AuthenticatorViewModel extends AbstractViewModel {
         task.addEventHandler(WorkerStateEvent.WORKER_STATE_SUCCEEDED, e -> {
             var deviceFlow = task.getValue();
             // 認証URI
-            authUri.set(deviceFlow.verificationURL());
+            authUri.set(deviceFlow.completeURL());
             // ユーザーコード
             userCode.set(deviceFlow.userCode());
 
             // QRコードを生成する
             generateQRCode(deviceFlow.verificationURL());
+
+            LOGGER.info("device flow {}", deviceFlow);
         });
 
         task.runAsync();

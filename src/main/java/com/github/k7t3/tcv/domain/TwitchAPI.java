@@ -43,6 +43,9 @@ public class TwitchAPI implements Closeable {
 
     private final Twitch twitch;
 
+    // Helix APIの多重アクセス防止用のセマフォ
+    private final Semaphore semaphore = new Semaphore(4, true);
+
     // トークンのリフレッシュ時のロック
     private final Lock refreshLock = new ReentrantLock(true);
     private long refreshTimestamp = Long.MIN_VALUE;
@@ -236,6 +239,12 @@ public class TwitchAPI implements Closeable {
     private <T> T hystrixCommandWrapper(Function<TwitchHelix, HystrixCommand<T>> function) {
 
         try {
+            semaphore.acquire();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        try {
             var helix = twitch.getClient().getHelix();
             var command = function.apply(helix);
             return command.execute();
@@ -272,6 +281,8 @@ public class TwitchAPI implements Closeable {
 
         } catch (Exception e) {
             throw new RuntimeException(e);
+        } finally {
+            semaphore.release();
         }
     }
 

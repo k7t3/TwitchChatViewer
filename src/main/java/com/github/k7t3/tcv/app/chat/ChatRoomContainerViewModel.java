@@ -5,6 +5,7 @@ import com.github.k7t3.tcv.app.chat.filter.ChatFilters;
 import com.github.k7t3.tcv.app.core.AbstractViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.OS;
+import com.github.k7t3.tcv.app.core.TypeSafeNotificationObserver;
 import com.github.k7t3.tcv.app.emoji.ChatEmojiStore;
 import com.github.k7t3.tcv.app.emoji.Emoji;
 import com.github.k7t3.tcv.app.event.ChatOpeningEvent;
@@ -62,6 +63,10 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
     private final ObjectProperty<ChatFont> font = new SimpleObjectProperty<>(null);
 
     private final List<FlowableSubscriber<?>> subscribers = new ArrayList<>();
+
+    private TypeSafeNotificationObserver<ChatOpeningEvent> onChatOpened;
+    private TypeSafeNotificationObserver<KeywordFilteringEvent> onKeywordFiltered;
+    private TypeSafeNotificationObserver<UserFilteringEvent> onUserFiltered;
 
     public ChatRoomContainerViewModel() {
         selectingCount.bind(Bindings.size(selectedList));
@@ -125,9 +130,13 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
                 chatSub
         ));
 
-        subscribe(ChatOpeningEvent.class, this::onChatOpened);
-        subscribe(KeywordFilteringEvent.class, this::onKeywordFiltered);
-        subscribe(UserFilteringEvent.class, this::onUserFiltered);
+        onChatOpened = this::onChatOpened;
+        onKeywordFiltered = this::onKeywordFiltered;
+        onUserFiltered = this::onUserFiltered;
+
+        subscribe(ChatOpeningEvent.class, onChatOpened);
+        subscribe(KeywordFilteringEvent.class, onKeywordFiltered);
+        subscribe(UserFilteringEvent.class, onUserFiltered);
     }
 
     private Optional<ChatRoomViewModel> find(TwitchChannel channel) {
@@ -473,6 +482,13 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
         floatings.clear();
 
         chatRooms.forEach(ChatRoomViewModel::leaveChatAsync);
+
+        unsubscribe(onChatOpened);
+        unsubscribe(onKeywordFiltered);
+        unsubscribe(onUserFiltered);
+        onChatOpened = null;
+        onKeywordFiltered = null;
+        onUserFiltered = null;
     }
 
     /**

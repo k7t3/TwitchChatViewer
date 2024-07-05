@@ -18,6 +18,7 @@ import com.github.k7t3.tcv.view.channel.menu.OpenBrowserMenuItem;
 import com.github.k7t3.tcv.view.channel.menu.OpenChatMenuItem;
 import com.github.k7t3.tcv.view.control.EditableLabel;
 import com.github.k7t3.tcv.view.core.JavaFXHelper;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
@@ -74,18 +75,20 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
 
         var headerPane = new HBox();
 
-        header.getStyleClass().add(Styles.TITLE_3);
+        header.getStyleClass().add(Styles.TEXT_CAPTION);
         header.setTooltip(new Tooltip(Resources.getString("group.tooltip.title")));
         header.getStyleClass().add("title");
         HBox.setHgrow(header, Priority.ALWAYS);
 
         pin.getStyleClass().addAll(Styles.BUTTON_ICON);
+        pin.setTooltip(new Tooltip(Resources.getString("group.pin.tooltip")));
 
         headerPane.getChildren().addAll(header, pin);
         setHeader(headerPane);
 
         subHeader.setTooltip(new Tooltip(Resources.getString("group.tooltip.comment")));
         subHeader.getStyleClass().add("comment");
+        subHeader.getStyleClass().add(Styles.TEXT_SMALL);
         setSubHeader(subHeader);
 
         // ****************************************
@@ -145,7 +148,8 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
 
         var footer = new HBox(openChatButton, deleteButton);
         footer.setAlignment(Pos.CENTER_RIGHT);
-        footer.setSpacing(4);
+        footer.setSpacing(10);
+        footer.setPadding(new Insets(0d, 4d, 4d, 2d));
         setFooter(footer);
 
         pin.setOnAction(e -> {

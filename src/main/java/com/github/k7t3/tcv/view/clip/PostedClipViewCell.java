@@ -16,6 +16,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
@@ -59,13 +60,9 @@ public class PostedClipViewCell extends ListCell<PostedClipItem> {
         vbox.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(vbox, Priority.ALWAYS);
 
-        var clipCondition = unknown.not();
-
         var browseButton = new Button("", new FontIcon(FontAwesomeSolid.GLOBE));
         browseButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.ACCENT);
         browseButton.setTooltip(new Tooltip(Resources.getString("clip.open.browser")));
-        browseButton.visibleProperty().bind(clipCondition);
-        browseButton.managedProperty().bind(clipCondition);
         browseButton.setOnAction(e -> {
             getItem().browseClipPageAsync();
         });
@@ -73,35 +70,41 @@ public class PostedClipViewCell extends ListCell<PostedClipItem> {
         var clipURLButton = new Button("", new FontIcon(FontAwesomeSolid.COPY));
         clipURLButton.getStyleClass().addAll(Styles.BUTTON_ICON);
         clipURLButton.setTooltip(new Tooltip(Resources.getString("clip.copy.link")));
-        clipURLButton.visibleProperty().bind(clipCondition);
-        clipURLButton.managedProperty().bind(clipCondition);
         clipURLButton.setOnAction(e -> getItem().copyClipURL());
 
         var removeButton = new Button("", new FontIcon(FontAwesomeSolid.TRASH));
         removeButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.DANGER);
         removeButton.setTooltip(new Tooltip(Resources.getString("clip.remove")));
-        removeButton.visibleProperty().bind(clipCondition);
-        removeButton.managedProperty().bind(clipCondition);
         removeButton.setOnAction(e -> getItem().remove());
+
+        var retryButton = new Button("", new FontIcon(Feather.REFRESH_CW));
+        retryButton.getStyleClass().addAll(Styles.BUTTON_ICON);
+        retryButton.setTooltip(new Tooltip(Resources.getString("clip.retry.tooltip")));
+        retryButton.visibleProperty().bind(unknown);
+        retryButton.setOnAction(e -> {
+            var item = getItem();
+            retryButton.setDisable(true);
+            var async = item.retry();
+            async.setFinally(() -> retryButton.setDisable(false));
+            async.onDone(() -> update(item, false));
+        });
 
         vbox.maxWidthProperty().bind(widthProperty()
                 .subtract(thumbnail.fitWidthProperty().multiply(2))
                 .subtract(browseButton.widthProperty())
                 .subtract(clipURLButton.widthProperty())
                 .subtract(removeButton.widthProperty())
+                .subtract(retryButton.widthProperty())
         );
 
-        layout = new HBox(thumbnail, vbox, browseButton, clipURLButton, removeButton);
+        layout = new HBox(thumbnail, vbox, browseButton, clipURLButton, removeButton, retryButton);
         layout.setAlignment(Pos.CENTER_LEFT);
         layout.setSpacing(4);
 
         setPrefHeight(64);
     }
 
-    @Override
-    protected void updateItem(PostedClipItem item, boolean empty) {
-        super.updateItem(item, empty);
-
+    private void update(PostedClipItem item, boolean empty) {
         if (item == null || empty) {
             setGraphic(null);
             return;
@@ -121,9 +124,16 @@ public class PostedClipViewCell extends ListCell<PostedClipItem> {
         } else {
             unknown.set(true);
             thumbnail.setLazyImage(null);
+            thumbnail.setImage(Resources.getQuestionImage());
             title.setText("UNKNOWN");
             description.setText(item.getUrl());
         }
         setGraphic(layout);
+    }
+
+    @Override
+    protected void updateItem(PostedClipItem item, boolean empty) {
+        super.updateItem(item, empty);
+        update(item, empty);
     }
 }

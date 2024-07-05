@@ -28,7 +28,7 @@ public class ClipChatMessage {
         this.plainMessage = plainMessage;
     }
 
-    public static ClipChatMessage of(String url, String id, String plainMessage, VideoClip clip) {
+    public static ClipChatMessage of(String id, String url, String plainMessage, VideoClip clip) {
         return new ClipChatMessage(clip, id, url, plainMessage);
     }
 

@@ -18,8 +18,14 @@ public abstract class PreferencesBase {
         this.defaults = defaults;
     }
 
+    /**
+     * ストアに保存される内容を明示的に読み込む
+     */
     protected abstract void readFromPreferences();
 
+    /**
+     * バッファリングされる設定内容を明示的にバッキングストアに書き込む
+     */
     protected abstract void writeToPreferences();
 
     protected BooleanProperty createBooleanProperty(String key) {

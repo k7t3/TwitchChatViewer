@@ -59,7 +59,9 @@ public class Launcher extends Application {
             // ユーザーファイルを接続
             var generalPrefs = preferences.getGeneralPreferences();
             var userDataFile = new UserDataFile(generalPrefs.getUserDataFilePath());
-            userDataFile.connectDatabase(generalPrefs.getDatabaseVersion());
+            var current = generalPrefs.getDatabaseVersion();
+            var version = userDataFile.connectDatabase(current);
+            generalPrefs.setDatabaseVersion(version);
             helper.setUserDataFile(userDataFile);
         } catch (IOException e) {
             ExceptionHandler.handle(e);
