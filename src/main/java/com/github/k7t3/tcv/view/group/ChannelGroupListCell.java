@@ -45,9 +45,9 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
     private static final double PROFILE_IMAGE_WIDTH = 48;
     private static final double PROFILE_IMAGE_HEIGHT = 48;
 
-    private final EditableLabel header = new EditableLabel();
+    private final EditableLabel title = new EditableLabel();
     private final ToggleButton pin = new ToggleButton(null, new FontIcon());
-    private final EditableLabel subHeader = new EditableLabel();
+    private final EditableLabel comment = new EditableLabel();
     private final TilePane tilePane = new TilePane();
 
     private final GeneralPreferences generalPrefs;
@@ -75,21 +75,22 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
 
         var headerPane = new HBox();
 
-        header.getStyleClass().add(Styles.TEXT_CAPTION);
-        header.setTooltip(new Tooltip(Resources.getString("group.tooltip.title")));
-        header.getStyleClass().add("title");
-        HBox.setHgrow(header, Priority.ALWAYS);
+        title.getStyleClass().add(Styles.TEXT_CAPTION);
+        title.setTooltip(new Tooltip(Resources.getString("group.tooltip.title")));
+        title.getStyleClass().add("title");
+        HBox.setHgrow(title, Priority.ALWAYS);
 
         pin.getStyleClass().addAll(Styles.BUTTON_ICON);
         pin.setTooltip(new Tooltip(Resources.getString("group.pin.tooltip")));
 
-        headerPane.getChildren().addAll(header, pin);
+        headerPane.getChildren().addAll(title, pin);
         setHeader(headerPane);
 
-        subHeader.setTooltip(new Tooltip(Resources.getString("group.tooltip.comment")));
-        subHeader.getStyleClass().add("comment");
-        subHeader.getStyleClass().add(Styles.TEXT_SMALL);
-        setSubHeader(subHeader);
+        comment.setTooltip(new Tooltip(Resources.getString("group.tooltip.comment")));
+        comment.getStyleClass().add("comment");
+        comment.getStyleClass().add(Styles.TEXT_SMALL);
+        comment.setPromptText(Resources.getString("group.comment"));
+        setSubHeader(comment);
 
         // ****************************************
         // チャットを開くボタン
@@ -158,12 +159,12 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
             t.setFinally(() -> setDisable(false));
             t.onDone(() -> vfInjector.get().show(0));
         });
-        header.setOnEditCommit(e -> {
+        title.setOnEditCommit(e -> {
             setDisable(true);
             var t = viewModel.update(group);
             t.setFinally(() -> setDisable(false));
         });
-        subHeader.setOnEditCommit(e -> {
+        comment.setOnEditCommit(e -> {
             setDisable(true);
             var t = viewModel.update(group);
             t.setFinally(() -> setDisable(false));
@@ -177,13 +178,13 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
 
     @Override
     public void dispose() {
-        header.textProperty().unbindBidirectional(group.nameProperty());
-        subHeader.textProperty().unbindBidirectional(group.commentProperty());
+        title.textProperty().unbindBidirectional(group.nameProperty());
+        comment.textProperty().unbindBidirectional(group.commentProperty());
     }
 
     public void update() {
-        header.textProperty().bindBidirectional(group.nameProperty());
-        subHeader.textProperty().bindBidirectional(group.commentProperty());
+        title.textProperty().bindBidirectional(group.nameProperty());
+        comment.textProperty().bindBidirectional(group.commentProperty());
         tilePane.getChildren().clear();
         tilePane.setHgap(4);
         tilePane.setVgap(2);

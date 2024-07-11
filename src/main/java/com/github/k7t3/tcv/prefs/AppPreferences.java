@@ -28,6 +28,8 @@ public class AppPreferences extends PreferencesBase {
 
     private KeyBindingPreferences keyBindingPreferences;
 
+    private StatePreferences statePreferences;
+
     private AppPreferences() {
         super(Preferences.userNodeForPackage(AppPreferences.class), new HashMap<>());
         defaults.put(EXPERIMENTAL, Boolean.FALSE);
@@ -105,6 +107,12 @@ public class AppPreferences extends PreferencesBase {
             keyBindingPreferences = new KeyBindingPreferences(preferences, defaults);
         }
         return keyBindingPreferences;
+    }
+
+    public StatePreferences getStatePreferences() {
+        if (statePreferences == null)
+            statePreferences = new StatePreferences(preferences, defaults);
+        return statePreferences;
     }
 
     // ******************** PROPERTIES ********************

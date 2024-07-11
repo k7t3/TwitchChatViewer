@@ -90,6 +90,8 @@ public class EditableLabel extends Control {
 
     private final ReadOnlyBooleanWrapper editing = new ReadOnlyBooleanWrapper(false, "editing");
 
+    private final StringProperty promptText = new SimpleStringProperty("", "promptText");
+
     public EditableLabel() {
         getStyleClass().add(STYLE_CLASS);
     }
@@ -106,6 +108,10 @@ public class EditableLabel extends Control {
     public ReadOnlyBooleanProperty editingProperty() { return editing.getReadOnlyProperty(); }
     public boolean isEditing() { return editing.get(); }
     void setEditing(boolean editing) { this.editing.set(editing); }
+
+    public StringProperty promptTextProperty() { return promptText; }
+    public String getPromptText() { return promptText.get(); }
+    public void setPromptText(String promptText) { this.promptText.set(promptText); }
 
 
 

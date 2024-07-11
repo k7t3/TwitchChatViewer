@@ -67,7 +67,6 @@ public class ChannelGroupListView implements FxmlView<ChannelGroupListViewModel>
         comparatorsComboBox.getItems().setAll(ChannelGroupListViewModel.Comparators.values());
         comparatorsComboBox.valueProperty().addListener((ob, o, n) -> filterUpdate());
         descendingSwitch.selectedProperty().addListener((ob, o, n) -> filterUpdate());
-        comparatorsComboBox.getSelectionModel().select(0);
 
         var prefs = AppPreferences.getInstance();
 
@@ -78,6 +77,19 @@ public class ChannelGroupListView implements FxmlView<ChannelGroupListViewModel>
 
         // ダイアログとして表示するための初期化
         JavaFXHelper.initAsInnerWindow(root, 0.7, 0.9);
+
+        // 設定とバインド
+        bindPreferences();
+    }
+
+    private void bindPreferences() {
+        var preferences = AppPreferences.getInstance().getStatePreferences();
+        descendingSwitch.selectedProperty().bindBidirectional(preferences.groupOrderDescendingProperty());
+
+        var comparatorName = preferences.getGroupOrderItem();
+        var comparator = ChannelGroupListViewModel.Comparators.valueOf(comparatorName);
+        comparatorsComboBox.getSelectionModel().select(comparator);
+        preferences.groupOrderItemProperty().bind(comparatorsComboBox.valueProperty().map(Enum::name));
     }
 
     private void filterUpdate() {

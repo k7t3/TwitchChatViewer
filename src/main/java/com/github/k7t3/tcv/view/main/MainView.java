@@ -100,7 +100,7 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        var helper = AppHelper.getInstance();
+        var preferences = AppPreferences.getInstance();
 
         loadChatContainerView();
         loadFollowersView();
@@ -114,6 +114,10 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         followersContainer.disableProperty().bind(notAuthorizedCondition);
         chatContainer.disableProperty().bind(notAuthorizedCondition);
 
+        // チャンネルリストのトグルを設定と同期
+        var state = preferences.getStatePreferences();
+        followerToggle.selectedProperty().bindBidirectional(state.toggleChannelsProperty());
+
         // ログインしているユーザー名
         userNameLabel.getStyleClass().addAll(Styles.TEXT_SMALL);
         userNameLabel.textProperty().bind(viewModel.userNameProperty());
@@ -123,9 +127,9 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         footerLabel.getStyleClass().addAll(Styles.TEXT_SMALL);
 
         // 認証用メニューアイテム
-        var preferences = AppPreferences.getInstance();
         var credentialStore = new PreferencesCredentialStorage(preferences.getPreferences());
         var authMenuItem = new AuthenticationMenuItem(modalPane, credentialStore, rootPane, viewModel);
+        authMenuItem.authorizedProperty().bind(viewModel.authorizedProperty());
         userMenuButton.getItems().add(authMenuItem);
 
         // ライブ状態が更新されたときの表示ラベル
@@ -136,7 +140,7 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         clipButton.getStyleClass().addAll(Styles.SMALL, Styles.ROUNDED, Styles.SUCCESS);
         clipButton.visibleProperty().bind(
                 viewModel.clipCountProperty().greaterThan(0)
-                        .and(helper.authorizedProperty())
+                        .and(viewModel.authorizedProperty())
         );
 
         // クリップが投稿されたらアニメーションを実行するリスナ
@@ -277,6 +281,11 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
         var popup = new BasicPopup(controller);
         popup.setAutoHide(true);
+        popup.setOnShowing(e -> {
+            var last = controller.getItems().size() - 1;
+            if (0 <= last)
+                controller.scrollTo(last);
+        });
         liveStateLink.setOnAction(e -> {
             if (popup.isShowing()) {
                 popup.hide();

@@ -109,6 +109,7 @@ public class ChannelGroupListViewModel extends AbstractViewModel {
                 .count()
         )),
 
+        /** 状態の規定値として名前を使用しているので変更しないようにするか別の形で定義したい・・・。*/
         NAME("group.comparator.name", Comparator.comparing(ChannelGroup::getName));
 
         private final String display;

@@ -7,17 +7,21 @@ import com.github.k7t3.tcv.app.chat.filter.KeywordFilterType;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.prefs.KeywordFilterViewModel;
 import com.github.k7t3.tcv.view.core.DeleteButtonTableColumn;
+import com.github.k7t3.tcv.view.core.JavaFXHelper;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
+import javafx.scene.control.Cell;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.ComboBoxTableCell;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.util.StringConverter;
+import javafx.util.converter.DefaultStringConverter;
 import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.javafx.FontIcon;
 
@@ -41,10 +45,10 @@ public class KeywordFilterView implements PreferencesPage<KeywordFilterViewModel
     private TableColumn<KeywordFilterViewModel.Wrapper, KeywordFilterViewModel.Wrapper> trashColumn;
 
     @FXML
-    private MenuItem addMenuItem;
+    private Button addButton;
 
     @FXML
-    private MenuItem removeMenuItem;
+    private MenuItem addMenuItem;
 
     @InjectViewModel
     private KeywordFilterViewModel viewModel;
@@ -82,10 +86,26 @@ public class KeywordFilterView implements PreferencesPage<KeywordFilterViewModel
 
         keywordColumn.setCellValueFactory(features -> features.getValue().keywordProperty());
         keywordColumn.setCellFactory(TextFieldTableCell.forTableColumn());
+        keywordColumn.setCellFactory(column -> new TextFieldTableCell<>(new DefaultStringConverter()) {
+            {
+                var invalidCondition = tableRowProperty().flatMap(Cell::itemProperty)
+                        .flatMap(KeywordFilterViewModel.Wrapper::invalidProperty)
+                        .orElse(false);
+                JavaFXHelper.registerPseudoClass(this, "invalid", invalidCondition);
+
+                getStyleClass().add("keyword-filter-cell");
+            }
+        });
         keywordColumn.setEditable(true);
 
         trashColumn.setCellFactory(DeleteButtonTableColumn.create(entry -> entry.setRemoved(true)));
         trashColumn.setCellValueFactory(features -> new ReadOnlyObjectWrapper<>(features.getValue()));
+
+        addButton.getStyleClass().addAll(Styles.SMALL, Styles.ROUNDED, Styles.ACCENT);
+        addButton.setOnAction(e -> {
+            addItem();
+            e.consume();
+        });
     }
 
     @FXML
@@ -94,15 +114,9 @@ public class KeywordFilterView implements PreferencesPage<KeywordFilterViewModel
         viewModel.addEntry(entry);
     }
 
-    @FXML
-    private void removeItem() {
-        var items = keywordTableView.getSelectionModel().getSelectedItems();
-        items.forEach(item -> item.setRemoved(true));
-    }
-
     @Override
     public String getName() {
-        return Resources.getString("prefs.tab.filter");
+        return Resources.getString("prefs.tab.filtering.keyword");
     }
 
     @Override

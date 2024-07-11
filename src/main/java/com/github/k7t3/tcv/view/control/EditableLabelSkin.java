@@ -1,5 +1,6 @@
 package com.github.k7t3.tcv.view.control;
 
+import atlantafx.base.theme.Styles;
 import javafx.application.Platform;
 import javafx.scene.control.Label;
 import javafx.scene.control.SkinBase;
@@ -28,8 +29,24 @@ public class EditableLabelSkin extends SkinBase<EditableLabel> {
 
         label.setMaxWidth(Double.MAX_VALUE);
 
-        // ラベルは常に最新の値を表示する
-        label.textProperty().bind(control.textProperty());
+        // ラベルにテキストをバインドする
+        // テキストが空のときは任意のプロンプトをバインド
+        label.textProperty().bind(
+                control.textProperty()
+                        .map(t -> t == null || t.isEmpty() ? control.getPromptText() : t)
+        );
+
+        // プロンプトメッセージを表示しているときはMUTEにする
+        var emptyCondition = control.textProperty().isEmpty();
+        emptyCondition.addListener((ob, o, n) -> {
+            if (n)
+                label.getStyleClass().add(Styles.TEXT_MUTED);
+            else
+                label.getStyleClass().remove(Styles.TEXT_MUTED);
+        });
+        if (emptyCondition.get()) {
+            label.getStyleClass().add(Styles.TEXT_MUTED);
+        }
 
         // ラベルをダブルクリックしたらエディタに切り替える
         label.setOnMousePressed(e -> {

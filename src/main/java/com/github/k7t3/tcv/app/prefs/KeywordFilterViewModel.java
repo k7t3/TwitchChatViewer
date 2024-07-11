@@ -41,7 +41,7 @@ public class KeywordFilterViewModel implements PreferencesViewModelBase {
 
     @Override
     public boolean canSync() {
-        return keywordEntries.stream().noneMatch(Wrapper::isInvalid);
+        return keywordEntries.stream().filter(w -> !w.isRemoved()).noneMatch(Wrapper::isInvalid);
     }
 
     @Override
@@ -61,24 +61,14 @@ public class KeywordFilterViewModel implements PreferencesViewModelBase {
             @Override
             protected void invalidated() {
                 markDirty();
+                update(getKeyword(), get());
             }
         };
         private final StringProperty keyword = new SimpleStringProperty() {
             @Override
             protected void invalidated() {
                 markDirty();
-
-                if (getFilterType() == KeywordFilterType.REGEXP) {
-                    try {
-                        patternCache = Pattern.compile(get());
-                        invalid.set(false);
-                    } catch (PatternSyntaxException ignored) {
-                        patternCache = null;
-                        invalid.set(true);
-                    }
-                } else {
-                    invalid.set(false);
-                }
+                update(get(), getFilterType());
             }
         };
         private final BooleanProperty removed = new SimpleBooleanProperty() {
@@ -88,7 +78,7 @@ public class KeywordFilterViewModel implements PreferencesViewModelBase {
             }
         };
         private final ReadOnlyBooleanWrapper dirty = new ReadOnlyBooleanWrapper();
-        private final ReadOnlyBooleanWrapper invalid = new ReadOnlyBooleanWrapper();
+        private final ReadOnlyBooleanWrapper invalid = new ReadOnlyBooleanWrapper(true);
         private Pattern patternCache;
 
         private Wrapper(KeywordFilterEntry entry, ChatFilters chatFilters) {
@@ -99,6 +89,29 @@ public class KeywordFilterViewModel implements PreferencesViewModelBase {
 
             if (entry.getFilterType() == KeywordFilterType.REGEXP) {
                 patternCache = entry.getPattern();
+            }
+        }
+
+        private void update(String keyword, KeywordFilterType filterType) {
+            if (keyword == null || keyword.trim().isEmpty()) {
+                invalid.set(true);
+                return;
+            }
+
+            if (filterType == KeywordFilterType.REGEXP) {
+                updatePattern(keyword);
+            } else {
+                invalid.set(false);
+            }
+        }
+
+        private void updatePattern(String source) {
+            try {
+                patternCache = Pattern.compile(source);
+                invalid.set(false);
+            } catch (PatternSyntaxException ignored) {
+                patternCache = null;
+                invalid.set(true);
             }
         }
 

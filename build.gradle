@@ -1,6 +1,7 @@
 plugins {
     id 'application'
     id 'org.openjfx.javafxplugin' version '0.1.0'
+    id 'project-report'
 
     // 2024/3/29現在、Java 19までがサポートなので対応待ち
     id 'org.beryx.runtime' version '1.13.1'
@@ -36,6 +37,12 @@ javafx {
 application {
     mainClass = 'com.github.k7t3.tcv.view.Launcher'
     applicationName = 'Twitch Chat Viewer'
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': application.mainClass
+    }
 }
 
 dependencies {
@@ -98,6 +105,11 @@ runtime {
         skipInstaller = true
         appVersion = version
     }
+}
+
+tasks.register('copyDependencies', Copy) {
+    from configurations.runtimeClasspath
+    into 'build/libs'
 }
 
 test {

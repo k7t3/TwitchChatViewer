@@ -71,6 +71,7 @@ public class LiveStateNotificatorView extends ListView<LiveStateNotificator.Live
                 });
                 openButton = b;
             }
+            openButton.disableProperty().bind(getItem().channel().liveProperty().not());
             return openButton;
         }
 

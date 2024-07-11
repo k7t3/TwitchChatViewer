@@ -7,6 +7,7 @@ import com.github.k7t3.tcv.app.channel.TwitchChannelListViewModel;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.view.group.menu.ChannelGroupMenu;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
@@ -113,6 +114,9 @@ public class TwitchChannelListView implements FxmlView<TwitchChannelListViewMode
 
         // フォローのみ
         onlyFollowMenuItem.selectedProperty().bindBidirectional(viewModel.onlyFollowProperty());
+
+        // 設定とバインド
+        bindPreferences();
     }
 
     private void initContextMenu() {
@@ -127,6 +131,12 @@ public class TwitchChannelListView implements FxmlView<TwitchChannelListViewMode
         contextMenu = new ContextMenu(open, new SeparatorMenuItem(), openBrowser);
 
         channels.setContextMenu(contextMenu);
+    }
+
+    private void bindPreferences() {
+        var preferences = AppPreferences.getInstance().getStatePreferences();
+        onlyLiveMenuItem.selectedProperty().bindBidirectional(preferences.onlyLiveProperty());
+        onlyFollowMenuItem.selectedProperty().bindBidirectional(preferences.onlyFollowsProperty());
     }
 
     private void openChats() {

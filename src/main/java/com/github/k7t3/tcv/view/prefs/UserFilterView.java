@@ -24,9 +24,6 @@ public class UserFilterView implements PreferencesPage<UserFilterViewModel> {
     private TableView<UserFilterViewModel.Wrapper> userTables;
 
     @FXML
-    private TableColumn<UserFilterViewModel.Wrapper, String> userIdColumn;
-
-    @FXML
     private TableColumn<UserFilterViewModel.Wrapper, String> userNameColumn;
 
     @FXML
@@ -40,9 +37,6 @@ public class UserFilterView implements PreferencesPage<UserFilterViewModel> {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        userIdColumn.setCellFactory(TextFieldTableCell.forTableColumn());
-        userIdColumn.setCellValueFactory(features -> features.getValue().userIdProperty());
-
         userNameColumn.setCellFactory(TextFieldTableCell.forTableColumn());
         userNameColumn.setCellValueFactory(features -> features.getValue().userNameProperty());
 
@@ -58,7 +52,7 @@ public class UserFilterView implements PreferencesPage<UserFilterViewModel> {
 
     @Override
     public String getName() {
-        return Resources.getString("prefs.tab.filter.user");
+        return Resources.getString("prefs.tab.filtering.user");
     }
 
     @Override

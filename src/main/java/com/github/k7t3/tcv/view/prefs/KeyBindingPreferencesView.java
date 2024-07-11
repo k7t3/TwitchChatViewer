@@ -1,6 +1,7 @@
 package com.github.k7t3.tcv.view.prefs;
 
 import atlantafx.base.theme.Styles;
+import atlantafx.base.theme.Tweaks;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.keyboard.KeyBinding;
 import com.github.k7t3.tcv.app.keyboard.KeyBindingCombination;
@@ -56,6 +57,8 @@ public class KeyBindingPreferencesView implements PreferencesPage<KeyBindingPref
 
         // アイテムを追加
         combinationsTableView.setItems(viewModel.getCombinationList());
+
+        combinationsTableView.getStyleClass().addAll(Styles.BORDERED, Tweaks.EDGE_TO_EDGE);
 
         // 削除ボタンのデザインを割り当て
         resetAllButton.getStyleClass().addAll(Styles.SMALL, Styles.ROUNDED, Styles.DANGER);
