@@ -16,12 +16,18 @@ public class OpenPreferencesCommand extends BasicCommand {
 
     @Override
     public void execute() {
+        if (isNotExecutable()) return;
+
         var helper = AppHelper.getInstance();
         var stage = new Stage();
         stage.initOwner(helper.getPrimaryStage());
         stage.initModality(Modality.WINDOW_MODAL);
         stage.getIcons().addAll(Resources.getIcons());
         stage.setTitle(Resources.getString("prefs.window.title"));
+
+        // 多重起動できないように閉じるまで実行不可とする
+        executable.set(false);
+        stage.setOnHidden(e -> executable.set(true));
 
         var tuple = FluentViewLoader.fxmlView(PreferencesView.class)
                 .resourceBundle(Resources.getResourceBundle())
@@ -33,6 +39,6 @@ public class OpenPreferencesCommand extends BasicCommand {
         var view = tuple.getView();
         var scene = new Scene(view);
         stage.setScene(scene);
-        stage.show();
+        stage.showAndWait();
     }
 }

@@ -8,7 +8,7 @@ import com.github.k7t3.tcv.app.main.MainViewModel;
 import com.github.k7t3.tcv.app.user.UserDataFile;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.view.core.JavaFXHelper;
-import com.github.k7t3.tcv.view.core.ThemeManager;
+import com.github.k7t3.tcv.app.theme.ThemeManager;
 import com.github.k7t3.tcv.view.core.WindowBoundsListener;
 import com.github.k7t3.tcv.view.main.MainView;
 import de.saxsys.mvvmfx.FluentViewLoader;
@@ -91,9 +91,11 @@ public class Launcher extends Application {
         var scene = new Scene(view);
 
         // テーマを適用
+        var themePrefs = preferences.getGeneralPreferences();
         var tm = ThemeManager.getInstance();
         tm.setScene(scene);
-        tm.setTheme(preferences.getGeneralPreferences().getTheme());
+        tm.setTheme(themePrefs.getTheme());
+        tm.setThemeType(themePrefs.getThemeType());
 
         // 画面が表示されたら認証画面を表示する(おそらくModalPaneの仕様的に
         // シーングラフが表示されてからじゃないと動作しないため)

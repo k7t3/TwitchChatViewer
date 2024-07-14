@@ -42,6 +42,15 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
     private MenuBar menuBar;
 
     @FXML
+    private MenuItem mbPrefsMenuItem;
+
+    @FXML
+    private MenuItem mbTermsMenuItem;
+
+    @FXML
+    private MenuItem mbGuidelineMenuItem;
+
+    @FXML
     private Pane rootPane;
 
     @FXML
@@ -216,13 +225,19 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         clipButton.setOnAction(openClipCommand);
         prefsMenuItem.disableProperty().bind(openPrefCommand.notExecutableProperty());
         prefsMenuItem.setOnAction(openPrefCommand);
+        mbPrefsMenuItem.disableProperty().bind(openPrefCommand.notExecutableProperty());
+        mbPrefsMenuItem.setOnAction(openPrefCommand);
         searchChannelButton.disableProperty().bind(openSearchCommand.notExecutableProperty());
         searchChannelButton.setOnAction(openSearchCommand);
         followerToggle.disableProperty().bind(toggleChannelsCommand.notExecutableProperty());
         termsMenuItem.setOnAction(openTermsCommand);
         termsMenuItem.disableProperty().bind(openTermsCommand.notExecutableProperty());
+        mbTermsMenuItem.setOnAction(openTermsCommand);
+        mbTermsMenuItem.disableProperty().bind(openTermsCommand.notExecutableProperty());
         guidelineMenuItem.setOnAction(openCommunityGuidelineCommand);
         guidelineMenuItem.disableProperty().bind(openCommunityGuidelineCommand.notExecutableProperty());
+        mbGuidelineMenuItem.setOnAction(openCommunityGuidelineCommand);
+        mbGuidelineMenuItem.disableProperty().bind(openCommunityGuidelineCommand.notExecutableProperty());
 
         // カスタムされたキーバインドを復元
         var preferences = AppPreferences.getInstance();

@@ -1,10 +1,11 @@
 package com.github.k7t3.tcv.prefs;
 
-import atlantafx.base.theme.Theme;
 import com.github.k7t3.tcv.app.channel.MultipleChatOpenType;
 import com.github.k7t3.tcv.app.core.OS;
+import com.github.k7t3.tcv.app.theme.Theme;
+import com.github.k7t3.tcv.app.theme.ThemeManager;
+import com.github.k7t3.tcv.app.theme.ThemeType;
 import com.github.k7t3.tcv.database.DatabaseVersion;
-import com.github.k7t3.tcv.view.core.ThemeManager;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.StringProperty;
 
@@ -13,8 +14,10 @@ import java.util.prefs.Preferences;
 
 public class GeneralPreferences extends PreferencesBase {
 
-    /** このアプリケーションに適用されるAtlantaFXのテーマの名称*/
+    /** このアプリケーションに適用されるテーマの名称*/
     private static final String THEME = "theme";
+    /** テーマのタイプ*/
+    private static final String THEME_TYPE = "theme.type";
 
     /** チャンネルを複数選択して開くときの動作*/
     private static final String MULTIPLE_OPEN_TYPE = "multiple.open.type";
@@ -30,6 +33,9 @@ public class GeneralPreferences extends PreferencesBase {
 
     private static final String USER_DATA_FILE_NAME = "userdata.db";
 
+    private ObjectProperty<Theme> theme;
+    private ObjectProperty<ThemeType> themeType;
+
     private ObjectProperty<MultipleChatOpenType> multipleOpenType;
 
     private StringProperty userDataFilePath;
@@ -37,22 +43,14 @@ public class GeneralPreferences extends PreferencesBase {
     GeneralPreferences(Preferences preferences, Map<String, Object> defaults) {
         super(preferences, defaults);
 
-        defaults.put(THEME, ThemeManager.DEFAULT_THEME.getName());
+        defaults.put(THEME, ThemeManager.DEFAULT_THEME.name());
+        defaults.put(THEME_TYPE, ThemeType.SYSTEM.name());
         defaults.put(MULTIPLE_OPEN_TYPE, MultipleChatOpenType.SEPARATED.name());
         defaults.put(DATABASE_VERSION, DatabaseVersion.EMPTY.name());
         defaults.put(USER_DATA_FILE_PATH, OS.current().getApplicationDirectory()
                 .toAbsolutePath()
                 .resolve(USER_DATA_FILE_NAME)
                 .toString());
-    }
-
-    public void setTheme(Theme theme) {
-        preferences.put(THEME, theme.getName());
-    }
-
-    public Theme getTheme() {
-        var name = preferences.get(THEME, (String) defaults.get(THEME));
-        return ThemeManager.getInstance().findTheme(name).orElseThrow();
     }
 
     public void setDatabaseVersion(DatabaseVersion version) {
@@ -71,7 +69,8 @@ public class GeneralPreferences extends PreferencesBase {
     protected void readFromPreferences() {
         var themeName = get(THEME);
         if (themeName != null) {
-            ThemeManager.getInstance().findTheme(themeName).ifPresent(this::setTheme);
+            var theme = Theme.valueOf(themeName);
+            setTheme(theme);
         }
 
         try {
@@ -98,6 +97,24 @@ public class GeneralPreferences extends PreferencesBase {
     }
 
     // ******************** PROPERTIES ********************
+
+    public ObjectProperty<Theme> themeProperty() {
+        if (theme == null) {
+            theme = createObjectProperty(THEME, Theme::valueOf, Theme::name);
+        }
+        return theme;
+    }
+    public Theme getTheme() { return themeProperty().get(); }
+    public void setTheme(Theme theme) { themeProperty().set(theme); }
+
+    public ObjectProperty<ThemeType> themeTypeProperty() {
+        if (themeType == null) {
+            themeType = createObjectProperty(THEME_TYPE, ThemeType::valueOf, ThemeType::name);
+        }
+        return themeType;
+    }
+    public ThemeType getThemeType() { return themeTypeProperty().get(); }
+    public void setThemeType(ThemeType themeType) { themeTypeProperty().set(themeType); }
 
     public ObjectProperty<MultipleChatOpenType> multipleOpenTypeProperty() {
         if (multipleOpenType == null) {

@@ -5,7 +5,7 @@ import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.prefs.*;
 import com.github.k7t3.tcv.prefs.AppPreferences;
-import com.github.k7t3.tcv.view.core.ThemeManager;
+import com.github.k7t3.tcv.app.theme.ThemeManager;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
@@ -210,6 +210,7 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         cancelButton.setOnAction(e -> {
             var tm = ThemeManager.getInstance();
             tm.setTheme(generalViewModel.getDefaultTheme());
+            tm.setThemeType(generalViewModel.getThemeType());
             preferencesStage.close();
         });
         enterButton.setOnAction(e -> save());

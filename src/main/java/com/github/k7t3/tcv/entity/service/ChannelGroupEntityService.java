@@ -86,7 +86,7 @@ public class ChannelGroupEntityService {
     }
 
     private void insert(ChannelGroupEntity entity) {
-        var groupInsert = "insert into groups values(?, ?, ?, ?, ?, ?);";
+        var groupInsert = "insert into groups(id, name, comment, pinned, created_at, updated_at) values(?, ?, ?, ?, ?, ?);";
 
         connector.prepared(groupInsert, stmt -> {
             int i = 0;

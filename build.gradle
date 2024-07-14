@@ -2,9 +2,6 @@ plugins {
     id 'application'
     id 'org.openjfx.javafxplugin' version '0.1.0'
     id 'project-report'
-
-    // 2024/3/29現在、Java 19までがサポートなので対応待ち
-    id 'org.beryx.runtime' version '1.13.1'
 }
 
 group = 'io.github.k7t3'
@@ -31,18 +28,12 @@ javafx {
     version = '22.0.1'
     // 非モジュールアプリケーション向けに完全なモジュール定義
     // https://github.com/openjfx/javafx-gradle-plugin
-    modules = [ 'javafx.base', 'javafx.graphics', 'javafx.controls', 'javafx.fxml', 'javafx.swing' ]
+    modules = [ 'javafx.controls', 'javafx.fxml', 'javafx.swing' ]
 }
 
 application {
     mainClass = 'com.github.k7t3.tcv.view.Launcher'
     applicationName = 'Twitch Chat Viewer'
-}
-
-jar {
-    manifest {
-        attributes 'Main-Class': application.mainClass
-    }
 }
 
 dependencies {
@@ -90,26 +81,101 @@ dependencies {
     testImplementation 'org.mockito:mockito-core:5.11.0'
 }
 
-/**
- * 2024/3/28 現在、org.beryx.runtimeプラグインのJavaの対応バージョンは19までなので使用不可。
- */
-runtime {
-    options = [ '--strip-debug', '--compress', 'zip-6', '--no-header-files', '--no-man-pages' ]
+// SSL通信のためにjdk.crypto.ecモジュールが必要
+// https://stackoverflow.com/questions/63932217/java-ssl-handshake-failure-if-app-built-with-jpackage
+def cryptoPackage = 'jdk.crypto.ec'
 
-    launcher {
-        noConsole = true
-    }
+def jdkModules = ''
+tasks.register('checkJDKModules', Exec) {
+    dependsOn jar, copyDependencies, copyJavaFXModules
 
-    jpackage {
-        imageName = 'twitch-chat-viewer'
-        skipInstaller = true
-        appVersion = version
+    // プラットフォームに依存したクラスパスのセパレータ
+    var s = org.gradle.internal.os.OperatingSystem.current().isWindows()
+            ? ';'
+            : ':'
+
+    commandLine 'jdeps',
+            '--add-modules', 'ALL-MODULE-PATH',
+            '--multi-release', '9',
+            '--ignore-missing-deps',
+            '--print-module-deps',
+            '--class-path', "build/libs/*${s}build/javafx/*",
+            "build/libs/tcv-${version}.jar"
+
+    standardOutput = new ByteArrayOutputStream()
+    ext.output = { return standardOutput.toString().trim() }
+    doLast {
+        jdkModules = output()
+        if (!jdkModules.contains(cryptoPackage)) {
+            jdkModules += ',' + cryptoPackage
+        }
     }
 }
 
 tasks.register('copyDependencies', Copy) {
     from configurations.runtimeClasspath
     into 'build/libs'
+    exclude 'javafx-**'
+}
+
+tasks.register('copyJavaFXModules', Copy) {
+    from configurations.runtimeClasspath
+    into 'build/javafx'
+    include 'javafx-**'
+}
+
+def deployDir = 'build/app'
+tasks.register('make', Exec) {
+    group = 'distribution'
+    description = 'アプリケーションパッケージを生成するタスク'
+    dependsOn checkJDKModules
+
+    doFirst {
+        delete deployDir
+    }
+
+    var commandArgs = [
+            'jpackage',
+            '--verbose',
+            '--name', 'Twitch Chat Viewer',
+            '--description', 'Twitch Chat Viewer',
+            '--copyright', 'Copyright (c) 2024 k7t3. All rights reserved.',
+            '--vendor', 'k7t3',
+            '--app-version', project.version.toString(),
+            '--dest', deployDir,
+            '--module-path', 'build/javafx',
+            '--add-modules', "${-> jdkModules},${javafx.modules.join(',')}",
+            '--input', 'build/libs',
+            '--main-jar', "${-> tasks.jar.archiveFile.get().asFile.name}",
+            '--main-class', application.mainClass.get(),
+            '--license-file', ''
+    ]
+
+    def os = org.gradle.internal.os.OperatingSystem.current()
+
+    if (os.isWindows()) {
+        commandArgs.addAll('--type', 'dmg')
+        commandArgs.addAll('--icon', 'src/main/resources/icons/TwitchChatViewer.ico')
+        commandArgs.addAll('--win-shortcut')
+        commandArgs.addAll('--win-menu')
+        commandArgs.addAll('--win-per-user-install')
+        commandArgs.addAll('--win-shortcut')
+        commandArgs.addAll('--win-upgrade-uuid', 'b78817e8-f9b8-4650-bf0a-34bca5ff4106')
+    }
+    else if (os.isMacOsX()) {
+        commandArgs.addAll('--type', 'dmg')
+        commandArgs.addAll('--icon', 'src/main/resources/icons/TwitchChatViewer.icns')
+        commandArgs.addAll('--mac-package-identifier', 'TwitchChatViewer')
+    }
+    else if (os.isLinux()){
+        commandArgs.addAll('--type', 'deb')
+        commandArgs.addAll('--icon', 'src/main/resources/icons/TwitchChatViewer-64.png')
+        commandArgs.addAll('--linux-menu-group', 'Network')
+        commandArgs.addAll('--linux-rpm-license-type', 'Apache-2.0')
+        commandArgs.addAll('--linux-shortcut')
+    }
+
+    commandLine commandArgs
 }
 
 test {

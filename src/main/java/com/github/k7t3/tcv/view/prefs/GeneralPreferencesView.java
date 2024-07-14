@@ -1,10 +1,11 @@
 package com.github.k7t3.tcv.view.prefs;
 
-import atlantafx.base.theme.Theme;
 import com.github.k7t3.tcv.app.channel.MultipleChatOpenType;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.prefs.GeneralPreferencesViewModel;
-import com.github.k7t3.tcv.view.core.ThemeManager;
+import com.github.k7t3.tcv.app.theme.Theme;
+import com.github.k7t3.tcv.app.theme.ThemeManager;
+import com.github.k7t3.tcv.app.theme.ThemeType;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
@@ -22,6 +23,9 @@ public class GeneralPreferencesView implements PreferencesPage<GeneralPreference
 
     @FXML
     private ChoiceBox<Theme> themeChoiceBox;
+
+    @FXML
+    private ChoiceBox<ThemeType> themeTypeChoiceBox;
 
     @FXML
     private ComboBox<MultipleChatOpenType> openTypeComboBox;
@@ -64,18 +68,18 @@ public class GeneralPreferencesView implements PreferencesPage<GeneralPreference
     }
 
     private void initThemeChoiceBox() {
-        themeChoiceBox.getItems().setAll(ThemeManager.getInstance().getThemes());
+        themeChoiceBox.getItems().setAll(Theme.values());
         themeChoiceBox.setConverter(new StringConverter<>() {
             @Override
             public String toString(Theme object) {
-                return object == null ? "null" : object.getName();
+                return object == null ? "null" : object.getThemeName();
             }
 
             @Override
             public Theme fromString(String string) {
                 return themeChoiceBox.getItems()
                         .stream()
-                        .filter(t -> t.getName().equalsIgnoreCase(string))
+                        .filter(t -> t.getThemeName().equalsIgnoreCase(string))
                         .findFirst()
                         .orElse(null);
             }
@@ -84,6 +88,33 @@ public class GeneralPreferencesView implements PreferencesPage<GeneralPreference
         themeChoiceBox.valueProperty().addListener((ob, o, n) -> ThemeManager.getInstance().setTheme(n));
         themeChoiceBox.getSelectionModel().select(viewModel.getTheme());
         viewModel.themeProperty().bind(themeChoiceBox.valueProperty());
+
+        var typeNames = Map.of(
+                ThemeType.LIGHTER, Resources.getString("prefs.theme.lighter"),
+                ThemeType.DARKER, Resources.getString("prefs.theme.darker"),
+                ThemeType.SYSTEM, Resources.getString("prefs.theme.system")
+        );
+        themeTypeChoiceBox.getItems().setAll(ThemeType.values());
+        themeTypeChoiceBox.setConverter(new StringConverter<ThemeType>() {
+            @Override
+            public String toString(ThemeType themeType) {
+                return typeNames.get(themeType);
+            }
+
+            @Override
+            public ThemeType fromString(String s) {
+                return typeNames.entrySet()
+                        .stream()
+                        .filter(entry -> entry.getValue().equals(s))
+                        .map(Map.Entry::getKey)
+                        .findFirst()
+                        .orElseThrow();
+            }
+        });
+        // プレビューするためにテーマは即反映する
+        themeTypeChoiceBox.valueProperty().addListener((ob, o, n) -> ThemeManager.getInstance().setThemeType(n));
+        themeTypeChoiceBox.getSelectionModel().select(viewModel.getThemeType());
+        viewModel.themeTypeProperty().bind(themeTypeChoiceBox.valueProperty());
     }
 
     @Override
