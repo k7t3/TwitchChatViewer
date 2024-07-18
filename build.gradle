@@ -148,13 +148,13 @@ tasks.register('make', Exec) {
             '--input', 'build/libs',
             '--main-jar', "${-> tasks.jar.archiveFile.get().asFile.name}",
             '--main-class', application.mainClass.get(),
-            '--license-file', ''
+            '--license-file', 'docs/license.md'
     ]
 
     def os = org.gradle.internal.os.OperatingSystem.current()
 
     if (os.isWindows()) {
-        commandArgs.addAll('--type', 'dmg')
+        commandArgs.addAll('--type', 'exe')
         commandArgs.addAll('--icon', 'src/main/resources/icons/TwitchChatViewer.ico')
         commandArgs.addAll('--win-shortcut')
         commandArgs.addAll('--win-menu')

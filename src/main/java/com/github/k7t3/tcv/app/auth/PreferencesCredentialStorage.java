@@ -1,11 +1,17 @@
-package com.github.k7t3.tcv.domain.auth;
+package com.github.k7t3.tcv.app.auth;
 
+import com.github.k7t3.tcv.app.secure.CipherOperator;
+import com.github.k7t3.tcv.domain.auth.CredentialStore;
 import com.github.philippheuer.credentialmanager.domain.Credential;
 import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -35,6 +41,9 @@ public class PreferencesCredentialStorage implements CredentialStore {
         var bytes = preferences.getByteArray(PREFERENCES_KEY, null);
         if (bytes == null)
             return;
+
+        // トークン情報を復号する
+        bytes = CipherOperator.decrypt(bytes);
 
         try (var bais = new ByteArrayInputStream(bytes);
              var is = new DataInputStream(bais)) {
@@ -126,7 +135,8 @@ public class PreferencesCredentialStorage implements CredentialStore {
 
             os.flush();
 
-            var bytes = baos.toByteArray();
+            // トークン情報を暗号化
+            var bytes = CipherOperator.encrypt(baos.toByteArray());
 
             preferences.putByteArray(PREFERENCES_KEY, bytes);
 

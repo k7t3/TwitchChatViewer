@@ -105,6 +105,8 @@
                                        </graphic>
                                     </MenuItem>
                                     <SeparatorMenuItem mnemonicParsing="false" />
+                                    <MenuItem fx:id="aboutMenuItem" mnemonicParsing="false" text="%main.menu.about" />
+                                    <SeparatorMenuItem mnemonicParsing="false" />
                                 </items>
                                  <graphic>
                                     <FontIcon iconLiteral="fas-user" />
@@ -217,6 +219,11 @@
                   </MenuItem>
                </items>
           </Menu>
+            <Menu mnemonicParsing="false" text="%main.menubar.help">
+              <items>
+                  <MenuItem fx:id="mbAboutMenuItem" mnemonicParsing="false" text="%main.menu.about" />
+              </items>
+            </Menu>
         </menus>
       </MenuBar>
    </top>

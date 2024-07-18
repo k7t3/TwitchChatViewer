@@ -3,6 +3,7 @@ package com.github.k7t3.tcv.view.main;
 import atlantafx.base.controls.ModalPane;
 import atlantafx.base.theme.Styles;
 import atlantafx.base.util.Animations;
+import com.github.k7t3.tcv.app.auth.PreferencesCredentialStorage;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.OS;
 import com.github.k7t3.tcv.app.core.Resources;
@@ -13,7 +14,6 @@ import com.github.k7t3.tcv.app.keyboard.KeyBinding;
 import com.github.k7t3.tcv.app.keyboard.KeyBindingCommands;
 import com.github.k7t3.tcv.app.main.MainViewModel;
 import com.github.k7t3.tcv.app.service.LiveStateNotificator;
-import com.github.k7t3.tcv.domain.auth.PreferencesCredentialStorage;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.view.channel.LiveStateNotificatorView;
 import com.github.k7t3.tcv.view.channel.TwitchChannelListView;
@@ -51,6 +51,9 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
     private MenuItem mbGuidelineMenuItem;
 
     @FXML
+    private MenuItem mbAboutMenuItem;
+
+    @FXML
     private Pane rootPane;
 
     @FXML
@@ -82,6 +85,9 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
     @FXML
     private MenuItem guidelineMenuItem;
+
+    @FXML
+    private MenuItem aboutMenuItem;
 
     @FXML
     private Pane headerPane;
@@ -211,6 +217,9 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         var openTermsCommand = new OpenTermsCommand();
         var openCommunityGuidelineCommand = new OpenCommunityGuidelineCommand();
 
+        // このアプリケーションについてウインドウを開くコマンド
+        var openAboutCommand = new OpenAboutCommand();
+
         // コマンド実行ハンドラを登録
         var accelerator = new KeyBindingAccelerator(helper.getKeyBindingCombinations(), commands);
         rootPane.sceneProperty().addListener((ob, o, n) -> {
@@ -238,6 +247,10 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         guidelineMenuItem.disableProperty().bind(openCommunityGuidelineCommand.notExecutableProperty());
         mbGuidelineMenuItem.setOnAction(openCommunityGuidelineCommand);
         mbGuidelineMenuItem.disableProperty().bind(openCommunityGuidelineCommand.notExecutableProperty());
+        aboutMenuItem.disableProperty().bind(openAboutCommand.notExecutableProperty());
+        aboutMenuItem.setOnAction(openAboutCommand);
+        mbAboutMenuItem.disableProperty().bind(openAboutCommand.notExecutableProperty());
+        mbAboutMenuItem.setOnAction(openAboutCommand);
 
         // カスタムされたキーバインドを復元
         var preferences = AppPreferences.getInstance();

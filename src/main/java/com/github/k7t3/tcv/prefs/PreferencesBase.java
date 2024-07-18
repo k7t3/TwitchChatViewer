@@ -66,7 +66,15 @@ public abstract class PreferencesBase {
             Function<String, T> fromString,
             Function<T, String> toString
     ) {
-        var property = new SimpleObjectProperty<>(fromString.apply(get(key)));
+        Function<String, T> f = s -> {
+            try {
+                return fromString.apply(s);
+            } catch (Exception e) {
+                LoggerFactory.getLogger(getClass()).warn(e.getMessage());
+                return fromString.apply((String) defaults.get(key));
+            }
+        };
+        var property = new SimpleObjectProperty<>(f.apply(get(key)));
         property.addListener((ob, o, n) -> preferences.put(key, toString.apply(n)));
         return property;
     }

@@ -5,6 +5,7 @@ import com.github.k7t3.tcv.app.core.ExceptionHandler;
 import com.github.k7t3.tcv.app.core.LoggerInitializer;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.main.MainViewModel;
+import com.github.k7t3.tcv.app.secure.KeyManagerFactory;
 import com.github.k7t3.tcv.app.user.UserDataFile;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.view.core.JavaFXHelper;
@@ -135,6 +136,9 @@ public class Launcher extends Application {
         // 設定のSave
         var prefs = AppPreferences.getInstance();
         prefs.save();
+
+        // キーストアの終了
+        KeyManagerFactory.getInstance().close();
 
         // ViewModelのクローズ
         viewModel.close();

@@ -15,11 +15,6 @@ public class AppPreferences extends PreferencesBase {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AppPreferences.class);
 
-    /**
-     * このアプリケーションで使用する実験的な機能の有効化
-     */
-    private static final String EXPERIMENTAL = "experimental";
-
     private final Preferences preferences;
 
     private final GeneralPreferences generalPreferences;
@@ -32,9 +27,8 @@ public class AppPreferences extends PreferencesBase {
 
     private AppPreferences() {
         super(Preferences.userNodeForPackage(AppPreferences.class), new HashMap<>());
-        defaults.put(EXPERIMENTAL, Boolean.FALSE);
 
-        preferences = Preferences.userNodeForPackage(getClass());
+        preferences = Preferences.userRoot().node("/com/github/k7t3/tcv");
         generalPreferences = new GeneralPreferences(preferences, defaults);
 
         LOGGER.info("preferences initialized");

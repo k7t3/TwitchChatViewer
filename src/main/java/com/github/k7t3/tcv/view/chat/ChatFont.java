@@ -10,7 +10,7 @@ import java.util.Objects;
 
 public class ChatFont {
 
-    public static final ChatFont DEFAULT = new ChatFont();
+    private static ChatFont DEFAULT = null;
 
     private static final double DEFAULT_FONT_SIZE = Font.getDefault().getSize();
 
@@ -33,9 +33,16 @@ public class ChatFont {
 
     private ChatFont() {
         this.font = new ReadOnlyObjectWrapper<>(Font.getDefault());
-        this.family = new ReadOnlyStringWrapper(font.get().getFamily());
+        this.family = new ReadOnlyStringWrapper(Font.getDefault().getFamily());
         this.size = new ReadOnlyDoubleWrapper(DEFAULT_FONT_SIZE);
         this.fontScale = this.size.divide(DEFAULT_FONT_SIZE);
+    }
+
+    public static synchronized ChatFont getDefault() {
+        if (DEFAULT == null) {
+            DEFAULT = new ChatFont();
+        }
+        return DEFAULT;
     }
 
     public byte[] serialize() {
@@ -72,8 +79,7 @@ public class ChatFont {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof ChatFont chatFont)) return false;
-        return Objects.equals(family, chatFont.family)
-                && getSize() == chatFont.getSize();
+        return Objects.equals(getFamily(), chatFont.getFamily()) && Objects.equals(getSize(), chatFont.getSize());
     }
 
     @Override

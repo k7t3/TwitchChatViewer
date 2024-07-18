@@ -42,38 +42,32 @@ public class ClipFinder {
      * チャットに投稿されたクリップのURLをパースしてAPIに投げるメソッド
      */
     public Optional<ClipChatMessage> findClip(String message) {
-        try {
-            var uri = parseClipURI(message);
-            if (uri == null) {
-                return Optional.empty();
-            }
-
-            // 0: empty
-            // 1: ユーザー名
-            // 2: clip
-            // 3: クリップのID
-            var paths = uri.getPath().split("/");
-            if (paths.length != 4 && paths.length != 2) {
-                LOGGER.error("unexpected clip url {}", message);
-                return Optional.empty();
-            }
-
-            var clipId = paths[paths.length - 1];
-
-            var api = twitch.getTwitchAPI();
-            var clips = api.getClips(List.of(clipId));
-
-            if (clips.isEmpty()) {
-                LOGGER.warn("clip not found clip_id={} ({})", clipId, uri);
-                return Optional.of(ClipChatMessage.of(clipId, uri.toString(), message));
-            }
-
-            return Optional.of(ClipChatMessage.of(clipId, uri.toString(), message, VideoClip.of(clips.getFirst())));
-
-        } catch (Exception e) {
-            LOGGER.error(message, e);
+        var uri = parseClipURI(message);
+        if (uri == null) {
             return Optional.empty();
         }
+
+        // 0: empty
+        // 1: ユーザー名
+        // 2: clip
+        // 3: クリップのID
+        var paths = uri.getPath().split("/");
+        if (paths.length != 4 && paths.length != 2) {
+            LOGGER.error("unexpected clip url {}", message);
+            return Optional.empty();
+        }
+
+        var clipId = paths[paths.length - 1];
+
+        var api = twitch.getTwitchAPI();
+        var clips = api.getClips(List.of(clipId));
+
+        if (clips.isEmpty()) {
+            LOGGER.warn("clip not found clip_id={} ({})", clipId, uri);
+            return Optional.of(ClipChatMessage.of(clipId, uri.toString(), message));
+        }
+
+        return Optional.of(ClipChatMessage.of(clipId, uri.toString(), message, VideoClip.of(clips.getFirst())));
     }
 
 }

@@ -1,10 +1,10 @@
-# 外部ライブラリ
+# External Libraries
 
-このドキュメントは、本アプリケーションで使用されるアイコン、ライブラリの一覧とそのライセンスをリストアップしています。
+This document lists the icons and libraries used in this application, along with their licenses.
 
-## 絵文字パック
+## Emoji Pack
 
-チャットメッセージに含まれる絵文字の描画には[OpenMoji](https://github.com/hfg-gmuend/openmoji)を使用しています。
+[OpenMoji](https://github.com/hfg-gmuend/openmoji) is used for rendering emojis contained in chat messages.
 
 ```yaml
 Name:    OpenMoji
@@ -237,5 +237,4 @@ License: Apache-2.0
 ```
 
 
-### 参考
-本ドキュメントのフォーマットは[JabRef](https://github.com/JabRef/jabref)プロジェクトが参考になりました。
+[Format Reference](https://github.com/JabRef/jabref)

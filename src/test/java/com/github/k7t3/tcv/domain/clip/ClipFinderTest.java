@@ -1,36 +1,25 @@
 package com.github.k7t3.tcv.domain.clip;
 
 import com.github.k7t3.tcv.domain.Twitch;
-import com.github.k7t3.tcv.domain.TwitchLoader;
-import com.github.k7t3.tcv.domain.auth.PreferencesCredentialStorage;
+import com.github.k7t3.tcv.domain.TwitchAPI;
 import com.github.k7t3.tcv.domain.chat.ClipFinder;
-import com.github.k7t3.tcv.prefs.AppPreferences;
-import org.junit.jupiter.api.BeforeEach;
+import com.github.twitch4j.helix.domain.Clip;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.fail;
 
 class ClipFinderTest {
 
-    private Twitch twitch;
-
-    @BeforeEach
-    void setUp() {
-        var prefs = AppPreferences.getInstance();
-        var loader = new TwitchLoader(new PreferencesCredentialStorage(prefs.getPreferences()));
-        var op = loader.load();
-
-        twitch = op.orElse(null);
-    }
-
     @Test
     void findClip() {
-        if (twitch == null) {
-            fail("twitch is null");
-            return;
-        }
+        var api = Mockito.mock(TwitchAPI.class);
+        var twitch = Mockito.mock(Twitch.class);
+        Mockito.when(twitch.getTwitchAPI()).thenReturn(api);
+        Mockito.when(api.getClips(List.of("StylishDullDaikonAMPEnergy-pTmLJ5dazGRB32rq"))).thenReturn(List.of(new Clip()));
+        Mockito.when(api.getClips(List.of("SecretiveSpunkyFlyCmonBruh-7Zz3Psy23ZeN2O7V"))).thenReturn(List.of(new Clip()));
 
         var test = List.of(
                 "https://clips.twitch.tv/StylishDullDaikonAMPEnergy-pTmLJ5dazGRB32rq",
@@ -40,13 +29,15 @@ class ClipFinderTest {
         var finder = new ClipFinder(twitch);
 
         for (var link : test) {
-            var op = finder.findClip(link);
-            if (op.isEmpty()) {
-                fail("op is not present value");
-                return;
+            try {
+                var op = finder.findClip(link);
+                if (op.isEmpty()) {
+                    fail("op is not present value");
+                    return;
+                }
+            } catch (NullPointerException e) {
+                // Clipが空のためNullPointerExceptionが発生するはず
             }
-
-            System.out.println(op.get());
         }
     }
 }

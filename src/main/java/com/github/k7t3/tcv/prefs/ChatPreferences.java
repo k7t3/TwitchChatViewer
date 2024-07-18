@@ -52,7 +52,7 @@ public class ChatPreferences extends PreferencesBase {
     ChatPreferences(Preferences preferences, Map<String, Object> defaults) {
         super(preferences, defaults);
 
-        defaults.put(CHAT_FONT_FAMILY, ChatFont.DEFAULT.serialize());
+        defaults.put(CHAT_FONT_FAMILY, ChatFont.getDefault().serialize());
         defaults.put(CHAT_SHOW_USERNAME, Boolean.TRUE);
         defaults.put(CHAT_SHOW_BADGES, Boolean.TRUE);
         defaults.put(FLOATABLE_CHAT_OPACITY, 0.7d);
