@@ -1,6 +1,6 @@
 package com.github.k7t3.tcv.app.auth;
 
-import com.github.k7t3.tcv.app.core.AbstractViewModel;
+import com.github.k7t3.tcv.app.model.AbstractViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.event.LoginEvent;
 import com.github.k7t3.tcv.app.service.FXTask;

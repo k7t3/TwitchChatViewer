@@ -1,4 +1,4 @@
-package com.github.k7t3.tcv.app.core;
+package com.github.k7t3.tcv.app.model;
 
 import com.github.k7t3.tcv.app.event.AppEvent;
 import de.saxsys.mvvmfx.MvvmFX;

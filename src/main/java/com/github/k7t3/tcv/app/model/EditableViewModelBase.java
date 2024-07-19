@@ -1,4 +1,4 @@
-package com.github.k7t3.tcv.app.core;
+package com.github.k7t3.tcv.app.model;
 
 import javafx.beans.property.*;
 

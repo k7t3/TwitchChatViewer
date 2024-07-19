@@ -1,6 +1,6 @@
 package com.github.k7t3.tcv.app.help;
 
-import com.github.k7t3.tcv.app.core.AppViewModel;
+import com.github.k7t3.tcv.app.model.AppViewModel;
 import com.github.k7t3.tcv.app.core.DesktopUtils;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.domain.event.EventSubscribers;

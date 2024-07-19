@@ -1,6 +1,6 @@
 package com.github.k7t3.tcv.app.channel;
 
-import com.github.k7t3.tcv.app.core.AbstractViewModel;
+import com.github.k7t3.tcv.app.model.AbstractViewModel;
 import com.github.k7t3.tcv.app.event.ChatOpeningEvent;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;

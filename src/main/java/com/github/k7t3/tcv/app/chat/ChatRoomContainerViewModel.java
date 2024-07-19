@@ -2,10 +2,10 @@ package com.github.k7t3.tcv.app.chat;
 
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.filter.ChatFilters;
-import com.github.k7t3.tcv.app.core.AbstractViewModel;
+import com.github.k7t3.tcv.app.model.AbstractViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.OS;
-import com.github.k7t3.tcv.app.core.TypeSafeNotificationObserver;
+import com.github.k7t3.tcv.app.model.TypeSafeNotificationObserver;
 import com.github.k7t3.tcv.app.emoji.ChatEmojiStore;
 import com.github.k7t3.tcv.app.emoji.Emoji;
 import com.github.k7t3.tcv.app.event.ChatOpeningEvent;

@@ -6,6 +6,7 @@ plugins {
 
 group = 'io.github.k7t3'
 version = '1.0.0'
+def appVersion = project.findProperty("app.version") ?: version
 
 repositories {
     mavenCentral()
@@ -43,7 +44,7 @@ dependencies {
     implementation 'org.slf4j:slf4j-jdk14:2.0.11'
 
     // Twitchクライアント
-    implementation 'com.github.twitch4j:twitch4j:1.20.0'
+    implementation 'com.github.twitch4j:twitch4j:1.21.0'
 
     // キャッシュ
     implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
@@ -100,7 +101,7 @@ tasks.register('checkJDKModules', Exec) {
             '--ignore-missing-deps',
             '--print-module-deps',
             '--class-path', "build/libs/*${s}build/javafx/*",
-            "build/libs/tcv-${version}.jar"
+            "build/libs/tcv-${appVersion}.jar"
 
     standardOutput = new ByteArrayOutputStream()
     ext.output = { return standardOutput.toString().trim() }
@@ -134,21 +135,22 @@ tasks.register('make', Exec) {
         delete deployDir
     }
 
-    var commandArgs = [
+    ArrayList<String> commandArgs = [
             'jpackage',
             '--verbose',
             '--name', 'Twitch Chat Viewer',
             '--description', 'Twitch Chat Viewer',
             '--copyright', 'Copyright (c) 2024 k7t3. All rights reserved.',
             '--vendor', 'k7t3',
-            '--app-version', project.version.toString(),
+            '--app-version', version,
             '--dest', deployDir,
             '--module-path', 'build/javafx',
             '--add-modules', "${-> jdkModules},${javafx.modules.join(',')}",
             '--input', 'build/libs',
             '--main-jar', "${-> tasks.jar.archiveFile.get().asFile.name}",
             '--main-class', application.mainClass.get(),
-            '--license-file', 'docs/license.md'
+            '--license-file', 'docs/license.md',
+            '--java-options', '"-Dapp.version="' + appVersion
     ]
 
     def os = org.gradle.internal.os.OperatingSystem.current()

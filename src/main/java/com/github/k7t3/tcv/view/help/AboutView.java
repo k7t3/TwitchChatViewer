@@ -1,6 +1,7 @@
 package com.github.k7t3.tcv.view.help;
 
 import atlantafx.base.theme.Styles;
+import com.github.k7t3.tcv.app.core.Version;
 import com.github.k7t3.tcv.app.help.AboutViewModel;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
@@ -27,6 +28,9 @@ public class AboutView implements FxmlView<AboutViewModel>, Initializable {
     private Label versionLabel;
 
     @FXML
+    private Label copyrightLabel;
+
+    @FXML
     private Button gitHubButton;
 
     @FXML
@@ -48,6 +52,10 @@ public class AboutView implements FxmlView<AboutViewModel>, Initializable {
     public void initialize(URL url, ResourceBundle resourceBundle) {
         titleLabel.getStyleClass().addAll(Styles.TITLE_3);
         gitHubButton.getStyleClass().addAll(Styles.BUTTON_CIRCLE, Styles.FLAT);
+        copyrightLabel.getStyleClass().addAll(Styles.TEXT_SMALL);
+        versionLabel.getStyleClass().addAll(Styles.TEXT_SMALL);
+
+        versionLabel.setText(Version.of().toString());
     }
 
     @FXML

@@ -2,9 +2,8 @@ package com.github.k7t3.tcv.app.prefs;
 
 import com.github.k7t3.tcv.app.chat.filter.ChatFilters;
 import com.github.k7t3.tcv.app.chat.filter.UserFilterEntry;
-import com.github.k7t3.tcv.app.core.EditableViewModelBase;
+import com.github.k7t3.tcv.app.model.EditableViewModelBase;
 import com.github.k7t3.tcv.app.event.UserFilteringEvent;
-import com.github.k7t3.tcv.domain.event.EventSubscribers;
 import javafx.beans.Observable;
 import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.ReadOnlyStringWrapper;

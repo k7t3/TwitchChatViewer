@@ -1,6 +1,6 @@
 package com.github.k7t3.tcv.app.channel;
 
-import com.github.k7t3.tcv.app.core.AbstractViewModel;
+import com.github.k7t3.tcv.app.model.AbstractViewModel;
 import com.github.k7t3.tcv.app.core.ExceptionHandler;
 import com.github.k7t3.tcv.domain.Twitch;
 import com.github.k7t3.tcv.domain.channel.ChannelFinder;

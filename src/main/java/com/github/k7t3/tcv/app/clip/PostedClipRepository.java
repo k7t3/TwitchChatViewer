@@ -1,6 +1,6 @@
 package com.github.k7t3.tcv.app.clip;
 
-import com.github.k7t3.tcv.app.core.AbstractViewModel;
+import com.github.k7t3.tcv.app.model.AbstractViewModel;
 import com.github.k7t3.tcv.app.event.ClipPostedAppEvent;
 import com.github.k7t3.tcv.app.reactive.DownCastFXSubscriber;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;

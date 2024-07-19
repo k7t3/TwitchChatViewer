@@ -1,6 +1,6 @@
 package com.github.k7t3.tcv.app.channel;
 
-import com.github.k7t3.tcv.app.core.AbstractViewModel;
+import com.github.k7t3.tcv.app.model.AbstractViewModel;
 import com.github.k7t3.tcv.app.group.ChannelGroupRepository;
 import com.github.k7t3.tcv.app.reactive.DownCastFXSubscriber;
 import com.github.k7t3.tcv.app.service.FXTask;
@@ -14,13 +14,10 @@ import com.github.k7t3.tcv.domain.event.channel.ChannelOnlineEvent;
 import com.github.k7t3.tcv.domain.event.channel.StreamStateUpdateEvent;
 import com.github.k7t3.tcv.domain.event.channel.TwitchChannelEvent;
 import com.github.k7t3.tcv.reactive.FlowableSubscriber;
-import javafx.application.Platform;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;

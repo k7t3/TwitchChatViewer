@@ -1,6 +1,6 @@
 package com.github.k7t3.tcv.app.chat.filter;
 
-import com.github.k7t3.tcv.app.core.AbstractViewModel;
+import com.github.k7t3.tcv.app.model.AbstractViewModel;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.domain.chat.ChatData;
 import com.github.k7t3.tcv.domain.event.EventSubscribers;

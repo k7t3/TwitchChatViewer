@@ -2,7 +2,7 @@ package com.github.k7t3.tcv.app.service;
 
 import com.github.k7t3.tcv.app.channel.ChannelViewModelRepository;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
-import com.github.k7t3.tcv.app.core.AbstractViewModel;
+import com.github.k7t3.tcv.app.model.AbstractViewModel;
 import com.github.k7t3.tcv.app.event.LiveNotificationEvent;
 import com.github.k7t3.tcv.app.reactive.DownCastFXSubscriber;
 import com.github.k7t3.tcv.domain.event.EventSubscribers;

@@ -5,7 +5,7 @@ import com.github.k7t3.tcv.app.channel.TwitchChannelListViewModel;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
 import com.github.k7t3.tcv.app.clip.PostedClipRepository;
-import com.github.k7t3.tcv.app.core.AbstractViewModel;
+import com.github.k7t3.tcv.app.model.AbstractViewModel;
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.event.ClientLoadedEvent;
 import com.github.k7t3.tcv.app.event.LoginEvent;

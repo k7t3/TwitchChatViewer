@@ -38,7 +38,6 @@ class ChatMessageParserTest {
         var emoji = message.getFirst();
         assertEquals(ChatMessageFragment.Type.EMOJI, emoji.type());
         assertEquals("\uD83D\uDE42", emoji.text());
-        System.out.println("絵文字の長さ: " + emoji.text().length());
 
         var space = message.get(1);
         assertEquals(ChatMessageFragment.Type.TEXT, space.type());
