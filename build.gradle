@@ -73,6 +73,8 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter'
 
     testImplementation 'org.testfx:testfx-junit5:4.0.18'
+    testImplementation 'org.testfx:openjfx-monocle:21.0.2' // headless
+
     testImplementation 'org.assertj:assertj-core:3.13.2'
     testImplementation 'org.hamcrest:hamcrest:2.1'
 
@@ -140,6 +142,7 @@ tasks.register('make', Exec) {
             '--description', 'Chat Viewer for twitch.tv',
             '--copyright', 'Copyright (c) 2024 k7t3. All rights reserved.',
             '--vendor', 'k7t3',
+            // バージョンの末尾に文字があると違反になるため取り除く処置
             '--app-version', version.toString().replaceAll('\\D+$', ''),
             '--dest', deployDir,
             '--module-path', 'build/javafx',
@@ -179,5 +182,14 @@ tasks.register('make', Exec) {
 }
 
 test {
+    if (!project.hasProperty("headless") || project.headless == "true") {
+        // execute TestFX Tests headless -- switch off by using ./gradlew -Pheadless=false
+        systemProperty("testfx.robot", "glass")
+        systemProperty("testfx.headless", "true")
+        systemProperty("prism.order", "sw")
+        systemProperty("prism.text", "t2k")
+        systemProperty("headless.geometry", "1600x1200-32")
+    }
+
     useJUnitPlatform()
 }

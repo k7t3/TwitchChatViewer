@@ -20,6 +20,7 @@ import com.github.k7t3.tcv.LoggerProvider;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -31,15 +32,15 @@ import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class EmojiTest extends ApplicationTest {
+class EmojiTest {
 
-    private Logger log;
+    private static Logger log;
 
     private Emoji emoji;
 
-    @Override
-    public void start(Stage stage) throws Exception {
-        log = LoggerProvider.getLogger(this.getClass());
+    @BeforeAll
+    static void setUpAll() {
+        log = LoggerProvider.getLogger(EmojiTest.class);
     }
 
     @BeforeEach
