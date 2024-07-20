@@ -1,7 +1,10 @@
 # Twitch Chat Viewer
 
-このアプリケーションはライブストリーミングサービス[Twitch](https://www.twitch.tv/)の非公式チャットビューアです。
-配信をより楽しく、快適に視聴することを目的としています！
+[![Java CI](https://github.com/k7t3/TwitchChatViewer/actions/workflows/test.yaml/badge.svg)](https://github.com/k7t3/TwitchChatViewer/actions/workflows/test.yaml)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
+このアプリケーションはライブストリーミングサービス[Twitch](https://www.twitch.tv/)の非公式チャットビューアです。  
+チャットを快適に視聴することを目的にしています！
 
 !["メインビュー"](docs/images/01.main.png)
 
