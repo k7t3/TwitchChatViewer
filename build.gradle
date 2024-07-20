@@ -5,8 +5,7 @@ plugins {
 }
 
 group = 'io.github.k7t3'
-version = '1.0.0'
-def appVersion = project.findProperty("app.version") ?: version
+version = project.findProperty("app.version") ?: '1.0.0-dev'
 
 repositories {
     mavenCentral()
@@ -27,8 +26,6 @@ compileTestJava {
 
 javafx {
     version = '22.0.1'
-    // 非モジュールアプリケーション向けに完全なモジュール定義
-    // https://github.com/openjfx/javafx-gradle-plugin
     modules = [ 'javafx.controls', 'javafx.fxml', 'javafx.swing' ]
 }
 
@@ -44,6 +41,7 @@ dependencies {
     implementation 'org.slf4j:slf4j-jdk14:2.0.11'
 
     // Twitchクライアント
+    // TODO 必要なモジュールのみにする
     implementation 'com.github.twitch4j:twitch4j:1.21.0'
 
     // キャッシュ
@@ -101,7 +99,7 @@ tasks.register('checkJDKModules', Exec) {
             '--ignore-missing-deps',
             '--print-module-deps',
             '--class-path', "build/libs/*${s}build/javafx/*",
-            "build/libs/tcv-${appVersion}.jar"
+            "build/libs/${-> tasks.jar.archiveFile.get().asFile.name}"
 
     standardOutput = new ByteArrayOutputStream()
     ext.output = { return standardOutput.toString().trim() }
@@ -139,10 +137,10 @@ tasks.register('make', Exec) {
             'jpackage',
             '--verbose',
             '--name', 'Twitch Chat Viewer',
-            '--description', 'Twitch Chat Viewer',
+            '--description', 'Chat Viewer for twitch.tv',
             '--copyright', 'Copyright (c) 2024 k7t3. All rights reserved.',
             '--vendor', 'k7t3',
-            '--app-version', version,
+            '--app-version', version.toString().replaceAll('\\D+$', ''),
             '--dest', deployDir,
             '--module-path', 'build/javafx',
             '--add-modules', "${-> jdkModules},${javafx.modules.join(',')}",
@@ -150,13 +148,13 @@ tasks.register('make', Exec) {
             '--main-jar', "${-> tasks.jar.archiveFile.get().asFile.name}",
             '--main-class', application.mainClass.get(),
             '--license-file', 'docs/license.md',
-            '--java-options', '"-Dapp.version="' + appVersion
+            '--java-options', "'-Dapp.version=${version}'"
     ]
 
     def os = org.gradle.internal.os.OperatingSystem.current()
 
     if (os.isWindows()) {
-        commandArgs.addAll('--type', 'exe')
+        commandArgs.addAll('--type', 'msi')
         commandArgs.addAll('--icon', 'src/main/resources/icons/TwitchChatViewer.ico')
         commandArgs.addAll('--win-shortcut')
         commandArgs.addAll('--win-menu')
@@ -169,7 +167,7 @@ tasks.register('make', Exec) {
         commandArgs.addAll('--icon', 'src/main/resources/icons/TwitchChatViewer.icns')
         commandArgs.addAll('--mac-package-identifier', 'TwitchChatViewer')
     }
-    else if (os.isLinux()){
+    else if (os.isLinux()) {
         commandArgs.addAll('--type', 'deb')
         commandArgs.addAll('--icon', 'src/main/resources/icons/TwitchChatViewer-64.png')
         commandArgs.addAll('--linux-menu-group', 'Network')

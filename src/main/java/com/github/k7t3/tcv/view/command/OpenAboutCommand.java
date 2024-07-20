@@ -25,6 +25,7 @@ public class OpenAboutCommand extends BasicCommand {
 
         var scene = new Scene(view);
         var stage = new Stage();
+        stage.getIcons().addAll(Resources.getIcons());
         stage.setScene(scene);
         stage.setTitle(Resources.getString("about.application"));
         stage.setResizable(false);
