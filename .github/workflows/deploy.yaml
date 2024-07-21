@@ -23,7 +23,7 @@ jobs:
         # WindowsランナーはWiX Toolset 3.14.1.8722入り
         # MacOSはIntel CPU(macos-13)とApple Silicon CPU(macos-14)
         # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners
-        os: [ubuntu-latest, windows-latest, macos-13, macos-14]
+        os: [windows-latest, macos-13, macos-14]
     runs-on: ${{ matrix.os }}
     needs: get_version
     steps:
