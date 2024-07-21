@@ -5,7 +5,7 @@ on:
   push:
     paths-ignore:
       - "**/*.md"
-      - "docs/*"
+      - "docs/**"
 
 jobs:
   build:
