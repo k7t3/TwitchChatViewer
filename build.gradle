@@ -157,13 +157,16 @@ tasks.register('make', Exec) {
     def os = org.gradle.internal.os.OperatingSystem.current()
 
     if (os.isWindows()) {
-        commandArgs.addAll('--type', 'msi')
+        commandArgs.addAll('--type', 'exe')
         commandArgs.addAll('--icon', 'src/main/resources/icons/TwitchChatViewer.ico')
         commandArgs.addAll('--win-shortcut')
         commandArgs.addAll('--win-menu')
+        commandArgs.addAll('--win-menu-group', 'TwitchChatViewer')
         commandArgs.addAll('--win-per-user-install')
-        commandArgs.addAll('--win-shortcut')
+        commandArgs.addAll('--win-shortcut-prompt')
         commandArgs.addAll('--win-upgrade-uuid', 'b78817e8-f9b8-4650-bf0a-34bca5ff4106')
+        commandArgs.addAll('--win-help-url', 'https://github.com/k7t3/TwitchChatViewer')
+        commandArgs.addAll('--win-update-url', 'https://github.com/k7t3/TwitchChatViewer/releases')
     }
     else if (os.isMacOsX()) {
         commandArgs.addAll('--type', 'dmg')
