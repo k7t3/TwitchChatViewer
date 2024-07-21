@@ -183,18 +183,12 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         // ログインに成功したときのハンドラ
         viewModel.subscribe(LoginEvent.class, this::onLoginEvent);
 
-        // メニューバーは常に非表示とする。
-        // メニューバーを必要とするのはmacOSのみだが、
-        // そのmacOSに関してはシステムメニューバーを使用する。
         // システムメニューバーを有効化すると本来メニューバーがあった位置に
         // パディングが残るため、visibleとmanagedを常に無効化することで
         // 何もなかったかのように見せかける。
         menuBar.setVisible(false);
         menuBar.setManaged(false);
-
-        if (OS.isMac()) {
-            menuBar.setUseSystemMenuBar(true);
-        }
+        menuBar.setUseSystemMenuBar(true);
 
         initLiveNotificator();
 
