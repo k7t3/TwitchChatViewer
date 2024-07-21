@@ -1,0 +1,7 @@
+.filter-controls-pane {
+    -fx-border-color: transparent transparent -color-border-default transparent;
+}
+
+.keyword-filter-cell: invalid {
+    -fx-background-color: -color-danger-subtle;
+}

@@ -1,15 +1,31 @@
+/*
+ * Copyright 2024 k7t3
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.github.k7t3.tcv.prefs;
 
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
+import com.github.k7t3.tcv.view.chat.ChatFont;
+import javafx.beans.property.*;
 
 import java.util.Map;
 import java.util.Objects;
 import java.util.prefs.Preferences;
 
 public class ChatPreferences extends PreferencesBase {
+
+    private static final int DEFAULT_CHAT_CACHE_SIZE = 256;
 
     /**
      * チャットビューで適用されるフォントファミリ
@@ -32,30 +48,39 @@ public class ChatPreferences extends PreferencesBase {
     /** 透過ウインドウを常に最前面に表示するか*/
     private static final String FLOATABLE_CHAT_TOP = "floatable.chat.always.top";
 
+    /**
+     * チャンネルビューごとにチャットをキャッシュする数
+     */
+    private static final String CHAT_CACHE_SIZE = "chat.cache.size";
+
     private ObjectProperty<ChatFont> font;
 
     private BooleanProperty showUserName;
 
     private BooleanProperty showBadges;
 
-    private DoubleProperty floatableChatOpacity;
+    private DoubleProperty floatingChatOpacity;
 
-    private BooleanProperty floatableChatAlwaysTop;
+    private BooleanProperty floatingChatAlwaysTop;
+
+    private IntegerProperty chatCacheSize;
 
     ChatPreferences(Preferences preferences, Map<String, Object> defaults) {
         super(preferences, defaults);
 
-        defaults.put(CHAT_FONT_FAMILY, ChatFont.DEFAULT.getFamily());
+        defaults.put(CHAT_FONT_FAMILY, ChatFont.getDefault().serialize());
         defaults.put(CHAT_SHOW_USERNAME, Boolean.TRUE);
         defaults.put(CHAT_SHOW_BADGES, Boolean.TRUE);
         defaults.put(FLOATABLE_CHAT_OPACITY, 0.7d);
         defaults.put(FLOATABLE_CHAT_TOP, Boolean.TRUE);
+        defaults.put(CHAT_CACHE_SIZE, DEFAULT_CHAT_CACHE_SIZE);
     }
 
     @Override
     protected void readFromPreferences() {
-        if (!Objects.equals(getFont().getFamily(), get(CHAT_FONT_FAMILY))) {
-            setFont(new ChatFont(CHAT_FONT_FAMILY));
+        var font = ChatFont.deserialize(getByteArray(CHAT_FONT_FAMILY));
+        if (!Objects.equals(getFont(), font)) {
+            setFont(font);
         }
 
         if (isShowBadges() != getBoolean(CHAT_SHOW_BADGES)) {
@@ -66,19 +91,25 @@ public class ChatPreferences extends PreferencesBase {
             setShowUserName(getBoolean(CHAT_SHOW_USERNAME));
         }
 
-        if (isFloatableChatAlwaysTop() != getBoolean(FLOATABLE_CHAT_TOP)) {
-            setFloatableChatAlwaysTop(getBoolean(FLOATABLE_CHAT_TOP));
+        if (getFloatingChatAlwaysTop() != getBoolean(FLOATABLE_CHAT_TOP)) {
+            setFloatingChatAlwaysTop(getBoolean(FLOATABLE_CHAT_TOP));
         }
 
-        if (getFloatableChatOpacity() != getDouble(FLOATABLE_CHAT_OPACITY)) {
-            setFloatableChatOpacity(getDouble(FLOATABLE_CHAT_OPACITY));
+        if (getFloatingChatOpacity() != getDouble(FLOATABLE_CHAT_OPACITY)) {
+            setFloatingChatOpacity(getDouble(FLOATABLE_CHAT_OPACITY));
+        }
+
+        var chatCacheSize = getInt(CHAT_CACHE_SIZE);
+        if (chatCacheSize != getChatCacheSize()) {
+            setChatCacheSize(chatCacheSize);
         }
     }
 
     @Override
     protected void writeToPreferences() {
         if (font != null) {
-            preferences.put(CHAT_FONT_FAMILY, font.get().getFamily());
+            var bytes = font.get().serialize();
+            preferences.putByteArray(CHAT_FONT_FAMILY, bytes);
         }
 
         if (showUserName != null) {
@@ -89,12 +120,12 @@ public class ChatPreferences extends PreferencesBase {
             preferences.putBoolean(CHAT_SHOW_BADGES, showBadges.get());
         }
 
-        if (floatableChatOpacity != null) {
-            preferences.putDouble(FLOATABLE_CHAT_OPACITY, floatableChatOpacity.get());
+        if (floatingChatOpacity != null) {
+            preferences.putDouble(FLOATABLE_CHAT_OPACITY, floatingChatOpacity.get());
         }
 
-        if (floatableChatAlwaysTop != null) {
-            preferences.putBoolean(FLOATABLE_CHAT_TOP, floatableChatAlwaysTop.get());
+        if (floatingChatAlwaysTop != null) {
+            preferences.putBoolean(FLOATABLE_CHAT_TOP, floatingChatAlwaysTop.get());
         }
     }
 
@@ -102,9 +133,7 @@ public class ChatPreferences extends PreferencesBase {
 
     public ObjectProperty<ChatFont> fontProperty() {
         if (font == null) {
-            var family = get(CHAT_FONT_FAMILY);
-            font = new SimpleObjectProperty<>(new ChatFont(family));
-            font.addListener((ob, o, n) -> preferences.put(CHAT_FONT_FAMILY, n.getFamily()));
+            font = createBytesObjectProperty(CHAT_FONT_FAMILY, ChatFont::deserialize, ChatFont::serialize);
         }
         return font;
     }
@@ -125,17 +154,25 @@ public class ChatPreferences extends PreferencesBase {
     public boolean isShowBadges() { return showBadgesProperty().get(); }
     public void setShowBadges(boolean showBadges) { this.showBadgesProperty().set(showBadges); }
 
-    public DoubleProperty floatableChatOpacityProperty() {
-        if (floatableChatOpacity == null) floatableChatOpacity = createDoubleProperty(FLOATABLE_CHAT_OPACITY);
-        return floatableChatOpacity;
+    public DoubleProperty floatingChatOpacityProperty() {
+        if (floatingChatOpacity == null) floatingChatOpacity = createDoubleProperty(FLOATABLE_CHAT_OPACITY);
+        return floatingChatOpacity;
     }
-    public double getFloatableChatOpacity() { return floatableChatOpacityProperty().get(); }
-    public void setFloatableChatOpacity(double floatableChatOpacity) { floatableChatOpacityProperty().set(floatableChatOpacity); }
+    public double getFloatingChatOpacity() { return floatingChatOpacityProperty().get(); }
+    public void setFloatingChatOpacity(double floatingChatOpacity) { floatingChatOpacityProperty().set(floatingChatOpacity); }
 
-    public BooleanProperty floatableChatAlwaysTopProperty() {
-        if (floatableChatAlwaysTop == null) floatableChatAlwaysTop = createBooleanProperty(FLOATABLE_CHAT_TOP);
-        return floatableChatAlwaysTop;
+    public BooleanProperty floatingChatAlwaysTopProperty() {
+        if (floatingChatAlwaysTop == null) floatingChatAlwaysTop = createBooleanProperty(FLOATABLE_CHAT_TOP);
+        return floatingChatAlwaysTop;
     }
-    public boolean isFloatableChatAlwaysTop() { return floatableChatAlwaysTopProperty().get(); }
-    public void setFloatableChatAlwaysTop(boolean floatableChatAlwaysTop) { floatableChatAlwaysTopProperty().set(floatableChatAlwaysTop); }
+    public boolean getFloatingChatAlwaysTop() { return floatingChatAlwaysTopProperty().get(); }
+    public void setFloatingChatAlwaysTop(boolean floatingChatAlwaysTop) { floatingChatAlwaysTopProperty().set(floatingChatAlwaysTop); }
+
+    public IntegerProperty chatCacheSizeProperty() {
+        if (chatCacheSize == null) chatCacheSize = createIntegerProperty(CHAT_CACHE_SIZE);
+        return chatCacheSize;
+    }
+    public int getChatCacheSize() { return chatCacheSizeProperty().get(); }
+    public void setChatCacheSize(int chatCacheSize) { chatCacheSizeProperty().set(chatCacheSize); }
+
 }

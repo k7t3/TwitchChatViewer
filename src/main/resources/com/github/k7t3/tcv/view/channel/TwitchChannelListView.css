@@ -1,0 +1,20 @@
+.follow-channels-view {
+}
+
+.names-container {
+  -fx-padding: 0 0 0 10;
+  -fx-min-width: 1;
+}
+
+.user-name-label {
+  -fx-font-weight: bold;
+}
+
+.online-mark {
+  -fx-fill: red;
+}
+
+.channel-list-cell: unfollow {
+  -fx-border-width: 0 0 0 4;
+  -fx-border-color: -color-neutral-muted;
+}

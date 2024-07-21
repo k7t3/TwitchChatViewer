@@ -1,19 +1,32 @@
+/*
+ * Copyright 2024 k7t3
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.github.k7t3.tcv.domain.channel;
 
 import com.github.k7t3.tcv.domain.Twitch;
 import com.github.k7t3.tcv.domain.chat.ChatBadge;
 import com.github.k7t3.tcv.domain.chat.ChatRoom;
-import com.github.k7t3.tcv.domain.core.EventExecutorWrapper;
-import com.github.philippheuer.events4j.api.domain.IDisposable;
-import com.github.twitch4j.events.*;
+import com.github.k7t3.tcv.domain.chat.ChatRoomEventProvider;
 import com.github.twitch4j.helix.domain.ChatBadgeSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -22,122 +35,37 @@ public class TwitchChannel {
     private static final Logger LOGGER = LoggerFactory.getLogger(TwitchChannel.class);
 
     private final Broadcaster broadcaster;
-
     private final AtomicReference<StreamInfo> streamRef;
+    private final Twitch twitch;
+    private final ChatRoomEventProvider chatEventProvider;
+    private final ChannelRepository repository;
 
     private List<ChatBadgeSet> badgeSets = null;
-
     private final AtomicBoolean badgeLoaded = new AtomicBoolean(false);
 
-    private final Twitch twitch;
-
-    private final EventExecutorWrapper eventExecutor;
-
-    private final CopyOnWriteArraySet<TwitchChannelListener> listeners = new CopyOnWriteArraySet<>();
-
     private boolean following = false;
+    private boolean persistent = false;
 
-    public TwitchChannel(
+    TwitchChannel(
             Twitch twitch,
             Broadcaster broadcaster,
-            StreamInfo stream
+            StreamInfo stream,
+            ChatRoomEventProvider chatEventProvider,
+            ChannelRepository repository
     ) {
         this.twitch = twitch;
-        this.eventExecutor = twitch.getEventExecutor();
         this.broadcaster = broadcaster;
         this.streamRef = new AtomicReference<>(stream);
+        this.chatEventProvider = chatEventProvider;
+        this.repository = repository;
     }
 
-    private List<IDisposable> eventSubs;
-
-    void updateEventSubs() {
-        clearEventSubs();
-
-        var client = twitch.getClient();
-        var eventManager = client.getEventManager();
-
-        eventSubs = new ArrayList<>();
-
-        eventSubs.add(eventManager.onEvent(ChannelGoLiveEvent.class, this::onChannelGoLiveEvent));
-        eventSubs.add(eventManager.onEvent(ChannelGoOfflineEvent.class, this::onChannelGoOfflineEvent));
-        eventSubs.add(eventManager.onEvent(ChannelViewerCountUpdateEvent.class, this::onChannelViewerCountUpdateEvent));
-        eventSubs.add(eventManager.onEvent(ChannelChangeTitleEvent.class, this::onChannelChangeTitleEvent));
-        eventSubs.add(eventManager.onEvent(ChannelChangeGameEvent.class, this::onChannelChangeGameEvent));
-    }
-
-    private void clearEventSubs() {
-        if (eventSubs == null) {
-            return;
-        }
-
-        for (var sub : eventSubs) {
-            sub.dispose();
-        }
-        eventSubs.clear();
-    }
-
-    private void onChannelChangeGameEvent(ChannelChangeGameEvent e) {
-        if (!e.getChannel().getId().equalsIgnoreCase(broadcaster.getUserId())) {
-            return;
-        }
-
-        var stream = StreamInfo.of(e.getStream());
-        setStream(stream);
-        for (var listener : listeners)
-            eventExecutor.submit(() -> listener.onGameChanged(this, stream));
-    }
-
-    private void onChannelChangeTitleEvent(ChannelChangeTitleEvent e) {
-        if (!e.getChannel().getId().equalsIgnoreCase(broadcaster.getUserId())) {
-            return;
-        }
-
-        var stream = StreamInfo.of(e.getStream());
-        setStream(stream);
-        for (var listener : listeners)
-            eventExecutor.submit(() -> listener.onTitleChanged(this, stream));
-    }
-
-    private void onChannelViewerCountUpdateEvent(ChannelViewerCountUpdateEvent e) {
-        if (!e.getChannel().getId().equalsIgnoreCase(broadcaster.getUserId())) {
-            return;
-        }
-
-        var stream = StreamInfo.of(e.getStream());
-        setStream(stream);
-        for (var listener : listeners)
-            eventExecutor.submit(() -> listener.onViewerCountUpdated(this, stream));
-    }
-
-    private void onChannelGoOfflineEvent(ChannelGoOfflineEvent e) {
-        if (!e.getChannel().getId().equalsIgnoreCase(broadcaster.getUserId())) {
-            return;
-        }
-
-        setStream(null);
-        for (var listener : listeners)
-            eventExecutor.submit(() -> listener.onOffline(this));
-    }
-
-    private void onChannelGoLiveEvent(ChannelGoLiveEvent e) {
-        if (!e.getChannel().getId().equalsIgnoreCase(broadcaster.getUserId())) {
-            return;
-        }
-
-        var stream = StreamInfo.of(e.getStream());
-        setStream(stream);
-        for (var listener : listeners)
-            eventExecutor.submit(() -> listener.onOnline(this, stream));
-    }
-
-    public void addListener(TwitchChannelListener listener) {
-        listeners.add(listener);
-    }
-
-    public void removeListener(TwitchChannelListener listener) {
-        listeners.remove(listener);
-    }
-
+    /**
+     * チャンネルで使用するバッジをロードする
+     * <p>
+     *     すでにロード済みであった場合は何もしない
+     * </p>
+     */
     public void loadBadgesIfNotLoaded() {
         if (badgeLoaded.get()) return;
 
@@ -149,47 +77,49 @@ public class TwitchChannel {
 
     private ChatRoom chatRoom;
 
+    /**
+     * このチャンネルのチャットルームに参加しているかを返す
+     * @return このチャンネルのチャットルームに参加しているか
+     */
     public boolean isChatJoined() {
         return chatRoom != null;
     }
 
-    public ChatRoom getChatRoom() {
+    /**
+     * チャットルームに参加する
+     * <p>
+     *     すでに参加済みであればそのインスタンスを返す
+     * </p>
+     * @return チャットルーム
+     */
+    public ChatRoom getOrJoinChatRoom() {
         if (chatRoom != null) return chatRoom;
         LOGGER.info("{} chat room created", getChannelName());
 
         chatRoom = new ChatRoom(twitch, broadcaster, this);
-        chatRoom.listen();
+        chatEventProvider.onJoined(chatRoom);
 
         return chatRoom;
     }
 
+    /**
+     * チャットルームから退出する
+     * <p>
+     *     参加済みでなければ何もしない
+     * </p>
+     */
     public void leaveChat() {
         if (chatRoom == null) return;
 
         chatRoom.leave();
+        chatEventProvider.onLeft(chatRoom);
 
         // フォローされていないチャンネルはチャットを使い終わった時点でクリアする
-        if (!isFollowing()) {
-
-            var repository = twitch.getChannelRepository();
+        if (!isPersistent()) {
             repository.releaseChannel(this);
-
-            clearEventSubs();
         }
 
         chatRoom = null;
-    }
-
-    void clear() {
-        // チャットを使用している場合は退出
-        if (chatRoom != null) {
-            chatRoom.leave();
-        }
-
-        // チャンネル監視イベントをクリア
-        clearEventSubs();
-
-        listeners.clear();
     }
 
     public Broadcaster getBroadcaster() {
@@ -208,18 +138,34 @@ public class TwitchChannel {
         return streamRef.get();
     }
 
-    public boolean isStreaming() {
-        return streamRef.get() != null;
+    public boolean isFollowing() {
+        return following;
     }
 
     public void setFollowing(boolean following) {
         this.following = following;
     }
 
-    public boolean isFollowing() {
-        return following;
+    public boolean isStreaming() {
+        return streamRef.get() != null;
     }
 
+    public void setPersistent(boolean persistent) {
+        this.persistent = persistent;
+    }
+
+    public boolean isPersistent() {
+        return persistent;
+    }
+
+    /**
+     * バッジのURLを取得する
+     * <p>
+     *     {@link TwitchChannel#loadBadgesIfNotLoaded()}を事前に実行しておく必要がある
+     * </p>
+     * @param badge URLを取得したいバッジ
+     * @return バッジのイメージURL
+     */
     public Optional<String> getBadgeUrl(ChatBadge badge) {
         if (!badgeLoaded.get()) throw new IllegalStateException("badges have not been loaded");
 
@@ -234,6 +180,20 @@ public class TwitchChannel {
         }
 
         return Optional.empty();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof TwitchChannel that)) return false;
+        return persistent == that.persistent
+               && Objects.equals(broadcaster, that.broadcaster)
+               && Objects.equals(chatRoom, that.chatRoom);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(broadcaster, persistent, chatRoom);
     }
 
     @Override

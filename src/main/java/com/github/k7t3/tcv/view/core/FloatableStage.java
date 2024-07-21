@@ -1,9 +1,22 @@
+/*
+ * Copyright 2024 k7t3
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.github.k7t3.tcv.view.core;
 
-import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.*;
 import javafx.geometry.Insets;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
@@ -25,6 +38,7 @@ public class FloatableStage extends Stage {
     private static final double EXPANDABLE_BLOCK_SIZE = 12;
 
     private final DoubleProperty expandableBlockSize = new SimpleDoubleProperty(EXPANDABLE_BLOCK_SIZE);
+    private final BooleanProperty expandable = new SimpleBooleanProperty(true);
 
     private final ObjectProperty<Node> content = new SimpleObjectProperty<>();
 
@@ -70,6 +84,10 @@ public class FloatableStage extends Stage {
     public DoubleProperty backgroundOpacityProperty() { return backgroundOpacity; }
     public double getBackgroundOpacity() { return backgroundOpacity.get(); }
     public void setBackgroundOpacity(double backgroundOpacity) { this.backgroundOpacity.set(backgroundOpacity); }
+
+    public BooleanProperty expandableProperty() { return expandable; }
+    public boolean isExpandable() { return expandable.get(); }
+    public void setExpandable(boolean expandable) { this.expandable.set(expandable); }
 
     private class FloatableScene extends Scene {
 
@@ -118,7 +136,7 @@ public class FloatableStage extends Stage {
 
             // ウインドウ伸長用コントロール
             expandableTopEdge = new Rectangle();
-            expandableTopEdge.setCursor(Cursor.N_RESIZE);
+            expandableTopEdge.cursorProperty().bind(expandable.map(x -> x ? Cursor.N_RESIZE : null));
             expandableTopEdge.setFill(Color.TRANSPARENT);
             expandableTopEdge.translateXProperty().bind(expandableBlockSize);
             expandableTopEdge.setTranslateY(0);
@@ -126,7 +144,7 @@ public class FloatableStage extends Stage {
             expandableTopEdge.heightProperty().bind(expandableBlockSize);
 
             expandableRightEdge = new Rectangle();
-            expandableRightEdge.setCursor(Cursor.E_RESIZE);
+            expandableRightEdge.cursorProperty().bind(expandable.map(x -> x ? Cursor.E_RESIZE : null));
             expandableRightEdge.setFill(Color.TRANSPARENT);
             expandableRightEdge.translateXProperty().bind(root.widthProperty().subtract(expandableBlockSize));
             expandableRightEdge.translateYProperty().bind(expandableBlockSize);
@@ -134,7 +152,7 @@ public class FloatableStage extends Stage {
             expandableRightEdge.heightProperty().bind(root.heightProperty().subtract(expandableBlockSize.multiply(2)));
 
             expandableBottomEdge = new Rectangle();
-            expandableBottomEdge.setCursor(Cursor.S_RESIZE);
+            expandableBottomEdge.cursorProperty().bind(expandable.map(x -> x ? Cursor.S_RESIZE : null));
             expandableBottomEdge.setFill(Color.TRANSPARENT);
             expandableBottomEdge.translateXProperty().bind(expandableBlockSize);
             expandableBottomEdge.translateYProperty().bind(root.heightProperty().subtract(expandableBlockSize));
@@ -142,7 +160,7 @@ public class FloatableStage extends Stage {
             expandableBottomEdge.heightProperty().bind(expandableBlockSize);
 
             expandableLeftEdge = new Rectangle();
-            expandableLeftEdge.setCursor(Cursor.W_RESIZE);
+            expandableLeftEdge.cursorProperty().bind(expandable.map(x -> x ? Cursor.W_RESIZE : null));
             expandableLeftEdge.setFill(Color.TRANSPARENT);
             expandableLeftEdge.setTranslateX(0);
             expandableLeftEdge.translateYProperty().bind(expandableBlockSize);
@@ -150,7 +168,7 @@ public class FloatableStage extends Stage {
             expandableLeftEdge.heightProperty().bind(root.heightProperty().subtract(expandableBlockSize.multiply(2)));
 
             expandableTopLeftNode = new Rectangle();
-            expandableTopLeftNode.setCursor(Cursor.NW_RESIZE);
+            expandableTopLeftNode.cursorProperty().bind(expandable.map(x -> x ? Cursor.NW_RESIZE : null));
             expandableTopLeftNode.setFill(Color.TRANSPARENT);
             expandableTopLeftNode.setTranslateX(0);
             expandableTopLeftNode.setTranslateY(0);
@@ -158,7 +176,7 @@ public class FloatableStage extends Stage {
             expandableTopLeftNode.heightProperty().bind(expandableBlockSize);
 
             expandableTopRightNode = new Rectangle();
-            expandableTopRightNode.setCursor(Cursor.NE_RESIZE);
+            expandableTopRightNode.cursorProperty().bind(expandable.map(x -> x ? Cursor.NE_RESIZE : null));
             expandableTopRightNode.setFill(Color.TRANSPARENT);
             expandableTopRightNode.translateXProperty().bind(root.widthProperty().subtract(expandableBlockSize));
             expandableTopRightNode.setTranslateY(0);
@@ -166,7 +184,7 @@ public class FloatableStage extends Stage {
             expandableTopRightNode.heightProperty().bind(expandableBlockSize);
 
             expandableBottomRightNode = new Rectangle();
-            expandableBottomRightNode.setCursor(Cursor.SE_RESIZE);
+            expandableBottomRightNode.cursorProperty().bind(expandable.map(x -> x ? Cursor.SE_RESIZE : null));
             expandableBottomRightNode.setFill(Color.TRANSPARENT);
             expandableBottomRightNode.translateXProperty().bind(root.widthProperty().subtract(expandableBlockSize));
             expandableBottomRightNode.translateYProperty().bind(root.heightProperty().subtract(expandableBlockSize));
@@ -174,7 +192,7 @@ public class FloatableStage extends Stage {
             expandableBottomRightNode.heightProperty().bind(expandableBlockSize);
 
             expandableBottomLeftNode = new Rectangle();
-            expandableBottomLeftNode.setCursor(Cursor.SW_RESIZE);
+            expandableBottomLeftNode.cursorProperty().bind(expandable.map(x -> x ? Cursor.SW_RESIZE : null));
             expandableBottomLeftNode.setFill(Color.TRANSPARENT);
             expandableBottomLeftNode.setTranslateX(0);
             expandableBottomLeftNode.translateYProperty().bind(root.heightProperty().subtract(expandableBlockSize));
@@ -197,6 +215,7 @@ public class FloatableStage extends Stage {
 
         private void installExpandEvent() {
             expandableTopEdge.setOnMouseDragged(e -> {
+                if (!expandable.get()) return;
                 if (e.getButton() != MouseButton.PRIMARY) {
                     return;
                 }
@@ -205,6 +224,7 @@ public class FloatableStage extends Stage {
                 e.consume();
             });
             expandableRightEdge.setOnMouseDragged(e -> {
+                if (!expandable.get()) return;
                 if (e.getButton() != MouseButton.PRIMARY) {
                     return;
                 }
@@ -213,6 +233,7 @@ public class FloatableStage extends Stage {
                 e.consume();
             });
             expandableBottomEdge.setOnMouseDragged(e -> {
+                if (!expandable.get()) return;
                 if (e.getButton() != MouseButton.PRIMARY) {
                     return;
                 }
@@ -221,6 +242,7 @@ public class FloatableStage extends Stage {
                 e.consume();
             });
             expandableLeftEdge.setOnMouseDragged(e -> {
+                if (!expandable.get()) return;
                 if (e.getButton() != MouseButton.PRIMARY) {
                     return;
                 }
@@ -229,6 +251,7 @@ public class FloatableStage extends Stage {
                 e.consume();
             });
             expandableTopLeftNode.setOnMouseDragged(e -> {
+                if (!expandable.get()) return;
                 if (e.getButton() != MouseButton.PRIMARY) {
                     return;
                 }
@@ -237,6 +260,7 @@ public class FloatableStage extends Stage {
                 e.consume();
             });
             expandableTopRightNode.setOnMouseDragged(e -> {
+                if (!expandable.get()) return;
                 if (e.getButton() != MouseButton.PRIMARY) {
                     return;
                 }
@@ -245,6 +269,7 @@ public class FloatableStage extends Stage {
                 e.consume();
             });
             expandableBottomRightNode.setOnMouseDragged(e -> {
+                if (!expandable.get()) return;
                 if (e.getButton() != MouseButton.PRIMARY) {
                     return;
                 }
@@ -253,6 +278,7 @@ public class FloatableStage extends Stage {
                 e.consume();
             });
             expandableBottomLeftNode.setOnMouseDragged(e -> {
+                if (!expandable.get()) return;
                 if (e.getButton() != MouseButton.PRIMARY) {
                     return;
                 }

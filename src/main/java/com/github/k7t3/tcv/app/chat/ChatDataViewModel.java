@@ -1,14 +1,38 @@
+/*
+ * Copyright 2024 k7t3
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.github.k7t3.tcv.app.chat;
 
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
+import com.github.k7t3.tcv.app.chat.filter.ChatFilters;
+import com.github.k7t3.tcv.app.chat.filter.KeywordFilterEntry;
+import com.github.k7t3.tcv.app.chat.filter.UserFilterEntry;
+import com.github.k7t3.tcv.app.emoji.ChatEmojiStore;
+import com.github.k7t3.tcv.app.event.KeywordFilteringEvent;
+import com.github.k7t3.tcv.app.event.UserFilteringEvent;
+import com.github.k7t3.tcv.app.image.LazyImage;
 import com.github.k7t3.tcv.domain.chat.ChatData;
 import com.github.k7t3.tcv.domain.chat.ChatMessage;
-import com.github.k7t3.tcv.prefs.ChatFont;
+import com.github.k7t3.tcv.domain.chat.ChatMessageFragment;
+import com.github.k7t3.tcv.view.chat.ChatFont;
+import de.saxsys.mvvmfx.MvvmFX;
 import de.saxsys.mvvmfx.ViewModel;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
 import javafx.scene.paint.Color;
@@ -16,7 +40,10 @@ import javafx.scene.paint.Color;
 import java.util.ArrayList;
 import java.util.Map;
 
-public class ChatDataViewModel implements ViewModel {
+/**
+ * チャットメッセージのViewModel
+ */
+public class ChatDataViewModel {
 
     private final ReadOnlyObjectWrapper<TwitchChannelViewModel> channel;
 
@@ -28,7 +55,7 @@ public class ChatDataViewModel implements ViewModel {
 
     private final ReadOnlyObjectWrapper<ChatMessage> message = new ReadOnlyObjectWrapper<>();
 
-    private final ObservableList<Image> badges = FXCollections.observableArrayList();
+    private final ObservableList<LazyImage> badges = FXCollections.observableArrayList();
 
     private final BooleanProperty visibleName = new SimpleBooleanProperty(true);
 
@@ -50,8 +77,13 @@ public class ChatDataViewModel implements ViewModel {
 
     private final DefinedChatColors definedChatColors;
 
+    private final ChatEmojiStore emojiStore;
+
+    private final ChatFilters chatFilters;
+
     private boolean system = false;
     private boolean subs = false;
+    private int bits = Integer.MIN_VALUE;
 
     ChatDataViewModel(
             TwitchChannelViewModel channel,
@@ -59,7 +91,9 @@ public class ChatDataViewModel implements ViewModel {
             GlobalChatBadgeStore globalBadgeStore,
             ChannelChatBadgeStore channelBadgeStore,
             ChatEmoteStore emoteStore,
-            DefinedChatColors definedChatColors
+            DefinedChatColors definedChatColors,
+            ChatEmojiStore emojiStore,
+            ChatFilters chatFilters
     ) {
         this.channel = new ReadOnlyObjectWrapper<>(channel);
         this.chatData = chatData;
@@ -67,11 +101,18 @@ public class ChatDataViewModel implements ViewModel {
         this.channelBadgeStore = channelBadgeStore;
         this.emoteStore = emoteStore;
         this.definedChatColors = definedChatColors;
+        this.emojiStore = emojiStore;
+        this.chatFilters = chatFilters;
         update();
     }
 
     public ChatData getChatData() {
         return chatData;
+    }
+
+    public LazyImage getEmojiImage(ChatMessageFragment fragment) {
+        if (fragment.type() != ChatMessageFragment.Type.EMOJI) throw new IllegalArgumentException("fragment is not emoji");
+        return emojiStore.get(fragment.additional());
     }
 
     private void update() {
@@ -85,7 +126,7 @@ public class ChatDataViewModel implements ViewModel {
                 : Color.web(chatData.colorCode());
         this.color.set(color);
 
-        var badges = new ArrayList<Image>();
+        var badges = new ArrayList<LazyImage>();
         for (var chatBadge : chatData.badges()) {
             var i = channelBadgeStore.getNullable(chatBadge);
             if (i.isPresent()) {
@@ -101,7 +142,7 @@ public class ChatDataViewModel implements ViewModel {
         return emoteStore;
     }
 
-    public ObservableList<Image> getBadges() {
+    public ObservableList<LazyImage> getBadges() {
         return badges;
     }
 
@@ -124,6 +165,40 @@ public class ChatDataViewModel implements ViewModel {
 
     public void setSubs(boolean subs) {
         this.subs = subs;
+    }
+
+    /**
+     * チアーしたビッツ
+     * @param bits ビッツ
+     */
+    public void setBits(int bits) {
+        this.bits = bits;
+    }
+
+    public int getBits() {
+        return bits;
+    }
+
+    public boolean isCheered() {
+        return bits != Integer.MIN_VALUE;
+    }
+
+    public void keywordFilter() {
+        var message = getMessage().getPlain();
+        var filter = KeywordFilterEntry.exactMatch(message);
+        chatFilters.saveKeywordFilter(filter);
+
+        var event = new KeywordFilteringEvent(filter);
+        MvvmFX.getNotificationCenter().publish(event.getClass().getName(), event);
+    }
+
+    public void userFilter(String comment) {
+        var chat = getChatData();
+        var filter = new UserFilterEntry(chat.userId(), chat.userName(), comment);
+        chatFilters.saveUserFilter(filter);
+
+        var event = new UserFilteringEvent(filter);
+        MvvmFX.getNotificationCenter().publish(event.getClass().getName(), event);
     }
 
     // ********** PROPERTIES **********

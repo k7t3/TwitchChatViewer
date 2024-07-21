@@ -1,20 +1,37 @@
+/*
+ * Copyright 2024 k7t3
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.github.k7t3.tcv.app.chat;
 
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
+import com.github.k7t3.tcv.app.chat.filter.ChatFilters;
+import com.github.k7t3.tcv.app.emoji.ChatEmojiStore;
 import com.github.k7t3.tcv.app.service.FXTask;
-import com.github.k7t3.tcv.domain.channel.StreamInfo;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
-import com.github.k7t3.tcv.domain.chat.ChatRoom;
-import com.github.k7t3.tcv.domain.chat.ChatRoomState;
-import com.github.k7t3.tcv.domain.chat.ClipChatMessage;
+import com.github.k7t3.tcv.domain.event.chat.ChatRoomStateUpdatedEvent;
 import de.saxsys.mvvmfx.ViewModel;
-import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableMap;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewModel {
@@ -28,9 +45,11 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
             ChatEmoteStore emoteStore,
             DefinedChatColors definedChatColors,
             List<SingleChatRoomViewModel> chatRooms,
-            ChatRoomContainerViewModel containerViewModel
+            ChatEmojiStore emojiCache,
+            ChatRoomContainerViewModel containerViewModel,
+            ChatFilters chatFilters
     ) {
-        super(globalChatBadgeStore, emoteStore, definedChatColors, containerViewModel);
+        super(globalChatBadgeStore, emoteStore, definedChatColors, emojiCache, containerViewModel, chatFilters);
         setChatCacheSize(DEFAULT_ITEM_COUNT_LIMIT);
 
         initChatRooms(chatRooms);
@@ -47,15 +66,12 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
         var joined = channels.keySet().stream()
                 .map(TwitchChannelViewModel::getUserLogin)
                 .sorted()
-                .collect(Collectors.joining());
+                .collect(Collectors.joining(","));
         return Base64.getEncoder().encodeToString(joined.getBytes(StandardCharsets.UTF_8));
     }
 
     public void addChatRoom(SingleChatRoomViewModel chatRoom) {
         var channel = chatRoom.getChannel();
-
-        channel.getChatRoomListeners().remove(chatRoom);
-        channel.getChannelListeners().remove(chatRoom);
 
         //
         // 追加するチャットルームが現在持っているチャットの情報をマージする
@@ -72,9 +88,6 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
             var subList = mergedChats.subList(mergedChats.size() - limit, mergedChats.size());
             getChatDataList().setAll(subList);
         }
-
-        channel.getChatRoomListeners().add(this);
-        channel.getChannelListeners().add(this);
 
         channels.put(channel, chatRoom);
     }
@@ -104,9 +117,6 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
 
         var channel = chatRoom.getChannel();
 
-        channel.getChatRoomListeners().remove(this);
-        channel.getChannelListeners().remove(this);
-
         channels.remove(channel);
 
         // 分離するチャンネルのチャットを取り出す
@@ -120,9 +130,6 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
         // 現在のチャットから削除
         getChatDataList().removeAll(chatList);
 
-        channel.getChannelListeners().add(chatRoom);
-        channel.getChatRoomListeners().add(chatRoom);
-
         containerViewModel.getChatRoomList().add(chatRoom);
 
         onChannelRemoved();
@@ -132,9 +139,6 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
         if (!channels.containsValue(chatRoom)) return;
 
         var channel = chatRoom.getChannel();
-
-        channel.getChatRoomListeners().remove(this);
-        channel.getChannelListeners().remove(this);
 
         channels.remove(channel);
 
@@ -148,10 +152,7 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
             var channel = entry.getKey();
             var chatRoom = entry.getValue();
 
-            if (!channels.containsValue(chatRoom)) continue;
-
-            channel.getChatRoomListeners().remove(mergedChatRoom);
-            channel.getChannelListeners().remove(mergedChatRoom);
+            if (channels.containsValue(chatRoom)) continue;
 
             //
             // 追加するチャットルームが現在持っているチャットの情報をマージする
@@ -169,9 +170,6 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
                 chatRoom.getChatDataList().setAll(subList);
             }
 
-            channel.getChatRoomListeners().add(this);
-            channel.getChannelListeners().add(this);
-
             channels.put(channel, chatRoom);
             containerViewModel.getChatRoomList().remove(mergedChatRoom);
         }
@@ -183,12 +181,26 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
     }
 
     @Override
-    boolean hasChannel(TwitchChannel channel) {
+    public boolean accept(TwitchChannel channel) {
         for (var channelViewModel : channels.keySet()) {
             if (channelViewModel.getChannel().equals(channel))
                 return true;
         }
         return false;
+    }
+
+    @Override
+    public void onStateUpdated(ChatRoomStateUpdatedEvent e) {
+        var chatRoom = e.getChatRoom();
+
+        // ConcurrentModificationExceptionが内部で起こり得る？
+        channels.entrySet()
+                .stream()
+                .filter(entry -> entry.getKey().getChannel().isChatJoined())
+                .filter(entry -> entry.getKey().getChannel().getOrJoinChatRoom().equals(chatRoom))
+                .findFirst()
+                .map(Map.Entry::getValue)
+                .ifPresent(chatRoomViewModel -> chatRoomViewModel.onStateUpdated(e));
     }
 
     @Override
@@ -214,7 +226,7 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
         // FIXME JavaFXのTaskをマージするには？
         var latch = new CountDownLatch(channels.size());
 
-        channels.keySet().stream().map(TwitchChannelViewModel::leaveChatAsync).forEach(task -> {
+        channels.keySet().parallelStream().map(TwitchChannelViewModel::leaveChatAsync).forEach(task -> {
             try {
                 task.get(30, TimeUnit.SECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException ignored) {
@@ -233,53 +245,4 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
         });
     }
 
-    @Override
-    public void onClipPosted(ChatRoom chatRoom, ClipChatMessage clipChatMessage) {
-        // no-op
-    }
-
-    @Override
-    public void onStateUpdated(ChatRoom chatRoom, ChatRoomState roomState, boolean active) {
-        // ConcurrentModificationExceptionが内部で起こり得る？
-        channels.entrySet()
-                .stream()
-                .filter(entry -> entry.getKey().getChannel().isChatJoined() && entry.getKey().getChannel().getChatRoom().equals(chatRoom))
-                .findFirst()
-                .map(Map.Entry::getValue)
-                .ifPresent(chatRoomViewModel -> chatRoomViewModel.onStateUpdated(chatRoom, roomState, active));
-    }
-
-    private void updateStreamInfo(TwitchChannel channel, StreamInfo streamInfo) {
-        Platform.runLater(() -> {
-            for (var channelViewModel : channels.keySet()) {
-                if (channelViewModel.getChannel().equals(channel))
-                    channelViewModel.updateStreamInfo(streamInfo);
-            }
-        });
-    }
-
-    @Override
-    public void onOnline(TwitchChannel channel, StreamInfo info) {
-        updateStreamInfo(channel, info);
-    }
-
-    @Override
-    public void onOffline(TwitchChannel channel) {
-        updateStreamInfo(channel, null);
-    }
-
-    @Override
-    public void onViewerCountUpdated(TwitchChannel channel, StreamInfo info) {
-        updateStreamInfo(channel, info);
-    }
-
-    @Override
-    public void onTitleChanged(TwitchChannel channel, StreamInfo info) {
-        updateStreamInfo(channel, info);
-    }
-
-    @Override
-    public void onGameChanged(TwitchChannel channel, StreamInfo info) {
-        updateStreamInfo(channel, info);
-    }
 }

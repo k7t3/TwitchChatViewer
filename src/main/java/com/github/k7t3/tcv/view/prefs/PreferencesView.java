@@ -1,21 +1,47 @@
+/*
+ * Copyright 2024 k7t3
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.github.k7t3.tcv.view.prefs;
 
-import atlantafx.base.controls.ModalPane;
-import com.github.k7t3.tcv.app.prefs.*;
+import atlantafx.base.util.Animations;
+import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.Resources;
-import com.github.k7t3.tcv.view.core.ThemeManager;
+import com.github.k7t3.tcv.app.prefs.*;
+import com.github.k7t3.tcv.prefs.AppPreferences;
+import com.github.k7t3.tcv.app.theme.ThemeManager;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
+import javafx.scene.control.SelectionMode;
+import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeView;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
+import javafx.stage.Stage;
 
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.ResourceBundle;
 
 public class PreferencesView implements FxmlView<PreferencesViewModel>, Initializable {
@@ -24,7 +50,10 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
     private Pane root;
 
     @FXML
-    private TabPane tabPane;
+    private TreeView<PreferencesPage<?>> pagesTreeView;
+
+    @FXML
+    private StackPane contentPane;
 
     @FXML
     private ButtonBar buttonBar;
@@ -44,33 +73,54 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
     @InjectViewModel
     private PreferencesViewModel viewModel;
 
+    private TreeItem<PreferencesPage<?>> pagesRoot;
+
+    private AppPreferences preferences;
     private GeneralPreferencesViewModel generalViewModel;
+    private List<PreferencesViewModelBase> viewModels;
+    private Map<PreferencesViewModelBase, TreeItem<PreferencesPage<?>>> pageMap;
+    private Map<PreferencesPage<?>, Node> viewMap;
 
-    private ChatPreferencesViewModel chatViewModel;
-
-    private ChatMessageFilterViewModel filterViewModel;
-
-    private UserChatMessageFilterViewModel userFilterViewModel;
-
-    private ModalPane modalPane;
+    private Stage preferencesStage;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        viewModels = new ArrayList<>();
+        pageMap = new HashMap<>();
+        viewMap = new HashMap<>();
+        pagesRoot = new TreeItem<>();
+        preferences = AppPreferences.getInstance();
+
+        pagesTreeView.setRoot(pagesRoot);
+        pagesTreeView.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
+        pagesTreeView.setCellFactory(v -> new PreferencesPageTreeCell());
+        pagesTreeView.getSelectionModel().selectedItemProperty().addListener((ob, o, n) -> {
+            if (n == null) {
+                contentPane.getChildren().clear();
+            } else {
+                var node = viewMap.get(n.getValue());
+                contentPane.getChildren().setAll(node);
+            }
+        });
+
         loadGeneralViewModel();
         loadChatViewModel();
         loadFilterViewModel();
         loadUserFilterViewModel();
+        loadKeyBindingViewModel();
+
         initButtons();
+
+        pagesTreeView.getSelectionModel().select(0);
     }
 
-    public void setModalPane(ModalPane modalPane) {
-        this.modalPane = modalPane;
-        root.prefWidthProperty().bind(modalPane.widthProperty().multiply(0.5));
-        root.prefHeightProperty().bind(modalPane.heightProperty().multiply(0.5));
+    public void setPreferencesStage(Stage preferencesStage) {
+        this.preferencesStage = preferencesStage;
     }
 
     private void loadGeneralViewModel() {
-        generalViewModel = new GeneralPreferencesViewModel();
+        generalViewModel = new GeneralPreferencesViewModel(preferences.getGeneralPreferences());
+        viewModels.add(generalViewModel);
 
         var tuple = FluentViewLoader.fxmlView(GeneralPreferencesView.class)
                 .viewModel(generalViewModel)
@@ -80,14 +130,15 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         var view = tuple.getView();
         var codeBehind = tuple.getCodeBehind();
 
-        var tab = new Tab(codeBehind.getName(), view);
-        tab.setGraphic(codeBehind.getGraphic());
-        tab.setClosable(false);
-        tabPane.getTabs().addFirst(tab);
+        var item = new TreeItem<PreferencesPage<?>>(codeBehind);
+        pagesRoot.getChildren().add(item);
+        viewMap.put(codeBehind, view);
+        pageMap.put(generalViewModel, item);
     }
 
     private void loadChatViewModel() {
-        chatViewModel = new ChatPreferencesViewModel();
+        var chatViewModel = new ChatPreferencesViewModel();
+        viewModels.add(chatViewModel);
 
         var tuple = FluentViewLoader.fxmlView(ChatPreferencesView.class)
                 .viewModel(chatViewModel)
@@ -97,16 +148,18 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         var view = tuple.getView();
         var codeBehind = tuple.getCodeBehind();
 
-        var tab = new Tab(codeBehind.getName(), view);
-        tab.setGraphic(codeBehind.getGraphic());
-        tab.setClosable(false);
-        tabPane.getTabs().add(tab);
+        var item = new TreeItem<PreferencesPage<?>>(codeBehind);
+        pagesRoot.getChildren().add(item);
+        viewMap.put(codeBehind, view);
+        pageMap.put(chatViewModel, item);
     }
 
     private void loadFilterViewModel() {
-        filterViewModel = new ChatMessageFilterViewModel();
+        var helper = AppHelper.getInstance();
+        var filterViewModel = new KeywordFilterViewModel(helper.getChatFilters());
+        viewModels.add(filterViewModel);
 
-        var tuple = FluentViewLoader.fxmlView(ChatMessageFilterView.class)
+        var tuple = FluentViewLoader.fxmlView(KeywordFilterView.class)
                 .viewModel(filterViewModel)
                 .resourceBundle(Resources.getResourceBundle())
                 .load();
@@ -114,16 +167,18 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         var view = tuple.getView();
         var codeBehind = tuple.getCodeBehind();
 
-        var tab = new Tab(codeBehind.getName(), view);
-        tab.setGraphic(codeBehind.getGraphic());
-        tab.setClosable(false);
-        tabPane.getTabs().add(tab);
+        var item = new TreeItem<PreferencesPage<?>>(codeBehind);
+        pagesRoot.getChildren().add(item);
+        viewMap.put(codeBehind, view);
+        pageMap.put(filterViewModel, item);
     }
 
     private void loadUserFilterViewModel() {
-        userFilterViewModel = new UserChatMessageFilterViewModel();
+        var helper = AppHelper.getInstance();
+        var userFilterViewModel = new UserFilterViewModel(helper.getChatFilters());
+        viewModels.add(userFilterViewModel);
 
-        var tuple = FluentViewLoader.fxmlView(UserChatMessageFilterView.class)
+        var tuple = FluentViewLoader.fxmlView(UserFilterView.class)
                 .viewModel(userFilterViewModel)
                 .resourceBundle(Resources.getResourceBundle())
                 .load();
@@ -131,10 +186,32 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         var view = tuple.getView();
         var codeBehind = tuple.getCodeBehind();
 
-        var tab = new Tab(codeBehind.getName(), view);
-        tab.setGraphic(codeBehind.getGraphic());
-        tab.setClosable(false);
-        tabPane.getTabs().add(tab);
+        var item = new TreeItem<PreferencesPage<?>>(codeBehind);
+        pagesRoot.getChildren().add(item);
+        viewMap.put(codeBehind, view);
+        pageMap.put(userFilterViewModel, item);
+    }
+
+    private void loadKeyBindingViewModel() {
+        var helper = AppHelper.getInstance();
+        var keyBindingViewModel = new KeyBindingPreferencesViewModel(
+                preferences.getKeyBindingPreferences(),
+                helper.getKeyBindingCombinations()
+        );
+        viewModels.add(keyBindingViewModel);
+
+        var tuple = FluentViewLoader.fxmlView(KeyBindingPreferencesView.class)
+                .viewModel(keyBindingViewModel)
+                .resourceBundle(Resources.getResourceBundle())
+                .load();
+
+        var view = tuple.getView();
+        var codeBehind = tuple.getCodeBehind();
+
+        var item = new TreeItem<PreferencesPage<?>>(codeBehind);
+        pagesRoot.getChildren().add(item);
+        viewMap.put(codeBehind, view);
+        pageMap.put(keyBindingViewModel, item);
     }
 
     private void initButtons() {
@@ -147,62 +224,29 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         resetButton.setVisible(false);
 
         cancelButton.setOnAction(e -> {
-            ThemeManager.getInstance().setTheme(generalViewModel.getDefaultTheme());
-            modalPane.hide();
+            var tm = ThemeManager.getInstance();
+            tm.setTheme(generalViewModel.getDefaultTheme());
+            tm.setThemeType(generalViewModel.getThemeType());
+            preferencesStage.close();
         });
         enterButton.setOnAction(e -> save());
     }
 
     private void save() {
-        generalViewModel.sync();
+        for (var viewModel : viewModels) {
+            if (!viewModel.canSync()) {
+                var page = pageMap.get(viewModel);
+                pagesTreeView.getSelectionModel().select(page);
 
-        chatViewModel.sync();
+                var view = viewMap.get(page.getValue());
+                Animations.flash(view).play();
+                return;
+            }
+        }
 
-        filterViewModel.sync();
-
-        userFilterViewModel.sync();
-
+        viewModels.forEach(PreferencesViewModelBase::sync);
         viewModel.saveAsync();
-        modalPane.hide();
+        preferencesStage.close();
     }
-
-//    private void exportPreferences() {
-//        var selector = new FileChooser();
-//        selector.getExtensionFilters().addFirst(new FileChooser.ExtensionFilter("XML file", "*.xml"));
-//        selector.setInitialFileName("twitch-chat-viewer.xml");
-//
-//        var window = root.getScene().getWindow();
-//
-//        var file = selector.showSaveDialog(window);
-//        if (file == null)
-//            return;
-//
-//        root.setDisable(true);
-//        var task = viewModel.exportAsync(file.toPath());
-//        FXTask.setOnFinished(task, e -> root.setDisable(false));
-//    }
-//
-//    public void importPreferences() {
-//        var selector = new FileChooser();
-//        selector.getExtensionFilters().addFirst(new FileChooser.ExtensionFilter("XML file", "*.xml"));
-//        selector.setInitialFileName("twitch-chat-viewer.xml");
-//
-//        var window = root.getScene().getWindow();
-//
-//        var file = selector.showOpenDialog(window);
-//        if (file == null)
-//            return;
-//
-//        root.setDisable(true);
-//        var task = viewModel.importAsync(file.toPath());
-//        FXTask.setOnFinished(task, e -> root.setDisable(false));
-//    }
-//
-//    private void clearPreferences() {
-//        root.setDisable(true);
-//        var task = viewModel.clearAsync();
-//        FXTask.setOnFinished(task, e -> root.setDisable(false));
-//        FXTask.setOnSucceeded(task, e -> modalPane.hide());
-//    }
 
 }

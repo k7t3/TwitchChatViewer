@@ -19,5 +19,16 @@
   -fx-padding: 10;
 }
 
+.chat-data-cell: cheer {
+  -fx-border-width: 0 0 0 10;
+  -fx-border-color: -color-fg-default;
+  -fx-background-color: -color-accent-subtle;
+  -fx-padding: 10;
+}
+
+.chat-data-cell: hover {
+  -fx-background-color: -color-neutral-subtle;
+}
+
 .chat-subs-text {
 }

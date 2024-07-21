@@ -1,6 +1,23 @@
+/*
+ * Copyright 2024 k7t3
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.github.k7t3.tcv.prefs;
 
 import javafx.beans.property.*;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.function.Function;
@@ -17,8 +34,14 @@ public abstract class PreferencesBase {
         this.defaults = defaults;
     }
 
+    /**
+     * ストアに保存される内容を明示的に読み込む
+     */
     protected abstract void readFromPreferences();
 
+    /**
+     * バッファリングされる設定内容を明示的にバッキングストアに書き込む
+     */
     protected abstract void writeToPreferences();
 
     protected BooleanProperty createBooleanProperty(String key) {
@@ -45,34 +68,76 @@ public abstract class PreferencesBase {
         return property;
     }
 
+    protected <T> ObjectProperty<T> createBytesObjectProperty(
+            String key,
+            Function<byte[], T> fromBytes,
+            Function<T, byte[]> toBytes) {
+        var property = new SimpleObjectProperty<>(fromBytes.apply(getByteArray(key)));
+        property.addListener((ob, o, n) -> preferences.putByteArray(key, toBytes.apply(n)));
+        return property;
+    }
+
     protected <T> ObjectProperty<T> createObjectProperty(
             String key,
             Function<String, T> fromString,
             Function<T, String> toString
     ) {
-        var property = new SimpleObjectProperty<>(fromString.apply(get(key)));
+        Function<String, T> f = s -> {
+            try {
+                return fromString.apply(s);
+            } catch (Exception e) {
+                LoggerFactory.getLogger(getClass()).warn(e.getMessage());
+                return fromString.apply((String) defaults.get(key));
+            }
+        };
+        var property = new SimpleObjectProperty<>(f.apply(get(key)));
         property.addListener((ob, o, n) -> preferences.put(key, toString.apply(n)));
         return property;
     }
 
     protected String get(String key) {
-        return preferences.get(key, (String) defaults.get(key));
+        try {
+            return preferences.get(key, (String) defaults.get(key));
+        } catch (Exception e) {
+            LoggerFactory.getLogger(getClass()).warn(e.getMessage(), e);
+            return (String) defaults.get(key);
+        }
     }
 
     protected int getInt(String key) {
-        return preferences.getInt(key, (Integer) defaults.get(key));
+        try {
+            return preferences.getInt(key, (Integer) defaults.get(key));
+        } catch (Exception e) {
+            LoggerFactory.getLogger(getClass()).warn(e.getMessage(), e);
+            return (Integer) defaults.get(key);
+        }
     }
 
     protected double getDouble(String key) {
-        return preferences.getDouble(key, (Double) defaults.get(key));
+        try {
+            return preferences.getDouble(key, (Double) defaults.get(key));
+        } catch (Exception e) {
+            LoggerFactory.getLogger(getClass()).warn(e.getMessage(), e);
+            return (Double) defaults.get(key);
+        }
     }
 
     protected boolean getBoolean(String key) {
-        return preferences.getBoolean(key, (Boolean) defaults.get(key));
+        try {
+            return preferences.getBoolean(key, (Boolean) defaults.get(key));
+        } catch (Exception e) {
+            LoggerFactory.getLogger(getClass()).warn(e.getMessage(), e);
+            return (Boolean) defaults.get(key);
+        }
     }
 
     protected byte[] getByteArray(String key) {
-        return preferences.getByteArray(key, (byte[]) defaults.get(key));
+        try {
+            return preferences.getByteArray(key, (byte[]) defaults.get(key));
+        } catch (Exception e) {
+            LoggerFactory.getLogger(getClass()).warn(e.getMessage(), e);
+            return (byte[]) defaults.get(key);
+        }
     }
 
 }

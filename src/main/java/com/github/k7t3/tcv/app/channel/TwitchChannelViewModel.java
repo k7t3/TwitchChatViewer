@@ -1,53 +1,66 @@
+/*
+ * Copyright 2024 k7t3
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.github.k7t3.tcv.app.channel;
 
 import com.github.k7t3.tcv.app.chat.ChannelChatBadgeStore;
+import com.github.k7t3.tcv.app.image.LazyImage;
 import com.github.k7t3.tcv.app.service.FXTask;
-import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
 import com.github.k7t3.tcv.domain.channel.StreamInfo;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
-import com.github.k7t3.tcv.domain.channel.TwitchChannelListener;
 import com.github.k7t3.tcv.domain.chat.ChatRoom;
-import com.github.k7t3.tcv.domain.chat.ChatRoomListener;
-import javafx.beans.property.ReadOnlyBooleanProperty;
-import javafx.beans.property.ReadOnlyBooleanWrapper;
-import javafx.beans.property.ReadOnlyObjectProperty;
-import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.property.*;
 import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableSet;
-import javafx.collections.SetChangeListener;
 import javafx.scene.image.Image;
 
-import java.util.HashSet;
+import java.awt.*;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 public class TwitchChannelViewModel {
 
+    private static final String CHANNEL_URL_FORMAT = "https://www.twitch.tv/%s";
+
     private final ReadOnlyObjectWrapper<Broadcaster> broadcaster;
-
-    private ReadOnlyObjectWrapper<Image> profileImage;
-
+    private ReadOnlyObjectWrapper<LazyImage> profileImage;
     private ReadOnlyObjectWrapper<Image> offlineImage;
-
     private ReadOnlyObjectWrapper<StreamInfo> streamInfo;
-
     private ReadOnlyBooleanWrapper live;
-
     private ReadOnlyBooleanWrapper chatJoined;
-
-    private ObservableSet<TwitchChannelListener> channelListeners;
-    private ObservableSet<ChatRoomListener> chatRoomListeners;
+    private final ReadOnlyBooleanWrapper following;
+    private final BooleanProperty persistent;
 
     private final ChannelChatBadgeStore chatBadgeStore;
-
     private final TwitchChannel channel;
+    private final ChannelViewModelRepository repository;
 
-    private ChatRoom chatRoom;
-
-    public TwitchChannelViewModel(TwitchChannel channel) {
+    public TwitchChannelViewModel(TwitchChannel channel, ChannelViewModelRepository repository) {
         this.channel = channel;
+        this.repository = repository;
         broadcaster = new ReadOnlyObjectWrapper<>(channel.getBroadcaster());
         chatBadgeStore = new ChannelChatBadgeStore(channel);
+        following = new ReadOnlyBooleanWrapper(channel.isFollowing());
+        persistent = new SimpleBooleanProperty(channel.isPersistent()) {
+            @Override
+            protected void invalidated() {
+                channel.setPersistent(super.get());
+            }
+        };
 
         if (channel.isStreaming()) {
             updateStreamInfo(channel.getStream());
@@ -63,65 +76,36 @@ public class TwitchChannelViewModel {
         return channel;
     }
 
-    public ObservableSet<TwitchChannelListener> getChannelListeners() {
-        if (channelListeners == null) {
-            channelListeners = FXCollections.observableSet(new HashSet<>());
-            channelListeners.addListener(this::channelListenerChanged);
-        }
-        return channelListeners;
-    }
+    /**
+     * チャンネルのページをブラウザで開く。
+     * <p>
+     *     開かれるブラウザはAWTの実装に基づく。
+     * </p>
+     */
+    public void openChannelPageOnBrowser() {
+        var login = getBroadcaster().getUserLogin();
 
-    private void channelListenerChanged(SetChangeListener.Change<? extends TwitchChannelListener> c) {
-        if (!isChatJoined()) return;
-
-        if (c.wasAdded()) {
-            channel.addListener(c.getElementAdded());
+        var desktop = Desktop.getDesktop();
+        if (!desktop.isSupported(Desktop.Action.BROWSE)) {
+            return;
         }
-        if (c.wasRemoved()) {
-            channel.removeListener(c.getElementRemoved());
-        }
-    }
 
-    public ObservableSet<ChatRoomListener> getChatRoomListeners() {
-        if (chatRoomListeners == null) {
-            chatRoomListeners = FXCollections.observableSet(new HashSet<>());
-            chatRoomListeners.addListener(this::chatRoomListenerChanged);
-        }
-        return chatRoomListeners;
-    }
-
-    private void chatRoomListenerChanged(SetChangeListener.Change<? extends ChatRoomListener> c) {
-        if (!isChatJoined()) return;
-
-        if (c.wasAdded()) {
-            chatRoom.addListener(c.getElementAdded());
-        }
-        if (c.wasRemoved()) {
-            chatRoom.removeListener(c.getElementRemoved());
+        try {
+            desktop.browse(new URI(CHANNEL_URL_FORMAT.formatted(login)));
+        } catch (IOException | URISyntaxException e) {
+            throw new RuntimeException(e);
         }
     }
 
     public FXTask<ChatRoom> joinChatAsync() {
-        if (isChatJoined()) return FXTask.of(channel.getChatRoom());
+        if (isChatJoined()) return FXTask.of(channel.getOrJoinChatRoom());
 
         var task = FXTask.task(() -> {
             channel.loadBadgesIfNotLoaded();
-            return channel.getChatRoom();
+            return channel.getOrJoinChatRoom();
         });
-        FXTask.setOnSucceeded(task, e -> {
-            chatRoom = task.getValue();
-
-            if (chatRoomListeners != null) {
-                chatRoomListeners.forEach(chatRoom::addListener);
-            }
-
-            if (channelListeners != null) {
-                channelListeners.forEach(channel::addListener);
-            }
-
-            chatJoinedWrapper().set(true);
-        });
-        TaskWorker.getInstance().submit(task);
+        task.onDone(() -> chatJoinedWrapper().set(true));
+        task.runAsync();
         return task;
     }
 
@@ -134,18 +118,9 @@ public class TwitchChannelViewModel {
 
         var task = FXTask.task(() -> {
             channel.leaveChat();
-
-            if (chatRoomListeners != null) {
-                chatRoomListeners.forEach(chatRoom::removeListener);
-            }
-
-            if (channelListeners != null) {
-                channelListeners.forEach(channel::removeListener);
-            }
-
+            repository.releaseChannel(this);
         });
-        FXTask.setOnSucceeded(task, e -> chatRoom = null);
-        TaskWorker.getInstance().submit(task);
+        task.runAsync();
 
         return task;
     }
@@ -165,8 +140,8 @@ public class TwitchChannelViewModel {
     public ObservableValue<String> observableUserName() { return broadcaster.map(Broadcaster::getUserName); }
     public String getUserName() { return broadcaster.get().getUserName(); }
 
-    public ObservableValue<String> observableTitle() { return streamInfoWrapper().map(StreamInfo::title).orElse(""); }
-    public String getTitle() { return streamInfo == null ? "" : observableTitle().getValue(); }
+    public ObservableValue<String> observableStreamTitle() { return streamInfoWrapper().map(StreamInfo::title).orElse(""); }
+    public String getStreamTitle() { return streamInfo == null ? "" : observableStreamTitle().getValue(); }
 
     public ObservableValue<Integer> observableViewerCount() { return streamInfoWrapper().map(StreamInfo::viewerCount).orElse(-1); }
     public int getViewerCount() { return streamInfo == null ? -1 : observableViewerCount().getValue(); }
@@ -174,21 +149,18 @@ public class TwitchChannelViewModel {
     public ObservableValue<String> observableGameName() { return streamInfoWrapper().map(StreamInfo::gameName).orElse(""); }
     public String getGameName() { return streamInfo == null ? "" : observableGameName().getValue(); }
 
-    private ReadOnlyObjectWrapper<Image> profileImageWrapper() {
+    private ReadOnlyObjectWrapper<LazyImage> profileImageWrapper() {
         if (profileImage == null) {
-            profileImage = new ReadOnlyObjectWrapper<>(new Image(
+            profileImage = new ReadOnlyObjectWrapper<>(new LazyImage(
                     channel.getBroadcaster().getProfileImageUrl(),
                     64,
-                    64,
-                    true,
-                    true,
-                    true
+                    64
             ));
         }
         return profileImage;
     }
-    public ReadOnlyObjectProperty<Image> profileImageProperty() { return profileImageWrapper().getReadOnlyProperty(); }
-    public Image getProfileImage() { return profileImageWrapper().get(); }
+    public ReadOnlyObjectProperty<LazyImage> profileImageProperty() { return profileImageWrapper().getReadOnlyProperty(); }
+    public LazyImage getProfileImage() { return profileImageWrapper().get(); }
 
     private ReadOnlyObjectWrapper<Image> offlineImageWrapper() {
         if (offlineImage == null) {
@@ -227,4 +199,10 @@ public class TwitchChannelViewModel {
     public ReadOnlyBooleanProperty chatJoinedProperty() { return chatJoinedWrapper().getReadOnlyProperty(); }
     public boolean isChatJoined() { return chatJoined != null && chatJoined.get(); }
 
+    public ReadOnlyBooleanProperty followingProperty() { return following.getReadOnlyProperty(); }
+    public boolean isFollowing() { return following.get(); }
+
+    public BooleanProperty persistentProperty() { return persistent; }
+    public boolean isPersistent() { return persistent.get(); }
+    public void setPersistent(boolean persistent) { persistentProperty().set(persistent); }
 }

@@ -1,12 +1,26 @@
+/*
+ * Copyright 2024 k7t3
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.github.k7t3.tcv.app.channel;
 
+import com.github.k7t3.tcv.app.model.AbstractViewModel;
+import com.github.k7t3.tcv.app.core.ExceptionHandler;
 import com.github.k7t3.tcv.domain.Twitch;
 import com.github.k7t3.tcv.domain.channel.ChannelFinder;
-import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
-import com.github.k7t3.tcv.app.core.AppHelper;
-import com.github.k7t3.tcv.app.core.ExceptionHandler;
-import de.saxsys.mvvmfx.SceneLifecycle;
-import de.saxsys.mvvmfx.ViewModel;
+import com.github.k7t3.tcv.domain.event.EventSubscribers;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -16,31 +30,26 @@ import javafx.concurrent.WorkerStateEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-public class SearchChannelViewModel implements ViewModel, SceneLifecycle {
+public class SearchChannelViewModel extends AbstractViewModel {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SearchChannelViewModel.class);
 
     private static final int DELAY_SECONDS = 2;
 
     private final StringProperty keyword = new SimpleStringProperty();
-
     private final BooleanProperty onlyLive = new SimpleBooleanProperty(true);
 
     private final ObservableList<FoundChannelViewModel> channels = FXCollections.observableArrayList();
 
     private final SearchChannelService searchService = new SearchChannelService();
+    private final ObjectProperty<Twitch> twitch = new SimpleObjectProperty<>();
+    private final ChannelViewModelRepository channelRepository;
 
-    private ChatRoomContainerViewModel chatContainerViewModel;
-
-    private Twitch twitch;
-
-    public SearchChannelViewModel() {
+    public SearchChannelViewModel(ChannelViewModelRepository channelRepository) {
+        this.channelRepository = channelRepository;
         init();
     }
 
@@ -61,10 +70,6 @@ public class SearchChannelViewModel implements ViewModel, SceneLifecycle {
         searchService.search(unit.toMillis(amount), getKeyword(), isOnlyLive());
     }
 
-    public void setChatContainerViewModel(ChatRoomContainerViewModel chatContainerViewModel) {
-        this.chatContainerViewModel = chatContainerViewModel;
-    }
-
     public ObservableList<FoundChannelViewModel> getChannels() {
         return channels;
     }
@@ -78,27 +83,27 @@ public class SearchChannelViewModel implements ViewModel, SceneLifecycle {
     }
 
     @Override
-    public void onViewAdded() {
-        twitch = AppHelper.getInstance().getTwitch();
+    public void subscribeEvents(EventSubscribers eventSubscribers) {
+        // no-op
     }
 
     @Override
-    public void onViewRemoved() {
-        searchService.cancel();
-        searchService.close();
+    public void onLogout() {
+        // no-op
     }
 
-    private class SearchChannelService extends Service<List<FoundChannelViewModel>> implements Closeable {
+    @Override
+    public void close() {
+        // no-op
+    }
 
-        private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+    public ObjectProperty<Twitch> twitchProperty() { return twitch; }
+    public Twitch getTwitch() { return twitch.get(); }
+    public void setTwitch(Twitch twitch) { this.twitch.set(twitch); }
+
+    private class SearchChannelService extends Service<List<FoundChannelViewModel>> {
 
         public SearchChannelService() {
-            setExecutor(executor);
-        }
-
-        @Override
-        public void close() {
-            executor.close();
         }
 
         private String keyword;
@@ -114,14 +119,20 @@ public class SearchChannelViewModel implements ViewModel, SceneLifecycle {
 
         @Override
         protected Task<List<FoundChannelViewModel>> createTask() {
+            final var twitch = getTwitch();
             return new Task<>() {
                 @Override
                 protected List<FoundChannelViewModel> call() {
+                    if (twitch == null) {
+                        return List.of();
+                    }
                     if (keyword == null || keyword.trim().isEmpty()) {
                         return List.of();
                     }
 
                     try {
+                        // APIの過度なコールを避けるために検索を即座に
+                        // 行わず遅延時間を挟んでから検索する。
                         Thread.sleep(delayMillis);
                     } catch (InterruptedException e) {
                         return List.of();
@@ -134,8 +145,9 @@ public class SearchChannelViewModel implements ViewModel, SceneLifecycle {
                     LOGGER.info("search channels keyword={}, liveOnly={}", keyword, onlyLive);
 
                     var finder = new ChannelFinder(twitch);
-                    return finder.search(keyword, onlyLive).stream()
-                            .map(c -> new FoundChannelViewModel(chatContainerViewModel, c))
+                    return finder.search(keyword, onlyLive)
+                            .stream()
+                            .map(c -> new FoundChannelViewModel(channelRepository, c))
                             .toList();
                 }
             };

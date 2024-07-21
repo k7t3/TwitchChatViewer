@@ -1,0 +1,16 @@
+.live-info-view {
+    -fx-pref-width: 300;
+    -fx-pref-height: 160;
+}
+
+.live-info-title {
+    -fx-padding: 8px;
+}
+
+.live-info-stream-title {
+}
+
+.label-container {
+    -fx-spacing: 4;
+    -fx-padding: 10;
+}

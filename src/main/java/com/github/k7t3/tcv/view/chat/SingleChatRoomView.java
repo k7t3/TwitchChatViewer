@@ -1,3 +1,19 @@
+/*
+ * Copyright 2024 k7t3
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.github.k7t3.tcv.view.chat;
 
 import atlantafx.base.theme.Styles;
@@ -5,16 +21,19 @@ import atlantafx.base.theme.Tweaks;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.chat.SingleChatRoomViewModel;
+import com.github.k7t3.tcv.app.core.AppHelper;
+import com.github.k7t3.tcv.view.image.LazyImageView;
 import com.github.k7t3.tcv.domain.chat.ChatRoomState;
 import com.github.k7t3.tcv.view.core.JavaFXHelper;
+import com.github.k7t3.tcv.view.group.menu.ChannelGroupMenu;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
+import javafx.collections.FXCollections;
 import javafx.collections.SetChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import javafx.scene.effect.SepiaTone;
-import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.*;
 import javafx.scene.shape.Rectangle;
@@ -29,10 +48,9 @@ public class SingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, In
     private static final double PROFILE_IMAGE_SIZE = 48;
 
     @FXML
-    private Pane headerPane;
+    private GridPane headerPane;
 
-    @FXML
-    private ImageView profileImageView;
+    private LazyImageView profileImageView;
 
     @FXML
     private Label userNameLabel;
@@ -81,7 +99,9 @@ public class SingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, In
     public void initialize(URL location, ResourceBundle resources) {
         channel = viewModel.getChannel();
 
-        profileImageView.imageProperty().bind(channel.profileImageProperty());
+        profileImageView = new LazyImageView();
+        headerPane.add(profileImageView, 0, 0);
+        profileImageView.lazyImageProperty().bind(channel.profileImageProperty());
         profileImageView.setFitWidth(PROFILE_IMAGE_SIZE);
         profileImageView.setFitHeight(PROFILE_IMAGE_SIZE);
         var clip = new Rectangle();
@@ -95,6 +115,10 @@ public class SingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, In
 
         actionsMenuButton.getStyleClass().addAll(Styles.FLAT, Tweaks.NO_ARROW);
         closeMenuItem.setOnAction(e -> viewModel.leaveChatAsync());
+
+        // チャンネルグループに関するメニュー
+        var repository = AppHelper.getInstance().getChannelGroupRepository();
+        actionsMenuButton.getItems().add(1, new ChannelGroupMenu(repository, FXCollections.observableArrayList(channel)));
 
         popoutMenuItem.setOnAction(e -> viewModel.popOutAsFloatableStage());
 
@@ -129,7 +153,7 @@ public class SingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, In
         ChatRoomViewUtils.installStreamInfoPopOver(channel, profileImageView);
 
         streamTitleLabel.visibleProperty().bind(channel.liveProperty());
-        streamTitleLabel.textProperty().bind(channel.observableTitle());
+        streamTitleLabel.textProperty().bind(channel.observableStreamTitle());
         streamTitleLabel.getStyleClass().addAll(Styles.TEXT_MUTED, Styles.TEXT_SMALL);
 
         var titleTooltip = new Tooltip();

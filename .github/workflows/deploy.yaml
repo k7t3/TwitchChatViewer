@@ -1,0 +1,97 @@
+name: Deployment
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+' # ドットをエスケープしなくていい(正規表現でない)
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+
+jobs:
+  parse_version: # プッシュされたタグの文字列からバージョン情報をパースする
+    runs-on: ubuntu-latest
+    outputs:
+      major: ${{ steps.parse.outputs.major }}
+      minor: ${{ steps.parse.outputs.minor }}
+      patch: ${{ steps.parse.outputs.patch }}
+    steps:
+      - name: Parse version from tag
+        id: parse
+        run: |
+          VERSION=${ GITHUB_REF#refs/tags/v }
+          echo "major=$(echo $VERSION | cut -d. -f1)" >> $GITHUB_OUTPUT
+          echo "minor=$(echo $VERSION | cut -d. -f2)" >> $GITHUB_OUTPUT
+          echo "patch=$(echo $VERSION | cut -d. -f3)" >> $GITHUB_OUTPUT
+  make: # タグから識別したバージョン情報に基づくアプリケーションを生成する
+    outputs:
+      application: ${{  }}
+    strategy:
+      matrix:
+        # WindowsランナーはWiX Toolset 3.14.1.8722入り
+        # MacOSはIntel CPU(macos-13)とApple Silicon CPU(macos-14)
+        # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners
+        os: [ubuntu-latest, windows-latest, macos-13, macos-14]
+    runs-on: ${{ matrix.os }}
+    needs: parse_version
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21.0.1
+          distribution: 'temurin'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+      - name: Make an application
+        run: ./gradlew make -Papp.version=${{ needs.parse_version.outputs.major }}.${{ needs.parse_version.outputs.minor }}.${{ needs.parse_version.outputs.patch }}
+      - name: Rename an application for Debian Linux
+        if: (matrix.os == 'ubuntu-latest')
+        shell: bash
+        run: |
+          mv "build/app/Twitch Chat Viewer-${{ needs.parse_version.outputs.major }}.${{ needs.parse_version.outputs.minor }}.${{ needs.parse_version.outputs.patch }}.deb" "build/app/Twitch Chat Viewer-${{ needs.parse_version.outputs.major }}.${{ needs.parse_version.outputs.minor }}.${{ needs.parse_version.outputs.patch }}-x86_64.deb"
+      - name: Rename an application for Intel Mac
+        if: (matrix.os == 'macos-13')
+        shell: bash
+        run: |
+          mv "build/app/Twitch Chat Viewer-${{ needs.parse_version.outputs.major }}.${{ needs.parse_version.outputs.minor }}.${{ needs.parse_version.outputs.patch }}.dmg" "build/app/Twitch Chat Viewer-${{ needs.parse_version.outputs.major }}.${{ needs.parse_version.outputs.minor }}.${{ needs.parse_version.outputs.patch }}-x86_64.dmg"
+      - name: Rename an application for Apple Silicon Mac
+        if: (matrix.os == 'macos-14')
+        shell: bash
+        run: |
+          mv "build/app/Twitch Chat Viewer-${{ needs.parse_version.outputs.major }}.${{ needs.parse_version.outputs.minor }}.${{ needs.parse_version.outputs.patch }}.dmg" "build/app/Twitch Chat Viewer-${{ needs.parse_version.outputs.major }}.${{ needs.parse_version.outputs.minor }}.${{ needs.parse_version.outputs.patch }}-arm64.dmg"
+      - name: Detect asset file for Windows
+        if: (matrix.os == 'windows-latest')
+        shell: pwsh
+        run: |
+          echo "asset_path=build\app\$(Get-ChildItem -name .\build\app)" >> $env:GITHUB_ENV
+          echo "asset_name=$(Get-ChildItem -name .\build\app)" >> $env:GITHUB_ENV
+      - name: Detect asset file
+        if: (matrix.os != 'windows-latest')
+        shell: bash
+        run: |
+          echo "asset_path=build/app/$(ls build/app)" >> $GITHUB_ENV
+          echo "asset_name=$(ls build/app)" >> $GITHUB_ENV
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          body: Change release message!!!!
+          draft: true # ドラフトリリースとし、公開は手動で行う
+      - name: Upload Release Asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          asset_path: ${{ env.asset_path }}
+          asset_name: ${{ env.asset_name }}
+          asset_content_type: application/octet-stream

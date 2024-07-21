@@ -1,3 +1,19 @@
+/*
+ * Copyright 2024 k7t3
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.github.k7t3.tcv.view.chat;
 
 import atlantafx.base.theme.Styles;
@@ -5,32 +21,35 @@ import atlantafx.base.theme.Tweaks;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.chat.SingleChatRoomViewModel;
+import com.github.k7t3.tcv.app.core.AppHelper;
+import com.github.k7t3.tcv.view.image.LazyImageView;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.view.core.FloatableStage;
+import com.github.k7t3.tcv.view.group.menu.ChannelGroupMenu;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
+import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.CheckMenuItem;
-import javafx.scene.control.MenuButton;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.Slider;
+import javafx.scene.control.*;
 import javafx.scene.effect.SepiaTone;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.shape.Rectangle;
 import org.fxmisc.flowless.VirtualFlow;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 
 import java.net.URL;
+import java.util.List;
 import java.util.ResourceBundle;
 
 public class FloatableSingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, Initializable {
 
     private static final double PROFILE_IMAGE_SIZE = 48;
 
+    private LazyImageView profileImageView;
+
     @FXML
-    private ImageView profileImageView;
+    private HBox headerPane;
 
     @FXML
     private CheckMenuItem alwaysOnTopMenuItem;
@@ -69,7 +88,9 @@ public class FloatableSingleChatRoomView implements FxmlView<SingleChatRoomViewM
     public void initialize(URL url, ResourceBundle resourceBundle) {
         channel = viewModel.getChannel();
 
-        profileImageView.imageProperty().bind(channel.profileImageProperty());
+        profileImageView = new LazyImageView();
+        headerPane.getChildren().addFirst(profileImageView);
+        profileImageView.lazyImageProperty().bind(channel.profileImageProperty());
         profileImageView.setFitWidth(PROFILE_IMAGE_SIZE);
         profileImageView.setFitHeight(PROFILE_IMAGE_SIZE);
         var clip = new Rectangle();
@@ -91,6 +112,13 @@ public class FloatableSingleChatRoomView implements FxmlView<SingleChatRoomViewM
         var prefs = AppPreferences.getInstance().getChatPreferences();
 
         menuButton.getStyleClass().addAll(Tweaks.NO_ARROW, Styles.BUTTON_ICON);
+
+        // チャンネルグループに関するメニューを追加
+        var repository = AppHelper.getInstance().getChannelGroupRepository();
+        menuButton.getItems().addAll(0, List.of(
+                new ChannelGroupMenu(repository, FXCollections.observableArrayList(channel)),
+                new SeparatorMenuItem()
+        ));
 
         // 閉じるボタン
         closeMenuItem.setOnAction(e -> {
@@ -114,11 +142,11 @@ public class FloatableSingleChatRoomView implements FxmlView<SingleChatRoomViewM
         autoScrollMenuItem.selectedProperty().bindBidirectional(viewModel.autoScrollProperty());
 
         // 透過度
-        floatableStage.backgroundOpacityProperty().bindBidirectional(prefs.floatableChatOpacityProperty());
+        floatableStage.backgroundOpacityProperty().bindBidirectional(prefs.floatingChatOpacityProperty());
         opacitySlider.valueProperty().bindBidirectional(floatableStage.backgroundOpacityProperty());
 
         // 常に最前面に表示
-        alwaysOnTopMenuItem.selectedProperty().bindBidirectional(prefs.floatableChatAlwaysTopProperty());
+        alwaysOnTopMenuItem.selectedProperty().bindBidirectional(prefs.floatingChatAlwaysTopProperty());
         alwaysOnTopMenuItem.selectedProperty().addListener((ob, o, n) -> floatableStage.setAlwaysOnTop(n));
         floatableStage.setAlwaysOnTop(alwaysOnTopMenuItem.isSelected());
     }

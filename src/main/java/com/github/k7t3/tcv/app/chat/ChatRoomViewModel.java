@@ -1,26 +1,43 @@
+/*
+ * Copyright 2024 k7t3
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.github.k7t3.tcv.app.chat;
 
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
-import com.github.k7t3.tcv.app.chat.filter.ChatMessageFilter;
+import com.github.k7t3.tcv.app.chat.filter.ChatFilters;
+import com.github.k7t3.tcv.app.chat.filter.KeywordFilterEntry;
+import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.app.emoji.ChatEmojiStore;
+import com.github.k7t3.tcv.app.event.KeywordFilteringEvent;
+import com.github.k7t3.tcv.app.event.UserFilteringEvent;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
-import com.github.k7t3.tcv.domain.channel.TwitchChannelListener;
 import com.github.k7t3.tcv.domain.chat.ChatData;
 import com.github.k7t3.tcv.domain.chat.ChatRoom;
-import com.github.k7t3.tcv.domain.chat.ChatRoomListener;
-import com.github.k7t3.tcv.prefs.ChatFont;
-import com.github.k7t3.tcv.app.core.Resources;
-import javafx.application.Platform;
+import com.github.k7t3.tcv.domain.event.chat.*;
+import com.github.k7t3.tcv.view.chat.ChatFont;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ConcurrentModificationException;
 import java.util.LinkedList;
 
-public abstract class ChatRoomViewModel implements ChatRoomListener, TwitchChannelListener {
+public abstract class ChatRoomViewModel {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ChatRoomViewModel.class);
 
@@ -36,8 +53,6 @@ public abstract class ChatRoomViewModel implements ChatRoomListener, TwitchChann
 
     private final ObjectProperty<ChatFont> font = new SimpleObjectProperty<>();
 
-    private final ObjectProperty<ChatMessageFilter> chatMessageFilter = new SimpleObjectProperty<>(ChatMessageFilter.DEFAULT);
-
     private final ReadOnlyBooleanWrapper chatJoined = new ReadOnlyBooleanWrapper(false);
 
     private final BooleanProperty selected = new SimpleBooleanProperty(false);
@@ -50,17 +65,25 @@ public abstract class ChatRoomViewModel implements ChatRoomListener, TwitchChann
 
     private final DefinedChatColors definedChatColors;
 
+    private final ChatEmojiStore emojiStore;
+
     protected final ChatRoomContainerViewModel containerViewModel;
+
+    private final ChatFilters chatFilters;
 
     ChatRoomViewModel(
             GlobalChatBadgeStore globalChatBadgeStore,
             ChatEmoteStore emoteStore,
             DefinedChatColors definedChatColors,
-            ChatRoomContainerViewModel containerViewModel) {
+            ChatEmojiStore emojiStore,
+            ChatRoomContainerViewModel containerViewModel,
+            ChatFilters chatFilters) {
         this.globalChatBadgeStore = globalChatBadgeStore;
         this.emoteStore = emoteStore;
         this.definedChatColors = definedChatColors;
+        this.emojiStore = emojiStore;
         this.containerViewModel = containerViewModel;
+        this.chatFilters = chatFilters;
 
         chatCacheSize.addListener((ob, o, n) -> itemCountLimitChanged(n.intValue()));
     }
@@ -71,6 +94,20 @@ public abstract class ChatRoomViewModel implements ChatRoomListener, TwitchChann
 
     public void restoreToContainer() {
         containerViewModel.restoreToContainer(this);
+    }
+
+    public void chatFilter(KeywordFilteringEvent event) {
+        var entry = event.entry();
+        chatDataList.stream()
+                .filter(c -> entry.test(c.getChatData()))
+                .forEach(c -> c.setHidden(true));
+    }
+
+    public void chatFilter(UserFilteringEvent event) {
+        var entry = event.entry();
+        chatDataList.stream()
+                .filter(c -> entry.test(c.getChatData()))
+                .forEach(c -> c.setHidden(true));
     }
 
     private void itemCountLimitChanged(int limit) {
@@ -94,8 +131,6 @@ public abstract class ChatRoomViewModel implements ChatRoomListener, TwitchChann
      */
     public abstract String getIdentity();
 
-    abstract boolean hasChannel(TwitchChannel channel);
-
     @SuppressWarnings("UnusedReturnValue")
     public abstract FXTask<?> joinChatAsync();
 
@@ -104,6 +139,8 @@ public abstract class ChatRoomViewModel implements ChatRoomListener, TwitchChann
 
     protected abstract TwitchChannelViewModel getChannel(TwitchChannel channel);
 
+    protected abstract boolean accept(TwitchChannel channel);
+
     private ChatDataViewModel createChatDataViewModel(TwitchChannelViewModel channel, ChatData item) {
         return new ChatDataViewModel(
                 channel,
@@ -111,102 +148,96 @@ public abstract class ChatRoomViewModel implements ChatRoomListener, TwitchChann
                 globalChatBadgeStore,
                 channel.getChatBadgeStore(),
                 emoteStore,
-                definedChatColors
+                definedChatColors,
+                emojiStore,
+                chatFilters
         );
     }
 
-    protected void addChat(ChatDataViewModel chat) {
-        Platform.runLater(() -> {
+    public void addChat(ChatDataViewModel chat) {
+        chat.visibleNameProperty().bind(showName);
+        chat.visibleBadgeProperty().bind(showBadges);
+        chat.fontProperty().bind(font);
 
-            chat.visibleNameProperty().bind(showName);
-            chat.visibleBadgeProperty().bind(showBadges);
-            chat.fontProperty().bind(font);
-
-            // 上限制限
-            if (getChatCacheSize() <= chatDataList.size()) {
-                chatDataList.removeFirst();
-            }
-            chatDataList.add(chat);
-        });
+        // 上限制限
+        if (getChatCacheSize() <= chatDataList.size()) {
+            chatDataList.removeFirst();
+        }
+        chatDataList.add(chat);
     }
 
-    @Override
-    public void onChatDataPosted(ChatRoom chatRoom, ChatData item) {
-        try {
-            var filter = getChatMessageFilter();
-            if (!filter.test(item)) {
-                return;
+    public void deleteChatMessage(String msgId) {
+        for (var item : chatDataList) {
+            if (item.getChatData().msgId().equalsIgnoreCase(msgId)) {
+                item.setDeleted(true);
+                break;
             }
-
-            TwitchChannelViewModel channel;
-            try {
-                channel = getChannel(chatRoom.getChannel());
-            } catch (ConcurrentModificationException ignored) {
-                // チャンネルの分離時に発生する可能性がある
-                return;
-            }
-
-            var chatData = createChatDataViewModel(channel, item);
-            addChat(chatData);
-
-        } catch (Exception e) {
-            LOGGER.error(item.toString(), e);
         }
     }
 
-    @Override
-    public void onChatCleared(ChatRoom chatRoom) {
-        LOGGER.info("{} chat cleared", chatRoom.getBroadcaster().getUserLogin());
-
-        var channelId = chatRoom.getBroadcaster().getUserLogin();
-
-        Platform.runLater(() ->
-                chatDataList.removeIf(c -> c.getChatData().channelId().equalsIgnoreCase(channelId)));
+    public void clearChatMessages(ChatRoom chatRoom) {
+        var broadcaster = chatRoom.getBroadcaster();
+        chatDataList.removeIf(chatData -> chatData.getChannel().getBroadcaster().equals(broadcaster));
     }
 
-    @Override
-    public void onChatMessageDeleted(ChatRoom chatRoom, String messageId) {
-        LOGGER.info("{} chat deleted", chatRoom.getBroadcaster().getUserLogin());
-        Platform.runLater(() -> chatDataList.stream()
-                .filter(c -> c.getChatData().msgId().equalsIgnoreCase(messageId))
-                .findFirst()
-                .ifPresent(chatData -> chatData.setDeleted(true)));
+    public abstract void onStateUpdated(ChatRoomStateUpdatedEvent e);
+
+    void onChatAdded(ChatMessageEvent e, boolean hidden) {
+        var chatRoom = e.getChatRoom();
+        var channel = getChannel(chatRoom.getChannel());
+
+        var viewModel = createChatDataViewModel(channel, e.getChatData());
+        viewModel.fontProperty().bind(font);
+        viewModel.setHidden(hidden);
+
+        addChat(viewModel);
     }
 
-    @Override
-    public void onRaidReceived(ChatRoom chatRoom, String raiderName, int viewerCount) {
+    void onCheered(CheeredEvent e) {
+        var chatRoom = e.getChatRoom();
+        var channel = getChannel(chatRoom.getChannel());
+        var cheer = e.getCheer();
+
+        var viewModel = createChatDataViewModel(channel, cheer.chatData());
+        viewModel.fontProperty().bind(font);
+        viewModel.setBits(cheer.bits());
+
+        addChat(viewModel);
+    }
+
+    void onRaidReceived(RaidReceivedEvent e) {
         var format = Resources.getString("chat.raid.received.format");
-        var chatData = ChatData.createSystemData(format.formatted(raiderName, viewerCount));
-
-        var channel = getChannel(chatRoom.getChannel());
+        var chatData = ChatData.createSystemData(format.formatted(e.getRaiderName(), e.getViewerCount()));
+        var channel = getChannel(e.getChatRoom().getChannel());
 
         var viewModel = createChatDataViewModel(channel, chatData);
         viewModel.fontProperty().bind(font);
+        viewModel.setSystem(true);
 
         addChat(viewModel);
     }
 
-    @Override
-    public void onUserSubscribed(ChatRoom chatRoom, ChatData chatData) {
-        var channel = getChannel(chatRoom.getChannel());
-
-        var viewModel = createChatDataViewModel(channel, chatData);
-        viewModel.fontProperty().bind(font);
-        viewModel.setSubs(true);
-
-        addChat(viewModel);
-    }
-
-    @Override
-    public void onUserGiftedSubscribe(ChatRoom chatRoom, String giverName, String userName) {
-        var message = "%s sub gifted by %s.".formatted(userName, giverName);
+    void onGiftedSubsEvent(UserGiftedSubscribeEvent e) {
+        var message = "%s sub gifted by %s.".formatted(e.getReceiverName(), e.getGiverName());
         var chatData = ChatData.createSystemData(message);
 
+        var chatRoom = e.getChatRoom();
         var channel = getChannel(chatRoom.getChannel());
 
         var viewModel = createChatDataViewModel(channel, chatData);
         viewModel.fontProperty().bind(font);
         viewModel.setSystem(true);
+
+        addChat(viewModel);
+    }
+
+    void onUserSubsEvent(UserSubscribedEvent e) {
+        var chatRoom = e.getChatRoom();
+        var channel = getChannel(chatRoom.getChannel());
+
+        var viewModel = createChatDataViewModel(channel, e.getChatData());
+        viewModel.fontProperty().bind(font);
+        viewModel.setSubs(true);
 
         addChat(viewModel);
     }
@@ -232,10 +263,6 @@ public abstract class ChatRoomViewModel implements ChatRoomListener, TwitchChann
     public ObjectProperty<ChatFont> fontProperty() { return font; }
     public ChatFont getFont() { return font.get(); }
     public void setFont(ChatFont font) { this.font.set(font); }
-
-    public ObjectProperty<ChatMessageFilter> chatMessageFilterProperty() { return chatMessageFilter; }
-    public ChatMessageFilter getChatMessageFilter() { return chatMessageFilter.get(); }
-    public void setChatMessageFilter(ChatMessageFilter chatMessageFilter) { this.chatMessageFilter.set(chatMessageFilter); }
 
     protected ReadOnlyBooleanWrapper chatJoinedWrapper() { return chatJoined; }
     public ReadOnlyBooleanProperty chatJoinedProperty() { return chatJoined.getReadOnlyProperty(); }

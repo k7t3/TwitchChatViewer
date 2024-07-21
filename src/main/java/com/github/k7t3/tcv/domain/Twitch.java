@@ -1,9 +1,23 @@
+/*
+ * Copyright 2024 k7t3
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.github.k7t3.tcv.domain;
 
 import com.github.k7t3.tcv.domain.auth.CredentialController;
 import com.github.k7t3.tcv.domain.auth.CredentialStore;
-import com.github.k7t3.tcv.domain.channel.ChannelRepository;
-import com.github.k7t3.tcv.domain.core.EventExecutorWrapper;
 import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
 import com.github.twitch4j.TwitchClient;
 import com.github.twitch4j.chat.TwitchChat;
@@ -14,14 +28,8 @@ import java.io.IOException;
 public class Twitch implements Closeable {
 
     private final OAuth2Credential credential;
-
     private final TwitchClient client;
-
-    private final EventExecutorWrapper eventExecutor = new EventExecutorWrapper();
-
     private final CredentialStore credentialStore;
-
-    private ChannelRepository channelRepository;
 
     private TwitchAPI twitchAPI;
 
@@ -35,11 +43,6 @@ public class Twitch implements Closeable {
         this.client = client;
     }
 
-    public ChannelRepository getChannelRepository() {
-        if (channelRepository == null) channelRepository = new ChannelRepository(this);
-        return channelRepository;
-    }
-
     public TwitchAPI getTwitchAPI() {
         if (twitchAPI == null) twitchAPI = new TwitchAPI(this);
         return twitchAPI;
@@ -51,10 +54,6 @@ public class Twitch implements Closeable {
 
     CredentialStore getCredentialStore() {
         return credentialStore;
-    }
-
-    public EventExecutorWrapper getEventExecutor() {
-        return eventExecutor;
     }
 
     private OAuth2Credential getCredential() {
@@ -92,6 +91,7 @@ public class Twitch implements Closeable {
             }
             twitchAPI = null;
         }
+        client.close();
 
         var credentialController = new CredentialController(credentialStore);
         try {
@@ -105,11 +105,6 @@ public class Twitch implements Closeable {
 
     @Override
     public void close() {
-        try {
-            eventExecutor.close();
-        } catch (IOException ignored) {
-        }
-
         if (twitchAPI != null) {
             try {
                 twitchAPI.close();

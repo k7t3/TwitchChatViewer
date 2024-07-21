@@ -1,8 +1,21 @@
+/*
+ * Copyright 2024 k7t3
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.github.k7t3.tcv.prefs;
 
-import atlantafx.base.theme.Theme;
-import com.github.k7t3.tcv.view.core.ThemeManager;
-import javafx.beans.property.BooleanProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,7 +23,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.InvalidPreferencesFormatException;
 import java.util.prefs.Preferences;
@@ -19,32 +31,20 @@ public class AppPreferences extends PreferencesBase {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AppPreferences.class);
 
-    /**
-     * このアプリケーションで使用する実験的な機能の有効化
-     */
-    private static final String EXPERIMENTAL = "experimental";
-
     private final Preferences preferences;
-
-    private final Map<String, WindowPreferences> windowPrefs = new HashMap<>();
 
     private final GeneralPreferences generalPreferences;
 
-    private BooleanProperty experimental;
-
-    private KeyActionPreferences keyActionPreferences;
-
-    private PlayerPreferences playerPreferences;
-
-    private ChatMessageFilterPreferences messageFilterPreferences;
-
     private ChatPreferences chatPreferences;
+
+    private KeyBindingPreferences keyBindingPreferences;
+
+    private StatePreferences statePreferences;
 
     private AppPreferences() {
         super(Preferences.userNodeForPackage(AppPreferences.class), new HashMap<>());
-        defaults.put(EXPERIMENTAL, Boolean.FALSE);
 
-        preferences = Preferences.userNodeForPackage(getClass());
+        preferences = Preferences.userRoot().node("/com/github/k7t3/tcv");
         generalPreferences = new GeneralPreferences(preferences, defaults);
 
         LOGGER.info("preferences initialized");
@@ -60,26 +60,12 @@ public class AppPreferences extends PreferencesBase {
 
     @Override
     protected void readFromPreferences() {
-        windowPrefs.values().forEach(PreferencesBase::readFromPreferences);
-
-        if (keyActionPreferences != null)
-            keyActionPreferences.readFromPreferences();
-
-        if (playerPreferences != null)
-            playerPreferences.readFromPreferences();
-
-        if (messageFilterPreferences != null)
-            messageFilterPreferences.readFromPreferences();
-
         if (chatPreferences != null)
             chatPreferences.readFromPreferences();
     }
 
     @Override
     protected void writeToPreferences() {
-        if (messageFilterPreferences != null)
-            messageFilterPreferences.writeToPreferences();
-
         if (chatPreferences != null)
             chatPreferences.writeToPreferences();
     }
@@ -101,11 +87,6 @@ public class AppPreferences extends PreferencesBase {
         }
     }
 
-    public WindowPreferences getWindowPreferences(String windowName) {
-        return windowPrefs.computeIfAbsent(windowName, k -> new WindowPreferences(preferences, defaults, k));
-    }
-
-    // FIXME CredentialStorageにどうやって渡すか
     public Preferences getPreferences() {
         return preferences;
     }
@@ -124,27 +105,6 @@ public class AppPreferences extends PreferencesBase {
         return generalPreferences;
     }
 
-    public KeyActionPreferences getKeyActionPreferences() {
-        if (keyActionPreferences == null) {
-            keyActionPreferences = new KeyActionPreferences(preferences, defaults);
-        }
-        return keyActionPreferences;
-    }
-
-    public PlayerPreferences getPlayerPreferences() {
-        if (playerPreferences == null) {
-            playerPreferences = new PlayerPreferences(preferences, defaults);
-        }
-        return playerPreferences;
-    }
-
-    public ChatMessageFilterPreferences getMessageFilterPreferences() {
-        if (messageFilterPreferences == null) {
-            messageFilterPreferences = new ChatMessageFilterPreferences(preferences, defaults);
-        }
-        return messageFilterPreferences;
-    }
-
     public ChatPreferences getChatPreferences() {
         if (chatPreferences == null) {
             chatPreferences = new ChatPreferences(preferences, defaults);
@@ -152,14 +112,20 @@ public class AppPreferences extends PreferencesBase {
         return chatPreferences;
     }
 
-    // ******************** PROPERTIES ********************
-
-    public BooleanProperty experimentalProperty() {
-        if (experimental == null) experimental = createBooleanProperty(EXPERIMENTAL);
-        return experimental;
+    public KeyBindingPreferences getKeyBindingPreferences() {
+        if (keyBindingPreferences == null) {
+            keyBindingPreferences = new KeyBindingPreferences(preferences, defaults);
+        }
+        return keyBindingPreferences;
     }
-    public boolean isExperimental() { return experimentalProperty().get(); }
-    public void setExperimental(boolean experimental) { experimentalProperty().set(experimental); }
+
+    public StatePreferences getStatePreferences() {
+        if (statePreferences == null)
+            statePreferences = new StatePreferences(preferences, defaults);
+        return statePreferences;
+    }
+
+    // ******************** PROPERTIES ********************
 
     public static AppPreferences getInstance() {
         return Holder.INSTANCE;

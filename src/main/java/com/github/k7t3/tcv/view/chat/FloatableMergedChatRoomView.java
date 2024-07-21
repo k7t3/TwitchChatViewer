@@ -1,3 +1,19 @@
+/*
+ * Copyright 2024 k7t3
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.github.k7t3.tcv.view.chat;
 
 import atlantafx.base.theme.Styles;
@@ -6,17 +22,20 @@ import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.chat.MergedChatRoomViewModel;
 import com.github.k7t3.tcv.app.chat.SingleChatRoomViewModel;
+import com.github.k7t3.tcv.app.core.AppHelper;
+import com.github.k7t3.tcv.view.image.LazyImageView;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.view.core.FloatableStage;
+import com.github.k7t3.tcv.view.group.menu.ChannelGroupMenu;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
+import javafx.collections.FXCollections;
 import javafx.collections.MapChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.effect.SepiaTone;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Rectangle;
@@ -25,6 +44,7 @@ import org.fxmisc.flowless.VirtualizedScrollPane;
 
 import java.net.URL;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
 
@@ -78,6 +98,13 @@ public class FloatableMergedChatRoomView implements FxmlView<MergedChatRoomViewM
 
         menuButton.getStyleClass().addAll(Tweaks.NO_ARROW, Styles.BUTTON_ICON);
 
+        // チャンネルグループに関するメニュー
+        var repository = AppHelper.getInstance().getChannelGroupRepository();
+        menuButton.getItems().addAll(0, List.of(
+                new ChannelGroupMenu(repository, FXCollections.observableArrayList(viewModel.getChannels().keySet())),
+                new SeparatorMenuItem()
+        ));
+
         // 閉じるボタン
         closeMenuItem.setOnAction(e -> {
             floatableStage.close();
@@ -100,11 +127,11 @@ public class FloatableMergedChatRoomView implements FxmlView<MergedChatRoomViewM
         autoScrollMenuItem.selectedProperty().bindBidirectional(viewModel.autoScrollProperty());
 
         // 透過度
-        floatableStage.backgroundOpacityProperty().bindBidirectional(prefs.floatableChatOpacityProperty());
+        floatableStage.backgroundOpacityProperty().bindBidirectional(prefs.floatingChatOpacityProperty());
         opacitySlider.valueProperty().bindBidirectional(floatableStage.backgroundOpacityProperty());
 
         // 常に最前面に表示
-        alwaysOnTopMenuItem.selectedProperty().bindBidirectional(prefs.floatableChatAlwaysTopProperty());
+        alwaysOnTopMenuItem.selectedProperty().bindBidirectional(prefs.floatingChatAlwaysTopProperty());
         alwaysOnTopMenuItem.selectedProperty().addListener((ob, o, n) -> floatableStage.setAlwaysOnTop(n));
         floatableStage.setAlwaysOnTop(alwaysOnTopMenuItem.isSelected());
 
@@ -125,7 +152,7 @@ public class FloatableMergedChatRoomView implements FxmlView<MergedChatRoomViewM
      * ブロードキャスターのプロファイルイメージNode
      */
     private Node createProfileImageView(TwitchChannelViewModel channel) {
-        var imageView = new ImageView(channel.getProfileImage());
+        var imageView = new LazyImageView(channel.getProfileImage());
         imageView.setPreserveRatio(true);
         imageView.setSmooth(true);
         imageView.setFitWidth(PROFILE_IMAGE_SIZE);
@@ -138,6 +165,12 @@ public class FloatableMergedChatRoomView implements FxmlView<MergedChatRoomViewM
         imageView.setClip(clip);
 
         ChatRoomViewUtils.installStreamInfoPopOver(channel, imageView);
+
+        if (channel.isLive()) {
+            imageView.setEffect(null);
+        } else {
+            imageView.setEffect(new SepiaTone());
+        }
 
         channel.liveProperty().addListener((ob, o, n) -> {
             if (n) {

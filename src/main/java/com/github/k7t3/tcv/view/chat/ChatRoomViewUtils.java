@@ -1,27 +1,39 @@
+/*
+ * Copyright 2024 k7t3
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.github.k7t3.tcv.view.chat;
 
-import atlantafx.base.controls.Popover;
-import atlantafx.base.theme.Styles;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.ChatRoomViewModel;
-import com.github.k7t3.tcv.prefs.AppPreferences;
+import com.github.k7t3.tcv.app.core.AppHelper;
+import com.github.k7t3.tcv.view.channel.LiveInfoPopup;
 import com.github.k7t3.tcv.view.core.FloatableStage;
-import com.github.k7t3.tcv.view.core.StageBoundsListener;
+import com.github.k7t3.tcv.view.core.JavaFXHelper;
+import com.github.k7t3.tcv.view.core.WindowBoundsListener;
 import javafx.beans.property.BooleanProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
-import javafx.geometry.Insets;
 import javafx.scene.Node;
-import javafx.scene.control.Label;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
-import javafx.scene.layout.VBox;
-import javafx.stage.WindowEvent;
 import org.fxmisc.flowless.VirtualFlow;
-import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
-import org.kordamp.ikonli.javafx.FontIcon;
 
-import java.time.Duration;
-import java.time.LocalDateTime;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 public class ChatRoomViewUtils {
 
@@ -54,87 +66,53 @@ public class ChatRoomViewUtils {
         });
     }
 
-    public static void initializeFloatableStage(FloatableStage stage, ChatRoomViewModel chatRoom) {
-        // ウインドウの座標設定を取り出す
-        var prefs = AppPreferences.getInstance();
+    private static String computeHash(String identity) {
+        try {
+            var digest = MessageDigest.getInstance("md5");
+            var bytes = identity.getBytes(StandardCharsets.UTF_8);
+            bytes = digest.digest(bytes);
+            return new String(bytes);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-        // チャットにおける識別子を使用して設定を取り出す
-        var windowPrefs = prefs.getWindowPreferences(chatRoom.getIdentity());
+    public static void initializeFloatableStage(FloatableStage stage, ChatRoomViewModel chatRoom) {
+        // チャットルームの識別子を取得
+        var identity = chatRoom.getIdentity();
+
+        var helper = AppHelper.getInstance();
+        var windowService = helper.getWindowBoundsService();
 
         // 保存されている座標を割り当て
-        var bounds = windowPrefs.getStageBounds();
-        bounds.apply(stage);
+        windowService.getBoundsAsync(identity)
+                .onDone(bounds -> bounds.apply(stage));
 
         // 座標の追跡設定
-        var listener = new StageBoundsListener();
+        var listener = new WindowBoundsListener();
         listener.install(stage);
 
         // ウインドウを閉じるときに座標を記録
         stage.setOnHiding(e -> {
             var current = listener.getCurrent();
-            windowPrefs.setStageBounds(current);
+            windowService.saveBoundsAsync(identity, current);
         });
     }
 
     public static void installStreamInfoPopOver(TwitchChannelViewModel channel, Node node) {
-        var gameNameLabel = new Label();
-        gameNameLabel.setWrapText(true);
+        var popup = new LiveInfoPopup(channel);
+        popup.setAutoHide(true);
+        node.addEventHandler(MouseEvent.MOUSE_MOVED, e -> {
+            if (!channel.isLive())
+                return;
 
-        var streamTitleLabel = new Label();
-        streamTitleLabel.setWrapText(true);
-        streamTitleLabel.getStyleClass().addAll(Styles.TEXT_SMALL);
-
-        var viewerCountLabel = new Label();
-        viewerCountLabel.setGraphic(new FontIcon(FontAwesomeSolid.USER));
-        viewerCountLabel.getStyleClass().add(Styles.DANGER);
-
-        // アップタイムはポップアップを表示したときに計算する
-        var uptimeLabel = new Label();
-        uptimeLabel.setGraphic(new FontIcon(FontAwesomeSolid.CLOCK));
-
-        var vbox = new VBox(gameNameLabel, streamTitleLabel, viewerCountLabel, uptimeLabel);
-        vbox.setPrefWidth(300);
-        vbox.setSpacing(4);
-        vbox.setPadding(new Insets(10, 0, 10, 0));
-
-        var pop = new Popover(vbox);
-        pop.titleProperty().bind(channel.observableUserName());
-        pop.setCloseButtonEnabled(false);
-        pop.setHeaderAlwaysVisible(true);
-        pop.setDetachable(false);
-        pop.setArrowLocation(Popover.ArrowLocation.TOP_LEFT);
-
-        pop.addEventHandler(WindowEvent.WINDOW_SHOWING, e -> {
-            gameNameLabel.setText(channel.getStreamInfo().gameName());
-            streamTitleLabel.setText(channel.getStreamInfo().title());
-            viewerCountLabel.setText(Integer.toString(channel.getStreamInfo().viewerCount()));
-
-            var now = LocalDateTime.now();
-            var startedAt = channel.getStreamInfo().startedAt();
-            var between = Duration.between(startedAt, now);
-            var minutes = between.toMinutes();
-
-            if (minutes < 60) {
-                uptimeLabel.setText("%d m".formatted(minutes));
-            } else {
-                var hours = minutes / 60;
-                minutes = minutes - hours * 60;
-                uptimeLabel.setText("%d h %d m".formatted(hours, minutes));
-            }
+            var bounds = JavaFXHelper.computeScreenBounds(node);
+            var x = bounds.getMinX() - popup.getWidth() / 2 + bounds.getWidth() / 2;
+            var y = bounds.getMaxY();
+            popup.show(node, x, y);
         });
-
-        node.setOnMousePressed(e -> {
-            if (channel.isLive() && !pop.isShowing()) {
-                pop.show(node);
-                e.consume();
-            }
-        });
-        node.setOnMouseEntered(e -> {
-            if (channel.isLive()) {
-                pop.show(node);
-            }
-        });
-        node.setOnMouseExited(e -> pop.hide());
+        node.addEventHandler(MouseEvent.MOUSE_EXITED, e -> popup.hide());
     }
+
 
 }

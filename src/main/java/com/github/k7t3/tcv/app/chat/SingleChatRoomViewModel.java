@@ -1,12 +1,28 @@
+/*
+ * Copyright 2024 k7t3
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.github.k7t3.tcv.app.chat;
 
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
+import com.github.k7t3.tcv.app.chat.filter.ChatFilters;
+import com.github.k7t3.tcv.app.emoji.ChatEmojiStore;
 import com.github.k7t3.tcv.app.service.FXTask;
-import com.github.k7t3.tcv.domain.channel.StreamInfo;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
-import com.github.k7t3.tcv.domain.chat.ChatRoom;
 import com.github.k7t3.tcv.domain.chat.ChatRoomState;
-import com.github.k7t3.tcv.domain.chat.ClipChatMessage;
+import com.github.k7t3.tcv.domain.event.chat.ChatRoomStateUpdatedEvent;
 import de.saxsys.mvvmfx.ViewModel;
 import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyObjectProperty;
@@ -34,14 +50,12 @@ public class SingleChatRoomViewModel extends ChatRoomViewModel implements ViewMo
             GlobalChatBadgeStore globalChatBadgeStore,
             ChatEmoteStore emoteStore,
             DefinedChatColors definedChatColors,
-            TwitchChannel channel
+            ChatEmojiStore emojiCache,
+            TwitchChannelViewModel channel,
+            ChatFilters chatFilters
     ) {
-        super(globalChatBadgeStore, emoteStore, definedChatColors, containerViewModel);
-        this.channel = new ReadOnlyObjectWrapper<>(new TwitchChannelViewModel(channel));
-
-        var channelViewModel = getChannel();
-        channelViewModel.getChannelListeners().add(this);
-        channelViewModel.getChatRoomListeners().add(this);
+        super(globalChatBadgeStore, emoteStore, definedChatColors, emojiCache, containerViewModel, chatFilters);
+        this.channel = new ReadOnlyObjectWrapper<>(channel);
     }
 
     @Override
@@ -62,7 +76,7 @@ public class SingleChatRoomViewModel extends ChatRoomViewModel implements ViewMo
     }
 
     @Override
-    boolean hasChannel(TwitchChannel channel) {
+    public boolean accept(TwitchChannel channel) {
         var viewModel = getChannel();
         return Objects.equals(viewModel.getChannel(), channel);
     }
@@ -88,12 +102,10 @@ public class SingleChatRoomViewModel extends ChatRoomViewModel implements ViewMo
     }
 
     @Override
-    public void onClipPosted(ChatRoom chatRoom, ClipChatMessage clipChatMessage) {
-        // no-op
-    }
+    public void onStateUpdated(ChatRoomStateUpdatedEvent e) {
+        var roomState = e.getState();
+        var active = e.isActive();
 
-    @Override
-    public void onStateUpdated(ChatRoom chatRoom, ChatRoomState roomState, boolean active) {
         LOGGER.info("{} room state updated {}", getChannel().getUserLogin(), roomState);
         Platform.runLater(() -> {
             if (active)
@@ -101,31 +113,6 @@ public class SingleChatRoomViewModel extends ChatRoomViewModel implements ViewMo
             else
                 roomStates.remove(roomState);
         });
-    }
-
-    @Override
-    public void onOnline(TwitchChannel channel, StreamInfo info) {
-        Platform.runLater(() -> getChannel().updateStreamInfo(info));
-    }
-
-    @Override
-    public void onOffline(TwitchChannel channel) {
-        Platform.runLater(() -> getChannel().updateStreamInfo(null));
-    }
-
-    @Override
-    public void onViewerCountUpdated(TwitchChannel channel, StreamInfo info) {
-        Platform.runLater(() -> getChannel().updateStreamInfo(info));
-    }
-
-    @Override
-    public void onTitleChanged(TwitchChannel channel, StreamInfo info) {
-        Platform.runLater(() -> getChannel().updateStreamInfo(info));
-    }
-
-    @Override
-    public void onGameChanged(TwitchChannel channel, StreamInfo info) {
-        Platform.runLater(() -> getChannel().updateStreamInfo(info));
     }
 
     // ******************** PROPERTIES ********************

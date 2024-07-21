@@ -1,11 +1,25 @@
+/*
+ * Copyright 2024 k7t3
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.github.k7t3.tcv.view.prefs;
 
 import atlantafx.base.controls.ToggleSwitch;
-import com.github.k7t3.tcv.app.prefs.ChatPreferencesViewModel;
-import com.github.k7t3.tcv.app.service.FXTask;
-import com.github.k7t3.tcv.app.service.TaskWorker;
-import com.github.k7t3.tcv.prefs.ChatFont;
 import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.app.prefs.ChatPreferencesViewModel;
+import com.github.k7t3.tcv.app.prefs.FontFamily;
 import com.github.k7t3.tcv.view.prefs.font.FontComboBoxCell;
 import com.github.k7t3.tcv.view.prefs.font.FontStringConverter;
 import de.saxsys.mvvmfx.InjectViewModel;
@@ -20,12 +34,14 @@ import org.kordamp.ikonli.javafx.FontIcon;
 import java.net.URL;
 import java.util.Locale;
 import java.util.ResourceBundle;
-import java.util.concurrent.TimeUnit;
 
-public class ChatPreferencesView implements PreferencesTabView<ChatPreferencesViewModel> {
+public class ChatPreferencesView implements PreferencesPage<ChatPreferencesViewModel> {
 
     @FXML
-    private ComboBox<ChatFont> fontComboBox;
+    private ComboBox<FontFamily> fontComboBox;
+
+    @FXML
+    private ComboBox<Double> fontSizeComboBox;
 
     @FXML
     private Label defaultPreviewLabel;
@@ -39,12 +55,17 @@ public class ChatPreferencesView implements PreferencesTabView<ChatPreferencesVi
     @FXML
     private ToggleSwitch showBadgeSwitch;
 
+    @FXML
+    private ComboBox<Integer> chatCacheSizeComboBox;
+
     @InjectViewModel
     private ChatPreferencesViewModel viewModel;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         initFontComboBox();
+        initFontSizeComboBox();
+        initChatCacheSizeComboBox();
 
         // 言語が英語のときはプレビューが重複するため非表示にする
         var locale = Locale.getDefault();
@@ -55,6 +76,18 @@ public class ChatPreferencesView implements PreferencesTabView<ChatPreferencesVi
 
         showNameSwitch.selectedProperty().bindBidirectional(viewModel.showUserNameProperty());
         showBadgeSwitch.selectedProperty().bindBidirectional(viewModel.showBadgesProperty());
+
+        // プレビューのフォント設定
+        fontComboBox.valueProperty().addListener((ob, o, n) -> loadPreviewFont());
+        fontSizeComboBox.valueProperty().addListener((ob, o, n) -> loadPreviewFont());
+    }
+
+    private void loadPreviewFont() {
+        var family = fontComboBox.getValue();
+        var size = fontSizeComboBox.getValue();
+        var font = Font.font(family.getFamily(), size);
+        previewLabel.setFont(font);
+        defaultPreviewLabel.setFont(font);
     }
 
     private void initFontComboBox() {
@@ -62,28 +95,30 @@ public class ChatPreferencesView implements PreferencesTabView<ChatPreferencesVi
         defaultPreviewLabel.setDisable(true);
         previewLabel.setDisable(true);
 
+        fontComboBox.setItems(viewModel.getFontFamilies());
         fontComboBox.setConverter(new FontStringConverter(fontComboBox.getItems()));
         fontComboBox.setCellFactory(param -> new FontComboBoxCell());
 
-        var fontLoader = FXTask.task(() -> {
-            TimeUnit.MILLISECONDS.sleep(400);
-            return Font.getFamilies().stream().map(ChatFont::new).toList();
-        });
-        fontLoader.setOnSucceeded(e -> {
-            fontComboBox.getItems().addAll(fontLoader.getValue());
-
+        viewModel.loadFontsAsync().onDone(() -> {
             fontComboBox.setDisable(false);
             defaultPreviewLabel.setDisable(false);
             previewLabel.setDisable(false);
 
             fontComboBox.getSelectionModel().select(viewModel.getFont());
             viewModel.fontProperty().bind(fontComboBox.valueProperty());
-
-            // プレビューのフォント設定
-            defaultPreviewLabel.fontProperty().bind(fontComboBox.valueProperty().map(ChatFont::getFont));
-            previewLabel.fontProperty().bind(fontComboBox.valueProperty().map(ChatFont::getFont));
         });
-        TaskWorker.getInstance().submit(fontLoader);
+    }
+
+    private void initFontSizeComboBox() {
+        fontSizeComboBox.getItems().addAll(ChatPreferencesViewModel.FONT_SIZES);
+        fontSizeComboBox.getSelectionModel().select(viewModel.getFontSize());
+        viewModel.fontSizeProperty().bind(fontSizeComboBox.valueProperty());
+    }
+
+    private void initChatCacheSizeComboBox() {
+        chatCacheSizeComboBox.getItems().setAll(ChatPreferencesViewModel.CHAT_CACHE_SIZES);
+        chatCacheSizeComboBox.getSelectionModel().select((Integer) viewModel.getChatCacheSize());
+        viewModel.chatCacheSizeProperty().bind(chatCacheSizeComboBox.valueProperty());
     }
 
     @Override

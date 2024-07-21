@@ -1,29 +1,40 @@
+/*
+ * Copyright 2024 k7t3
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.github.k7t3.tcv.view.clip;
 
-import atlantafx.base.controls.Popover;
-import atlantafx.base.theme.Styles;
-import com.github.k7t3.tcv.app.clip.EstimatedClipURL;
+import com.github.k7t3.tcv.app.clip.PostedClipItem;
 import com.github.k7t3.tcv.app.clip.PostedClipRepository;
-import com.github.k7t3.tcv.app.clip.PostedClipViewModel;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
-import com.github.k7t3.tcv.app.core.Resources;
-import com.github.k7t3.tcv.view.web.BrowserController;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.collections.FXCollections;
 import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
-import javafx.collections.SetChangeListener;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.Node;
-import javafx.scene.control.*;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.ListView;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.MouseButton;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 
@@ -33,48 +44,27 @@ import java.util.ResourceBundle;
 public class PostedClipRepositoryView implements FxmlView<PostedClipRepository>, Initializable {
 
     @FXML
-    private SplitPane root;
+    private BorderPane root;
 
     @FXML
     private HBox channelOwnersContainer;
 
     @FXML
-    private ListView<PostedClipViewModel> videoClips;
-
-    @FXML
-    private Node helpIcon;
-
-    @FXML
-    private ListView<EstimatedClipURL> estimatedClipURLs;
+    private ListView<PostedClipItem> videoClips;
 
     @InjectViewModel
     private PostedClipRepository repository;
 
-    private BrowserController browserController;
-
-    private ObservableList<PostedClipViewModel> postedClips;
-    private FilteredList<PostedClipViewModel> filteredClips;
+    private ObservableList<PostedClipItem> postedClips;
+    private FilteredList<PostedClipItem> filteredClips;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         postedClips = FXCollections.observableArrayList();
-        postedClips.addAll(repository.getPostedClips().values());
-        repository.getPostedClips().addListener(this::onPostedClipChanged);
-
-        estimatedClipURLs.getItems().setAll(repository.getEstimatedClipURLs());
-        estimatedClipURLs.setCellFactory(p -> new EstimatedClipURLCell(repository, browserController));
-
-        repository.getEstimatedClipURLs().addListener((SetChangeListener<? super EstimatedClipURL>) c -> {
-            if (c.wasAdded()) {
-                estimatedClipURLs.getItems().add(c.getElementAdded());
-            }
-            if (c.wasRemoved()) {
-                estimatedClipURLs.getItems().remove(c.getElementRemoved());
-            }
-        });
+        postedClips.addAll(repository.getItems().values());
+        repository.getItems().addListener(this::onPostedClipChanged);
 
         initializeButtons();
-        installHelpMessage();
 
         filteredClips = new FilteredList<>(postedClips);
         var sortedClips = new SortedList<>(filteredClips);
@@ -82,17 +72,6 @@ public class PostedClipRepositoryView implements FxmlView<PostedClipRepository>,
 
         videoClips.setItems(sortedClips);
         videoClips.setCellFactory(param -> new PostedClipViewCell());
-
-        videoClips.setOnKeyPressed(e -> {
-            if (e.getCode() == KeyCode.ENTER) {
-                openBrowser();
-            }
-        });
-        videoClips.setOnMouseClicked(e -> {
-            if (e.getButton() == MouseButton.PRIMARY && e.getClickCount() == 2) {
-                openBrowser();
-            }
-        });
 
         root.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
         root.parentProperty().addListener((ob, o, n) -> {
@@ -102,26 +81,13 @@ public class PostedClipRepositoryView implements FxmlView<PostedClipRepository>,
         });
     }
 
-    private void onPostedClipChanged(MapChangeListener.Change<? extends String, ? extends PostedClipViewModel> change) {
+    private void onPostedClipChanged(MapChangeListener.Change<? extends String, ? extends PostedClipItem> change) {
         if (change.wasAdded()) {
             postedClips.add(change.getValueAdded());
         }
         if (change.wasRemoved()) {
             postedClips.remove(change.getValueRemoved());
         }
-    }
-
-    public void setBrowserController(BrowserController browserController) {
-        this.browserController = browserController;
-    }
-
-    private void openBrowser() {
-        var selected = videoClips.getSelectionModel().getSelectedItem();
-        if (selected == null) return;
-
-        var url = selected.getClip().url();
-        browserController.load(url);
-        browserController.show();
     }
 
     private void initializeButtons() {
@@ -147,29 +113,6 @@ public class PostedClipRepositoryView implements FxmlView<PostedClipRepository>,
             }
         });
         return button;
-    }
-
-    private void installHelpMessage() {
-        var label = new Label(Resources.getString("clip.help"));
-        label.getStyleClass().addAll(Styles.TEXT_SMALL);
-        label.setWrapText(true);
-
-        var popOver = new Popover();
-        popOver.setDetachable(false);
-        popOver.setContentNode(label);
-        popOver.setArrowLocation(Popover.ArrowLocation.TOP_LEFT);
-        popOver.setPrefWidth(200);
-        popOver.setAutoHide(true);
-        //popOver.setCloseButtonEnabled(true);
-
-        // TitledPaneのスタイルに影響されてタイトルが巨大になってしまうため非表示
-        popOver.setHeaderAlwaysVisible(false);
-        popOver.setTitle("What is this?");
-
-        helpIcon.setOnMouseClicked(e -> {
-            e.consume();
-            popOver.show(helpIcon);
-        });
     }
 
 }
