@@ -7,16 +7,28 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+*'
 
 jobs:
-  get_version: # プッシュされたタグの文字列からバージョンを取得する
+  parse_version: # プッシュされたタグの文字列からバージョンをパースする
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.get.outputs.version }}
+      full_version: ${{ steps.parse.outputs.full_version }}
+      version: ${{ steps.parse.outputs.version }}
+      major: ${{ steps.parse.outputs.major }}
+      minor: ${{ steps.parse.outputs.minor }}
+      patch: ${{ steps.parse.outputs.patch }}
+      suffix: ${{ steps.parse.outputs.suffix }}
     steps:
-      - name: Get version from tag
-        id: get
+      - name: Parse version from tag
+        id: parse
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
+          FULL_VERSION=${GITHUB_REF#refs/tags/v}
+          VERSION=$(echo $FULL_VERSION | cut -d'-' -f1)
+          SUFFIX=$(echo $FULL_VERSION | cut -s -d'-' -f2-)
+          echo "full_version=$FULL_VERSION" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "major=$(echo $VERSION | cut -d. -f1)" >> $GITHUB_OUTPUT
+          echo "minor=$(echo $VERSION | cut -d. -f2)" >> $GITHUB_OUTPUT
+          echo "patch=$(echo $VERSION | cut -d. -f3)" >> $GITHUB_OUTPUT
+          echo "suffix=$SUFFIX" >> $GITHUB_OUTPUT
   make: # タグから識別したバージョン情報に基づくアプリケーションを生成する
     strategy:
       matrix:
@@ -25,7 +37,7 @@ jobs:
         # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners
         os: [windows-latest, macos-13, macos-14]
     runs-on: ${{ matrix.os }}
-    needs: get_version
+    needs: parse_version
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -38,20 +50,25 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
       - name: Make an application for Windows
         if: (matrix.os == 'windows-latest')
-        run: .\gradlew.bat "-Papp.version=${{ needs.get_version.outputs.version }}" make
+        run: .\gradlew.bat "-Papp.version=${{ needs.parse_version.outputs.full_version }}" make
       - name: Make an application
         if: (matrix.os != 'windows-latest')
-        run: ./gradlew "-Papp.version=${{ needs.get_version.outputs.version }}" make
+        run: ./gradlew "-Papp.version=${{ needs.parse_version.outputs.full_version }}" make
+      - name: Rename an application for Windows
+        if: (matrix.os == 'windows-latest')
+        shell: bash
+        run: |
+          mv '.\build\app\Twitch Chat Viewer-${{ needs.parse_version.outputs.version }}.exe' '.\build\app\Twitch Chat Viewer-${{ needs.parse_version.outputs.full_version }}.exe'
       - name: Rename an application for Intel Mac
         if: (matrix.os == 'macos-13')
         shell: bash
         run: |
-          mv "build/app/Twitch Chat Viewer-${{ needs.get_version.outputs.version }}-x86_64.dmg"
+          mv "build/app/Twitch Chat Viewer-${{ needs.parse_version.outputs.version }}.dmg" "build/app/Twitch Chat Viewer-${{ needs.parse_version.outputs.full_version }}-x86_64.dmg"
       - name: Rename an application for Apple Silicon Mac
         if: (matrix.os == 'macos-14')
         shell: bash
         run: |
-          mv "build/app/Twitch Chat Viewer-${{ needs.get_version.outputs.version }}-arm64.dmg"
+          mv "build/app/Twitch Chat Viewer-${{ needs.parse_version.outputs.version }}.dmg" "build/app/Twitch Chat Viewer-${{ needs.parse_version.outputs.full_version }}-arm64.dmg"
       - name: Detect asset file for Windows
         if: (matrix.os == 'windows-latest')
         shell: pwsh
