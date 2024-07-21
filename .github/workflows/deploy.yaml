@@ -4,24 +4,19 @@ on:
   push:
     tags:
       # ドットをエスケープしなくていい(正規表現でない)
-      - 'v[0-9]+.[0-9]+.[0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
 
 jobs:
-  parse_version: # プッシュされたタグの文字列からバージョン情報をパースする
+  get_version: # プッシュされたタグの文字列からバージョンを取得する
     runs-on: ubuntu-latest
     outputs:
-      major: ${{ steps.parse.outputs.major }}
-      minor: ${{ steps.parse.outputs.minor }}
-      patch: ${{ steps.parse.outputs.patch }}
+      version: ${{ steps.get.outputs.version }}
     steps:
-      - name: Parse version from tag
-        id: parse
+      - name: Get version from tag
+        id: get
         run: |
-          VERSION=${ GITHUB_REF#refs/tags/v }
-          echo "major=$(echo $VERSION | cut -d. -f1)" >> $GITHUB_OUTPUT
-          echo "minor=$(echo $VERSION | cut -d. -f2)" >> $GITHUB_OUTPUT
-          echo "patch=$(echo $VERSION | cut -d. -f3)" >> $GITHUB_OUTPUT
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
   make: # タグから識別したバージョン情報に基づくアプリケーションを生成する
     strategy:
       matrix:
@@ -30,7 +25,7 @@ jobs:
         # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners
         os: [ubuntu-latest, windows-latest, macos-13, macos-14]
     runs-on: ${{ matrix.os }}
-    needs: parse_version
+    needs: get_version
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -42,22 +37,22 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
       - name: Make an application
-        run: ./gradlew make -Papp.version=${{ needs.parse_version.outputs.major }}.${{ needs.parse_version.outputs.minor }}.${{ needs.parse_version.outputs.patch }}
+        run: ./gradlew make -Papp.version=${{ needs.get_version.outputs.version }}
       - name: Rename an application for Debian Linux
         if: (matrix.os == 'ubuntu-latest')
         shell: bash
         run: |
-          mv "build/app/Twitch Chat Viewer-${{ needs.parse_version.outputs.major }}.${{ needs.parse_version.outputs.minor }}.${{ needs.parse_version.outputs.patch }}.deb" "build/app/Twitch Chat Viewer-${{ needs.parse_version.outputs.major }}.${{ needs.parse_version.outputs.minor }}.${{ needs.parse_version.outputs.patch }}-x86_64.deb"
+          mv "build/app/Twitch Chat Viewer-${{ needs.get_version.outputs.version }}-x86_64.deb"
       - name: Rename an application for Intel Mac
         if: (matrix.os == 'macos-13')
         shell: bash
         run: |
-          mv "build/app/Twitch Chat Viewer-${{ needs.parse_version.outputs.major }}.${{ needs.parse_version.outputs.minor }}.${{ needs.parse_version.outputs.patch }}.dmg" "build/app/Twitch Chat Viewer-${{ needs.parse_version.outputs.major }}.${{ needs.parse_version.outputs.minor }}.${{ needs.parse_version.outputs.patch }}-x86_64.dmg"
+          mv "build/app/Twitch Chat Viewer-${{ needs.get_version.outputs.version }}-x86_64.dmg"
       - name: Rename an application for Apple Silicon Mac
         if: (matrix.os == 'macos-14')
         shell: bash
         run: |
-          mv "build/app/Twitch Chat Viewer-${{ needs.parse_version.outputs.major }}.${{ needs.parse_version.outputs.minor }}.${{ needs.parse_version.outputs.patch }}.dmg" "build/app/Twitch Chat Viewer-${{ needs.parse_version.outputs.major }}.${{ needs.parse_version.outputs.minor }}.${{ needs.parse_version.outputs.patch }}-arm64.dmg"
+          mv "build/app/Twitch Chat Viewer-${{ needs.get_version.outputs.version }}-arm64.dmg"
       - name: Detect asset file for Windows
         if: (matrix.os == 'windows-latest')
         shell: pwsh
