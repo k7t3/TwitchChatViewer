@@ -23,8 +23,6 @@ jobs:
           echo "minor=$(echo $VERSION | cut -d. -f2)" >> $GITHUB_OUTPUT
           echo "patch=$(echo $VERSION | cut -d. -f3)" >> $GITHUB_OUTPUT
   make: # タグから識別したバージョン情報に基づくアプリケーションを生成する
-    outputs:
-      application: ${{  }}
     strategy:
       matrix:
         # WindowsランナーはWiX Toolset 3.14.1.8722入り
