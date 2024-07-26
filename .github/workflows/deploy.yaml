@@ -102,4 +102,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         with:
           draft: true # ドラフトリリースとし、公開は手動で行う
-          files: build/distribution/*
+          files: build/distribution/**
