@@ -95,7 +95,7 @@ jobs:
       - name: Download Artifacts
         uses: actions/download-artifact@v4.1.8
         with:
-          download-path: build/distribution/
+          path: build/distribution/
       - name: Create Release
         uses: softprops/action-gh-release@v2 # https://github.com/softprops/action-gh-release
         env:
