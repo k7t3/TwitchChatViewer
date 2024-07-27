@@ -6,6 +6,10 @@
     -fx-icon-color: -twitch-accent-color;
 }
 
+.title-label {
+    -fx-font-family: 'Impact';
+}
+
 .title-label > .ikonli-font-icon {
     -fx-icon-color: -twitch-accent-color;
     -fx-icon-size: 24;
