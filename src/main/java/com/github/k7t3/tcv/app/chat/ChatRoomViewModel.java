@@ -186,7 +186,9 @@ public abstract class ChatRoomViewModel {
         var chatRoom = e.getChatRoom();
         var channel = getChannel(chatRoom.getChannel());
 
-        var viewModel = createChatDataViewModel(channel, e.getChatData());
+        var demoChatData = DEMOChatDataProvider.provide(e.getChatData());
+
+        var viewModel = createChatDataViewModel(channel, demoChatData);
         viewModel.fontProperty().bind(font);
         viewModel.setHidden(hidden);
 
@@ -198,7 +200,9 @@ public abstract class ChatRoomViewModel {
         var channel = getChannel(chatRoom.getChannel());
         var cheer = e.getCheer();
 
-        var viewModel = createChatDataViewModel(channel, cheer.chatData());
+        var demoChatData = DEMOChatDataProvider.provide(cheer.chatData());
+
+        var viewModel = createChatDataViewModel(channel, demoChatData);
         viewModel.fontProperty().bind(font);
         viewModel.setBits(cheer.bits());
 
@@ -235,7 +239,9 @@ public abstract class ChatRoomViewModel {
         var chatRoom = e.getChatRoom();
         var channel = getChannel(chatRoom.getChannel());
 
-        var viewModel = createChatDataViewModel(channel, e.getChatData());
+        var demoChatData = DEMOChatDataProvider.provide(e.getChatData());
+
+        var viewModel = createChatDataViewModel(channel, demoChatData);
         viewModel.fontProperty().bind(font);
         viewModel.setSubs(true);
 

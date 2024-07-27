@@ -56,7 +56,7 @@ public class AppHelper implements Closeable {
 
     private AppHelper() {
         userId.bind(twitch.map(Twitch::getUserId));
-        userName.bind(twitch.map(Twitch::getUserName));
+        userName.bind(authorized.map(a -> a ? "Login User" : ""));
         authorized.bind(twitch.isNotNull());
     }
 

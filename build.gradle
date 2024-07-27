@@ -68,6 +68,9 @@ dependencies {
     // チャットビュー用のVirtualFlow
     implementation 'org.fxmisc.flowless:flowless:0.7.2'
 
+    // デモ用
+    implementation 'net.datafaker:datafaker:2.3.1'
+
     // テスト
     testImplementation platform('org.junit:junit-bom:5.9.1')
     testImplementation 'org.junit.jupiter:junit-jupiter'

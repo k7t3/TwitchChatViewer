@@ -52,7 +52,7 @@ public class TwitchChannelViewModel {
     public TwitchChannelViewModel(TwitchChannel channel, ChannelViewModelRepository repository) {
         this.channel = channel;
         this.repository = repository;
-        broadcaster = new ReadOnlyObjectWrapper<>(channel.getBroadcaster());
+        broadcaster = new ReadOnlyObjectWrapper<>(DEMOBroadcasterProvider.provide(channel.getBroadcaster()));
         chatBadgeStore = new ChannelChatBadgeStore(channel);
         following = new ReadOnlyBooleanWrapper(channel.isFollowing());
         persistent = new SimpleBooleanProperty(channel.isPersistent()) {
@@ -68,8 +68,9 @@ public class TwitchChannelViewModel {
     }
 
     public void updateStreamInfo(StreamInfo streamInfo) {
-        streamInfoWrapper().set(streamInfo);
-        liveWrapper().set(streamInfo != null);
+        var info = DEMOStreamInfoProvider.provide(streamInfo);
+        streamInfoWrapper().set(info);
+        liveWrapper().set(info != null);
     }
 
     public TwitchChannel getChannel() {

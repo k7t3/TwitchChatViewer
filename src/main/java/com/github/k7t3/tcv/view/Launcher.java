@@ -38,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Objects;
 
 public class Launcher extends Application {
 
@@ -106,6 +107,9 @@ public class Launcher extends Application {
 
         // メインシーンの作成
         var scene = new Scene(view);
+
+        // デモ用のスタイルシートを適用
+        scene.getStylesheets().add(Objects.requireNonNull(getClass().getResource("/css/demo.css")).toExternalForm());
 
         // テーマを適用
         var themePrefs = preferences.getGeneralPreferences();
