@@ -18,8 +18,8 @@ package com.github.k7t3.tcv.app.chat;
 
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.filter.ChatFilters;
-import com.github.k7t3.tcv.app.chat.filter.KeywordFilterEntry;
 import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.app.demo.DEMOChatDataProvider;
 import com.github.k7t3.tcv.app.emoji.ChatEmojiStore;
 import com.github.k7t3.tcv.app.event.KeywordFilteringEvent;
 import com.github.k7t3.tcv.app.event.UserFilteringEvent;

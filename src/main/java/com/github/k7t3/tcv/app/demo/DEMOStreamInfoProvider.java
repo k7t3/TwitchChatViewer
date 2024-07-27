@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package com.github.k7t3.tcv.app.channel;
+package com.github.k7t3.tcv.app.demo;
 
 import com.github.k7t3.tcv.domain.channel.StreamInfo;
 
 import java.util.List;
 
-class DEMOStreamInfoProvider {
+public class DEMOStreamInfoProvider {
 
     public static StreamInfo provide(StreamInfo trueInfo) {
         if (trueInfo == null) return null;

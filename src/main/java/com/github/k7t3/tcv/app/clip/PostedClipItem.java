@@ -18,6 +18,7 @@ package com.github.k7t3.tcv.app.clip;
 
 import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.DesktopUtils;
+import com.github.k7t3.tcv.app.demo.DEMOVideoClipProvider;
 import com.github.k7t3.tcv.app.image.LazyImage;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
@@ -68,7 +69,7 @@ public class PostedClipItem {
         var task = FXTask.task(() -> finder.findClip(url).flatMap(ClipChatMessage::getClip).orElse(null));
         return task.onDone(c -> {
             if (c != null) {
-                clip().set(c);
+                setClip(c);
             }
         }).runAsync();
     }
@@ -121,7 +122,9 @@ public class PostedClipItem {
     }
     public ReadOnlyObjectProperty<VideoClip> clipProperty() { return clip().getReadOnlyProperty(); }
     public VideoClip getClip() { return clip == null ? null : clip.get(); }
-    private void setClip(VideoClip clip) { clip().set(clip); }
+    private void setClip(VideoClip clip) {
+        clip().set(DEMOVideoClipProvider.provide(clip));
+    }
 
     public ObservableValue<String> observableThumbnailLink() { return clip().map(VideoClip::thumbnailUrl); }
     String getThumbnailLink() { return observableThumbnailLink().getValue(); }

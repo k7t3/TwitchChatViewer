@@ -14,22 +14,33 @@
  * limitations under the License.
  */
 
-package com.github.k7t3.tcv.app.channel;
+package com.github.k7t3.tcv.app.demo;
 
-import com.github.k7t3.tcv.domain.channel.Broadcaster;
+import com.github.k7t3.tcv.domain.clip.VideoClip;
 import net.datafaker.Faker;
 
-class DEMOBroadcasterProvider {
+public class DEMOVideoClipProvider {
 
     private static final Faker FAKER = new Faker();
 
-    public static Broadcaster provide(Broadcaster b) {
-        return new Broadcaster(
-                b.getUserId(),
-                b.getUserLogin(),
-                FAKER.warhammerFantasy().heros(),
-                FAKER.avatar().image(),
-                null
+    private DEMOVideoClipProvider() {
+    }
+
+    public static VideoClip provide(VideoClip c) {
+        return new VideoClip(
+                c.id(),
+                c.url(),
+                c.embeddedUrl(),
+                c.broadcasterId(),
+                c.broadcasterName(),
+                c.creatorId(),
+                FAKER.internet().username(),
+                c.videoId(),
+                FAKER.famousLastWords().lastWords(),
+                c.viewCount(),
+                c.createdAt(),
+                c.thumbnailUrl(),
+                c.duration()
         );
     }
 

@@ -16,6 +16,7 @@
 
 package com.github.k7t3.tcv.app.channel;
 
+import com.github.k7t3.tcv.app.demo.DEMOBroadcasterProvider;
 import com.github.k7t3.tcv.app.model.AbstractViewModel;
 import com.github.k7t3.tcv.app.event.ChatOpeningEvent;
 import com.github.k7t3.tcv.app.service.FXTask;
@@ -54,8 +55,9 @@ public class FoundChannelViewModel extends AbstractViewModel {
     }
 
     public void update(FoundChannel channel) {
-        setBroadcaster(channel.getBroadcaster());
-        setProfileImage(new Image(channel.getBroadcaster().getProfileImageUrl(), PROFILE_IMAGE_WIDTH, PROFILE_IMAGE_HEIGHT, true, true, true));
+        var b = DEMOBroadcasterProvider.provide(channel.getBroadcaster());
+        setBroadcaster(b);
+        setProfileImage(new Image(b.getProfileImageUrl(), PROFILE_IMAGE_WIDTH, PROFILE_IMAGE_HEIGHT, true, true, true));
         setGameName(channel.getGameName());
         setLive(channel.isLive());
     }

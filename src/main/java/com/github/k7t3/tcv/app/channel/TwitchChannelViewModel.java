@@ -17,6 +17,8 @@
 package com.github.k7t3.tcv.app.channel;
 
 import com.github.k7t3.tcv.app.chat.ChannelChatBadgeStore;
+import com.github.k7t3.tcv.app.demo.DEMOBroadcasterProvider;
+import com.github.k7t3.tcv.app.demo.DEMOStreamInfoProvider;
 import com.github.k7t3.tcv.app.image.LazyImage;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
@@ -153,7 +155,8 @@ public class TwitchChannelViewModel {
     private ReadOnlyObjectWrapper<LazyImage> profileImageWrapper() {
         if (profileImage == null) {
             profileImage = new ReadOnlyObjectWrapper<>(new LazyImage(
-                    channel.getBroadcaster().getProfileImageUrl(),
+                    //channel.getBroadcaster().getProfileImageUrl(),
+                    getBroadcaster().getProfileImageUrl(),
                     64,
                     64
             ));

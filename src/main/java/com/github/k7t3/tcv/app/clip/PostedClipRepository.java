@@ -16,6 +16,7 @@
 
 package com.github.k7t3.tcv.app.clip;
 
+import com.github.k7t3.tcv.app.demo.DEMOBroadcasterProvider;
 import com.github.k7t3.tcv.app.model.AbstractViewModel;
 import com.github.k7t3.tcv.app.event.ClipPostedAppEvent;
 import com.github.k7t3.tcv.app.reactive.DownCastFXSubscriber;
@@ -50,7 +51,7 @@ public class PostedClipRepository extends AbstractViewModel {
 
     private void onClipPostedEvent(ClipPostedEvent e) {
         var chatRoom = e.getChatRoom();
-        var broadcaster = chatRoom.getBroadcaster();
+        var broadcaster = DEMOBroadcasterProvider.provide(chatRoom.getBroadcaster());
         var clipChatMessage = e.getClipChatMessage();
 
         var id = clipChatMessage.getId();

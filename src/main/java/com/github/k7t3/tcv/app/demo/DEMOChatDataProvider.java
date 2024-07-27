@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.github.k7t3.tcv.app.chat;
+package com.github.k7t3.tcv.app.demo;
 
 import com.github.k7t3.tcv.domain.chat.ChatData;
 import com.github.k7t3.tcv.domain.chat.ChatMessage;
@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
-class DEMOChatDataProvider {
+public class DEMOChatDataProvider {
 
     private final Faker faker = new Faker(Locale.ENGLISH);
 
@@ -67,13 +67,13 @@ class DEMOChatDataProvider {
             // テキストの長さに応じて適切なセンテンスに入れ替える
             String sentence;
             if (text.length() < 5) {
-                sentence = faker.famousLastWords().lastWords();
+                sentence = faker.lorem().word();
             }
             else if (text.length() < 20) {
-                sentence = faker.lorem().sentence(4);
+                sentence = faker.lorem().sentence(2);
             }
             else {
-                sentence = faker.lorem().sentence(10);
+                sentence = faker.lorem().sentence(4);
             }
 
             fragments.add(ChatMessageFragment.text(sentence));
