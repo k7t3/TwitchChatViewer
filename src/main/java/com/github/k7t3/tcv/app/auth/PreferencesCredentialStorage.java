@@ -102,7 +102,7 @@ public class PreferencesCredentialStorage implements CredentialStore {
 
                 credentials.add(credential);
 
-                LOGGER.info("loaded credential {}", credential);
+                LOGGER.info("loaded credential");
             }
 
         } catch (IOException e) {
@@ -120,7 +120,7 @@ public class PreferencesCredentialStorage implements CredentialStore {
         try (var baos = new ByteArrayOutputStream();
              var os = new DataOutputStream(baos)) {
 
-            LOGGER.info("save credentials {}", credentials);
+            LOGGER.info("saved credential");
 
             for (var credential : credentials) {
                 if (credential instanceof OAuth2Credential c) {
