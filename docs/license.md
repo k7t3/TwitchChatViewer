@@ -33,7 +33,7 @@ We do not collect any information, and therefore do not share any information wi
 
 ### 5. User Rights
 Users can immediately delete the access token by logging out of the application.
-Additionally, users can invalidate the access token by disconnecting the `k7t3-tcv` link 
+Additionally, users can invalidate the access token by disconnecting the `Chat Viewer - k7t3` link 
 from Twitch's [connections page](https://www.twitch.tv/settings/connections).
 
 ### 6. Security Measures

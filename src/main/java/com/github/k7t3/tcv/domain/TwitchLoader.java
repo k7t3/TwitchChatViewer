@@ -69,7 +69,7 @@ public class TwitchLoader {
         } else {
 
             // 無効だった場合はリフレッシュする
-            LOGGER.info("refresh token {}", controller.getCredentialManager().getCredentials().getFirst());
+            LOGGER.info("refresh a token");
             credential = controller.refreshToken();
 
             // リフレッシュに失敗したときは資格情報を空で返す
@@ -77,7 +77,7 @@ public class TwitchLoader {
                 LOGGER.info("failed to refresh token");
                 return Optional.empty();
             } else {
-                LOGGER.info("refreshed {}", credential);
+                LOGGER.info("refreshed access token");
             }
         }
 

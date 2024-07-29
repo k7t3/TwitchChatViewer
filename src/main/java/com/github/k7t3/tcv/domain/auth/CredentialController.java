@@ -33,8 +33,7 @@ public class CredentialController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CredentialController.class);
 
-    private static final String CLIENT_ID = "pstz78bo5kzvwgwzfnqhojf00a62fa";
-    //private static final String REDIRECT_URL = "http://localhost:3000";
+    private static final String CLIENT_ID = "m2xt95z7dxg78rys5ds3ugc7klxjwn";
     private static final String REDIRECT_URL = null;
 
     private final TwitchIdentityProvider identityProvider = new TwitchIdentityProvider(CLIENT_ID, null, REDIRECT_URL);

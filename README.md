@@ -3,30 +3,36 @@
 [![Java CI](https://github.com/k7t3/TwitchChatViewer/actions/workflows/test.yaml/badge.svg)](https://github.com/k7t3/TwitchChatViewer/actions/workflows/test.yaml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-このアプリケーションはライブストリーミングサービス[Twitch](https://www.twitch.tv/)の非公式チャットビューアです。  
-チャットを快適に視聴することを目的にしています！
+このアプリケーションはライブストリーミングサービス[Twitch](https://www.twitch.tv/)の非公式チャットビューアです。
 
-!["メインビュー"](docs/images/01.main.png)
+<img src="docs/images/04アプリケーション画面.png" width="1024" alt="アプリケーション画面">
+
+[使用方法](docs/usage.md)
 
 ## 主な機能
 
 ### マルチチャンネルのチャット閲覧
-* 複数のチャンネルのチャットを同時に楽しめます。
+* 複数のチャンネルのチャットを同時に視聴できます。
 
 ### チャットのマージ
 * 任意のチャットをマージして一つのビューアに集約できます。
+  <img src="docs/images/06マージされた.png" width="640" alt="マージされたチャット">
 
 ### チャットビューアのポップアウト
-* チャットビューアを透過ウインドウとしてポップアウトできます。
-* 常に最前面に表示するオプションを使用して作業領域を妨げません。
+* チャットビューアを透過ウインドウとしてポップアウトして最前面に配置できます。
+* 配信画面や作業ウインドウの任意の場所に配置してスペースを有効活用しましょう。
 
-!["チャットビューのポップアウト"](docs/images/02.popout.png)
+<img src="docs/images/09ポップアウトウィンドウ.png"  alt="ポップアウト">
 
 ### チャットに投稿されたクリップの検出
 * 表示しているチャットに投稿されたクリップを検出できます。
-* チャットに投稿されたクリップを見逃しません。
+* 投稿された回数を記録しており、ホットなクリップがひと目で確認できます。
 
-!["チャットに投稿されたクリップ"](docs/images/03.clips.png)
+<img src="docs/images/08クリップ.png" width="1024" alt="クリップ">
+
+### チャンネルのグループ管理
+* チャンネルを任意のグループに登録することができます。
+<img src="docs/images/07チャンネルグループ.png" width="1024" alt="チャンネルグループ">
 
 ### カスタマイズ可能なチャットビューア
 * フォントの変更やユーザー名・バッジの表示切り替えなど、チャットビューアをカスタマイズできます。
@@ -34,16 +40,6 @@
 
 ### チャットメッセージのフィルタリング
 * 特定のユーザーのメッセージを非表示にしたり、正規表現を使用してフィルタリングできます。
-
-## コアライブラリ
-
-* [Twitch4J](https://twitch4j.github.io/) - Twitch APIのクライアント
-* [JavaFX](https://openjfx.io/) - UIコンポーネント
-* [AtlantaFX](https://mkpaz.github.io/atlantafx/) - モダンで美しいUIテーマ
-
-### Icon
-
-[FLAT ICON DESIGN](http://flat-icon-design.com/)
 
 ## License
 
