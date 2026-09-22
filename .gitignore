@@ -39,3 +39,8 @@ bin/
 .DS_Store
 
 userinfo
+
+# AI
+.agents
+.opencode
+AGENTS.md
