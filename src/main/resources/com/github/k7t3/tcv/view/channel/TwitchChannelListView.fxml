@@ -8,7 +8,7 @@
 <?import javafx.scene.layout.BorderPane?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
-<BorderPane fx:id="root" styleClass="follow-channels-view" stylesheets="@TwitchChannelListView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.channel.TwitchChannelListView">
+<BorderPane fx:id="root" styleClass="follow-channels-view" stylesheets="@TwitchChannelListView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
    <top>
       <BorderPane BorderPane.alignment="CENTER">
          <center>
@@ -18,7 +18,7 @@
                </BorderPane.margin></CustomTextField>
          </center>
          <right>
-            <MenuButton fx:id="optionMenuButton" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" text="MenuButton" BorderPane.alignment="CENTER">
+            <MenuButton fx:id="optionMenuButton" accessibleText="%channel.list.options" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" text="MenuButton" BorderPane.alignment="CENTER">
               <items>
                   <CheckMenuItem fx:id="onlyLiveMenuItem" mnemonicParsing="false" text="%channel.list.only.live">
                      <graphic>

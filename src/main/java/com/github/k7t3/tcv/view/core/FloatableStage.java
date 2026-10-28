@@ -17,6 +17,9 @@
 package com.github.k7t3.tcv.view.core;
 
 import javafx.beans.property.*;
+import com.github.k7t3.tcv.lifecycle.CloseActions;
+import java.util.ArrayList;
+import java.util.List;
 import javafx.geometry.Insets;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
@@ -31,6 +34,24 @@ import javafx.stage.StageStyle;
 import javafx.stage.WindowEvent;
 
 public class FloatableStage extends Stage {
+    private final List<Runnable> closeActions = new ArrayList<>();
+    private boolean closed;
+
+    /** 未表示で終了した窓も含め、所有する解除処理を一度だけ呼ぶ。 */
+    public void onClose(Runnable action) {
+        if (closed) action.run();
+        else closeActions.add(action);
+    }
+
+    @Override public void close() {
+        if (closed) return;
+        closed = true;
+        var owned = List.copyOf(closeActions);
+        closeActions.clear();
+        CloseActions.runAll(super::close,
+                () -> CloseActions.runAll(owned.toArray(Runnable[]::new)));
+    }
+
 
     private static final double DEFAULT_HEIGHT = 640;
     private static final double DEFAULT_WIDTH = 360;

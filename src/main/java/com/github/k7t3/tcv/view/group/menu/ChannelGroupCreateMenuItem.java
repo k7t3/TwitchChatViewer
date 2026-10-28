@@ -20,6 +20,10 @@ import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.group.ChannelGroup;
 import com.github.k7t3.tcv.app.group.ChannelGroupRepository;
+import com.github.k7t3.tcv.lifecycle.CloseActions;
+import com.github.k7t3.tcv.view.core.OwnedDialog;
+import java.util.List;
+import java.util.function.Supplier;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.scene.control.ContextMenu;
@@ -29,7 +33,15 @@ import javafx.stage.Window;
 import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.javafx.FontIcon;
 
-class ChannelGroupCreateMenuItem extends MenuItem {
+class ChannelGroupCreateMenuItem extends MenuItem implements AutoCloseable {
+    private final OwnedDialog<String> confirmation;
+    private boolean closed;
+
+    @Override public void close() {
+        if (closed) return;
+        closed = true;
+        CloseActions.runAll(() -> setOnAction(null), confirmation::close);
+    }
 
     private final ChannelGroupRepository repository;
 
@@ -38,13 +50,17 @@ class ChannelGroupCreateMenuItem extends MenuItem {
     ChannelGroupCreateMenuItem(
             ChannelGroupRepository repository,
             ObservableList<TwitchChannelViewModel> channels
-    ) {
+    ) { this(repository, channels, TextInputDialog::new); }
+
+    ChannelGroupCreateMenuItem(ChannelGroupRepository repository, ObservableList<TwitchChannelViewModel> channels,
+                               Supplier<TextInputDialog> dialogs) {
         super(Resources.getString("group.create"));
         this.repository = repository;
         this.channels = channels;
+        confirmation = new OwnedDialog<>(dialogs);
         setGraphic(new FontIcon(Feather.PLUS));
 
-        addEventHandler(ActionEvent.ACTION, this::action);
+        setOnAction(this::action);
     }
 
     private Window getWindowRecursively(Window window) {
@@ -57,7 +73,7 @@ class ChannelGroupCreateMenuItem extends MenuItem {
             }
             if (cm.getOwnerNode() != null) {
                 var scene = cm.getOwnerNode().getScene();
-                return scene.getWindow();
+                return scene == null ? null : scene.getWindow();
             }
         }
         return window;
@@ -65,24 +81,19 @@ class ChannelGroupCreateMenuItem extends MenuItem {
 
     private void action(ActionEvent e) {
         e.consume();
-
+        if (closed) return;
+        var selection = List.copyOf(channels);
         Window owner = getWindowRecursively(getParentPopup());
-
-        var dialog = new TextInputDialog();
-        dialog.initOwner(owner);
-        dialog.setTitle(Resources.getString("group.dialog.create.title"));
-        dialog.setHeaderText(Resources.getString("group.dialog.create.header"));
-        dialog.setContentText(Resources.getString("group.dialog.create.content"));
-
-        var result = dialog.showAndWait();
-        if (result.isEmpty()) {
-            return;
-        }
-
-        var name = result.get();
+        var result = confirmation.show(dialog -> {
+            dialog.initOwner(owner);
+            dialog.setTitle(Resources.getString("group.dialog.create.title"));
+            dialog.setHeaderText(Resources.getString("group.dialog.create.header"));
+            dialog.setContentText(Resources.getString("group.dialog.create.content"));
+        });
+        if (closed || result.isEmpty()) return;
         var group = new ChannelGroup();
-        group.setName(name);
-        group.getChannels().addAll(channels);
+        group.setName(result.get());
+        group.getChannels().addAll(selection);
         repository.saveAsync(group);
     }
 }

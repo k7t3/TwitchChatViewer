@@ -21,65 +21,75 @@ import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.group.ChannelGroup;
 import com.github.k7t3.tcv.app.group.ChannelGroupRepository;
 import javafx.collections.ObservableList;
-import javafx.event.EventHandler;
+import javafx.collections.ObservableMap;
+import javafx.collections.MapChangeListener;
+import javafx.collections.FXCollections;
+import javafx.scene.control.TextInputDialog;
+import java.util.List;
+import java.util.function.Supplier;
 import javafx.scene.control.Menu;
 import javafx.scene.control.SeparatorMenuItem;
-import javafx.stage.WindowEvent;
-
+import com.github.k7t3.tcv.lifecycle.CloseActions;
+import com.github.k7t3.tcv.view.core.ViewResources;
 import java.util.Comparator;
 
-public class ChannelGroupMenu extends Menu {
-
-    /**
-     * チャネルグループのリポジトリ
-     */
+/** メニューに表示する項目とその監視を所有する。モデル・選択一覧は借用する。 */
+public class ChannelGroupMenu extends Menu implements AutoCloseable {
     private final ChannelGroupRepository repository;
-
-    /**
-     * チャンネルグループに登録・削除されるチャンネルリスト
-     */
     private final ObservableList<TwitchChannelViewModel> channels;
+    private final ChannelGroupCreateMenuItem createMenuItem;
+    private final SeparatorMenuItem createSeparator = new SeparatorMenuItem();
+    private ViewResources groupItems = new ViewResources();
+    private boolean closed;
+    private Runnable releaseProjection = () -> {};
 
-    public ChannelGroupMenu(
-            ChannelGroupRepository repository,
-            ObservableList<TwitchChannelViewModel> channels
-    ) {
+    public ChannelGroupMenu(ChannelGroupRepository repository,
+                            ObservableMap<TwitchChannelViewModel, ?> rooms) {
+        this(repository, FXCollections.observableArrayList(rooms.keySet()));
+        MapChangeListener<TwitchChannelViewModel, Object> changed = change -> {
+            if (!closed) channels.setAll(List.copyOf(rooms.keySet()));
+        };
+        rooms.addListener(changed);
+        releaseProjection = () -> { rooms.removeListener(changed); channels.clear(); };
+    }
+
+    public ChannelGroupMenu(ChannelGroupRepository repository, ObservableList<TwitchChannelViewModel> channels) {
+        this(repository, channels, TextInputDialog::new);
+    }
+
+    ChannelGroupMenu(ChannelGroupRepository repository, ObservableList<TwitchChannelViewModel> channels,
+                     Supplier<TextInputDialog> dialogs) {
         super(Resources.getString("group.channels"));
         this.repository = repository;
         this.channels = channels;
-        init();
+        createMenuItem = new ChannelGroupCreateMenuItem(repository, channels, dialogs);
+        // 空の Menu は開けないため、初回の表示前にも作成操作を用意する。
+        getItems().setAll(createMenuItem, createSeparator);
+        setOnShowing(event -> refreshItems());
     }
-
-    private void init() {
-        // メニューを開いたときに各メニューアイテムを生成する
-        EventHandler<WindowEvent> showing = e -> refreshItems();
-
-        parentPopupProperty().addListener((ob, o, n) -> {
-            if (o != null) o.removeEventHandler(WindowEvent.WINDOW_SHOWING, showing);
-            if (n != null) n.addEventHandler(WindowEvent.WINDOW_SHOWING, showing);
-        });
-    }
-
-    // チャンネルグループを新規作成するメニューとセパレータ
-    private ChannelGroupCreateMenuItem createMenuItem;
-    private SeparatorMenuItem createSeparator;
 
     public void refreshItems() {
-        var groups = repository.getAll();
-
-        // 登録されているチャンネルグループに対応するメニューアイテムを生成する
-        var groupMenuItems = groups.stream()
-                .sorted(Comparator.comparing(ChannelGroup::getName))
-                .map(g -> new ChannelGroupMenuItem(repository, channels, g))
-                .toList();
-
-        // チャネルグループを新規生成するメニューが初期化されていなければ作る
-        if (createMenuItem == null) {
-            createMenuItem = new ChannelGroupCreateMenuItem(repository, channels);
-            createSeparator = new SeparatorMenuItem();
-        }
-
+        if (closed) return;
+        var previous = groupItems;
+        groupItems = new ViewResources();
+        getItems().clear();
+        previous.close();
+        if (closed) return;
+        var groups = repository.getAll().stream().sorted(Comparator.comparing(ChannelGroup::getName)).toList();
+        if (closed) return;
         getItems().setAll(createMenuItem, createSeparator);
-        getItems().addAll(groupMenuItems);
+        for (var group : groups) {
+            var item = new ChannelGroupMenuItem(repository, channels, group);
+            groupItems.add(item::close);
+            if (closed) return;
+            getItems().add(item);
+        }
+    }
+
+    @Override public void close() {
+        if (closed) return;
+        closed = true;
+        CloseActions.runAll(disableProperty()::unbind, () -> setOnShowing(null), this::hide, createMenuItem::close, groupItems::close,
+                releaseProjection, () -> getItems().clear());
     }
 }

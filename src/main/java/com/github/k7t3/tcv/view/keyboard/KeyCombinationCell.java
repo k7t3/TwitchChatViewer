@@ -19,45 +19,62 @@ package com.github.k7t3.tcv.view.keyboard;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.keyboard.KeyBindingCombination;
 import com.github.k7t3.tcv.view.core.JavaFXHelper;
+import com.github.k7t3.tcv.view.core.ViewResources;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.Cursor;
 import javafx.scene.control.TableCell;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.event.EventHandler;
 
-public class KeyCombinationCell extends TableCell<KeyBindingCombination, KeyCombination> {
+public class KeyCombinationCell extends TableCell<KeyBindingCombination, KeyCombination> implements AutoCloseable {
 
     private static final String STYLE_CLASS = "key-combination-cell";
 
     private final BooleanProperty duplicated = new SimpleBooleanProperty(false);
+    private final ViewResources owned = new ViewResources();
 
     private TextField textField;
     private KeyCombinationDetector combinationDetector;
 
     private Tooltip duplicatedTooltip;
+    private EventHandler<KeyEvent> editorFilter;
+    private KeyBindingCombination editingItem;
 
     public KeyCombinationCell() {
         getStyleClass().add(STYLE_CLASS);
         setCursor(Cursor.HAND);
 
         // 編集中のPseudoClass
-        JavaFXHelper.registerPseudoClass(this, "editing", editingProperty());
+        owned.add(JavaFXHelper.registerPseudoClass(this, "editing", editingProperty())::unsubscribe);
 
         // キーコンビネーションの重複PseudoClass
-        JavaFXHelper.registerPseudoClass(this, "duplicated", duplicated);
+        owned.add(JavaFXHelper.registerPseudoClass(this, "duplicated", duplicated)::unsubscribe);
 
-        duplicated.addListener((ob, o, n) -> setTooltip(n));
+        owned.add(duplicated.subscribe(this::setTooltip)::unsubscribe);
+        var rowDuplicated = tableRowProperty().flatMap(TableRow::itemProperty)
+                .flatMap(KeyBindingCombination::duplicatedProperty).orElse(false);
+        duplicated.bind(Bindings.createBooleanBinding(
+                () -> !isEmpty() && rowDuplicated.getValue(), emptyProperty(), rowDuplicated));
+        owned.add(duplicated::unbind);
+        owned.add(tableRowProperty().flatMap(TableRow::itemProperty).subscribe(item -> {
+            if (isEditing() && editingItem != item) cancelEdit();
+        })::unsubscribe);
     }
 
     @Override
     public void startEdit() {
+        if (owned.isClosed() || isEmpty() || getItem() == null || getTableRow() == null || getTableRow().getItem() == null) return;
         super.startEdit();
         if (!isEditing()) {
             return;
         }
+        editingItem = getTableRow().getItem();
 
         if (textField == null) {
             var current = getItem();
@@ -65,8 +82,11 @@ public class KeyCombinationCell extends TableCell<KeyBindingCombination, KeyComb
             textField = new TextField();
             textField.textProperty().bind(combinationDetector.keyCombinationProperty().map(KeyCombination::getDisplayText));
             textField.setEditable(false);
-            textField.setOnKeyPressed(combinationDetector);
-            textField.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+            textField.setOnKeyPressed(e -> {
+                if (!owned.isClosed() && isEditing()) combinationDetector.handle(e);
+            });
+            editorFilter = e -> {
+                if (owned.isClosed() || !isEditing()) return;
                 switch (e.getCode()) {
                     // 編集不可にするとActionが実行できないようなので手動で
                     case ENTER -> {
@@ -83,28 +103,30 @@ public class KeyCombinationCell extends TableCell<KeyBindingCombination, KeyComb
                         e.consume();
                     }
                 }
-            });
+            };
+            textField.addEventFilter(KeyEvent.KEY_PRESSED, editorFilter);
         }
 
         combinationDetector.setKeyCombination(getItem());
 
         setGraphic(textField);
+        setText(null);
         textField.requestFocus();
     }
 
     @Override
     public void cancelEdit() {
+        editingItem = null;
         super.cancelEdit();
         setGraphic(null);
-        setText(getItem().getDisplayText());
+        setText(owned.isClosed() || getItem() == null || isEmpty() ? null : getItem().getDisplayText());
     }
 
     @Override
     public void commitEdit(KeyCombination newValue) {
+        if (owned.isClosed() || !isEditing() || getTableRow() == null || getTableRow().getItem() != editingItem) return;
         super.commitEdit(newValue);
-
-        var item = getTableRow().getItem();
-        item.setCombination(newValue);
+        editingItem = null;
     }
 
     private void setTooltip(boolean enable) {
@@ -120,18 +142,19 @@ public class KeyCombinationCell extends TableCell<KeyBindingCombination, KeyComb
 
     @Override
     protected void updateItem(KeyCombination item, boolean empty) {
+        if (owned.isClosed()) {
+            super.updateItem(null, true);
+            setText(null); setGraphic(null);
+            return;
+        }
         super.updateItem(item, empty);
 
         if (item == null || empty) {
             setText(null);
             setGraphic(null);
             setTooltip(false);
-            duplicated.unbind();
             return;
         }
-
-        var element = getTableRow().getItem();
-        duplicated.bind(element.duplicatedProperty());
 
         if (isEditing()) {
             if (combinationDetector != null) {
@@ -143,6 +166,25 @@ public class KeyCombinationCell extends TableCell<KeyBindingCombination, KeyComb
             setText(item.getDisplayText());
             setGraphic(null);
         }
+    }
+
+    @Override public void close() {
+        if (owned.isClosed()) return;
+        owned.close();
+        cancelEdit();
+        duplicated.set(false);
+        JavaFXHelper.updatePseudoClass(this, "editing", false);
+        JavaFXHelper.updatePseudoClass(this, "duplicated", false);
+        setTooltip(null);
+        if (textField != null) {
+            textField.textProperty().unbind();
+            textField.setText(null);
+            textField.setOnKeyPressed(null);
+            textField.removeEventFilter(KeyEvent.KEY_PRESSED, editorFilter);
+            combinationDetector.clear();
+        }
+        updateTableRow(null);
+        updateItem(null, true);
     }
 
 }

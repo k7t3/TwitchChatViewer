@@ -17,8 +17,7 @@
 package com.github.k7t3.tcv.app.help;
 
 import com.github.k7t3.tcv.app.model.AppViewModel;
-import com.github.k7t3.tcv.app.core.DesktopUtils;
-import com.github.k7t3.tcv.app.service.FXTask;
+import com.github.k7t3.tcv.app.service.BrowserActions;
 import com.github.k7t3.tcv.domain.event.EventSubscribers;
 
 public class AboutViewModel implements AppViewModel {
@@ -27,15 +26,11 @@ public class AboutViewModel implements AppViewModel {
     private static final String LICENSE_LINK = "https://github.com/k7t3/TwitchChatViewer/blob/main/docs/license.md";
     private static final String LIBRARIES_LINK = "https://github.com/k7t3/TwitchChatViewer/blob/main/docs/external-libraries.md";
 
-    public AboutViewModel() {
-    }
+    private final BrowserActions browsers;
 
-    private void browse(String link) {
-        FXTask.task(() -> {
-            DesktopUtils.browse(link);
-            return null;
-        }).runAsync();
-    }
+    public AboutViewModel(BrowserActions browsers) { this.browsers = browsers; }
+
+    private void browse(String link) { browsers.open(link); }
 
     public void browseGitHubPage() {
         browse(GITHUB_LINK);
@@ -55,12 +50,8 @@ public class AboutViewModel implements AppViewModel {
     }
 
     @Override
-    public void onLogout() {
-        // no-op
-    }
+    public void onLogout() { browsers.cancelAll(); }
 
     @Override
-    public void close() {
-        // no-op
-    }
+    public void close() { browsers.close(); }
 }

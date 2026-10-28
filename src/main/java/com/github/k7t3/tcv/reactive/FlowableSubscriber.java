@@ -27,8 +27,8 @@ public interface FlowableSubscriber<T> extends Flow.Subscriber<T> {
     /**
      * 購読を解除する。
      * <p>
-     *     まだ購読が開始されていない({@link #onSubscribe(Flow.Subscription)}がコールされていない)
-     *     ときは何も実行されない。
+     *     登録前に呼び出した場合も、後から届く購読を解除する。
+     *     解除は冪等であり、このサブスクライバーを再利用して購読を開始することはできない。
      * </p>
      */
     void cancel();

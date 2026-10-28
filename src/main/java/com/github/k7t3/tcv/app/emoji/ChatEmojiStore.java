@@ -17,6 +17,7 @@
 package com.github.k7t3.tcv.app.emoji;
 
 import com.github.k7t3.tcv.app.image.LazyImage;
+import com.github.k7t3.tcv.app.image.ImageLoader;
 import com.github.k7t3.tcv.app.service.CachedImageStore;
 import org.jetbrains.annotations.Nullable;
 
@@ -25,16 +26,19 @@ import java.time.Duration;
 public class ChatEmojiStore extends CachedImageStore<String> {
 
     private final Emoji emoji;
+    private final ImageLoader images;
 
-    public ChatEmojiStore(Emoji emoji) {
+    /** アーカイブと画像サービスは借用し、このストアのキャッシュだけを所有する。 */
+    public ChatEmojiStore(Emoji emoji, ImageLoader images) {
         super(64, Duration.ofHours(1));
-        this.emoji = emoji;
+        this.emoji = java.util.Objects.requireNonNull(emoji);
+        this.images = java.util.Objects.requireNonNull(images);
     }
 
     @Override
     protected @Nullable LazyImage loadImage(String key) {
         // 対応する絵文字がないときはnull
         if (!emoji.contains(key)) return null;
-        return new LazyImage(() -> emoji.openImageStream(key), 32, 32);
+        return images.decode(() -> emoji.openImageStream(key), 32, 32);
     }
 }

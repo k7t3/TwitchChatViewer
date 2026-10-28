@@ -22,6 +22,8 @@ import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.view.image.LazyImageView;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.InvalidationListener;
+import javafx.beans.Observable;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -36,7 +38,14 @@ import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
-public class PostedClipViewCell extends ListCell<PostedClipItem> {
+public class PostedClipViewCell extends ListCell<PostedClipItem> implements AutoCloseable {
+    private boolean closed;
+    private final java.util.List<Button> actions = new java.util.ArrayList<>();
+    private final java.util.List<Observable> observedProperties = new java.util.ArrayList<>();
+    private PostedClipItem observedItem;
+    private final InvalidationListener itemChanged = ignored -> {
+        if (!closed && observedItem == getItem() && !isEmpty()) update(getItem(), false);
+    };
 
     private HBox layout;
 
@@ -80,18 +89,18 @@ public class PostedClipViewCell extends ListCell<PostedClipItem> {
         browseButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.ACCENT);
         browseButton.setTooltip(new Tooltip(Resources.getString("clip.open.browser")));
         browseButton.setOnAction(e -> {
-            getItem().browseClipPageAsync();
+            if (!closed && getItem() != null && !isEmpty()) getItem().browseClipPageAsync();
         });
 
         var clipURLButton = new Button("", new FontIcon(FontAwesomeSolid.COPY));
         clipURLButton.getStyleClass().addAll(Styles.BUTTON_ICON);
         clipURLButton.setTooltip(new Tooltip(Resources.getString("clip.copy.link")));
-        clipURLButton.setOnAction(e -> getItem().copyClipURL());
+        clipURLButton.setOnAction(e -> { if (!closed && getItem() != null && !isEmpty()) getItem().copyClipURL(); });
 
         var removeButton = new Button("", new FontIcon(FontAwesomeSolid.TRASH));
         removeButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.DANGER);
         removeButton.setTooltip(new Tooltip(Resources.getString("clip.remove")));
-        removeButton.setOnAction(e -> getItem().remove());
+        removeButton.setOnAction(e -> { if (!closed && getItem() != null && !isEmpty()) getItem().remove(); });
 
         var retryButton = new Button("", new FontIcon(Feather.REFRESH_CW));
         retryButton.getStyleClass().addAll(Styles.BUTTON_ICON);
@@ -99,10 +108,11 @@ public class PostedClipViewCell extends ListCell<PostedClipItem> {
         retryButton.visibleProperty().bind(unknown);
         retryButton.setOnAction(e -> {
             var item = getItem();
+            if (closed || item == null || isEmpty()) return;
             retryButton.setDisable(true);
             var async = item.retry();
-            async.setFinally(() -> retryButton.setDisable(false));
-            async.onDone(() -> update(item, false));
+            async.setFinally(() -> { if (!closed && getItem() == item) retryButton.setDisable(false); });
+            // 表示は clipProperty の監視で更新する。終端イベントから旧項目を読み直さない。
         });
 
         vbox.maxWidthProperty().bind(widthProperty()
@@ -113,6 +123,8 @@ public class PostedClipViewCell extends ListCell<PostedClipItem> {
                 .subtract(retryButton.widthProperty())
         );
 
+        actions.addAll(java.util.List.of(browseButton, clipURLButton, removeButton, retryButton));
+        actions.forEach(button -> button.setAccessibleText(button.getTooltip().getText()));
         layout = new HBox(thumbnail, vbox, browseButton, clipURLButton, removeButton, retryButton);
         layout.setAlignment(Pos.CENTER_LEFT);
         layout.setSpacing(4);
@@ -121,7 +133,8 @@ public class PostedClipViewCell extends ListCell<PostedClipItem> {
     }
 
     private void update(PostedClipItem item, boolean empty) {
-        if (item == null || empty) {
+        if (closed || item == null || empty) {
+            clearThumbnail();
             setGraphic(null);
             return;
         }
@@ -149,7 +162,39 @@ public class PostedClipViewCell extends ListCell<PostedClipItem> {
 
     @Override
     protected void updateItem(PostedClipItem item, boolean empty) {
+        detachItem();
         super.updateItem(item, empty);
+        if (!closed && !empty && item != null) {
+            observedItem = item;
+            observe(item.clipProperty());
+            observe(item.timesProperty());
+        }
         update(item, empty);
     }
+
+    private void observe(Observable property) {
+        if (property == null) return;
+        observedProperties.add(property);
+        property.addListener(itemChanged);
+    }
+
+    private void detachItem() {
+        observedProperties.forEach(property -> property.removeListener(itemChanged));
+        observedProperties.clear();
+        observedItem = null;
+    }
+    private void clearThumbnail() {
+        if (thumbnail == null) return;
+        thumbnail.lazyImageProperty().unbind(); thumbnail.setLazyImage(null);
+        thumbnail.imageProperty().unbind(); thumbnail.setImage(null);
+    }
+
+    @Override public void close() {
+        if (closed) return;
+        closed = true;
+        actions.forEach(button -> { button.setOnAction(null); if (button.getTooltip() != null) button.getTooltip().hide(); });
+        clearThumbnail();
+        updateItem(null, true);
+    }
+
 }

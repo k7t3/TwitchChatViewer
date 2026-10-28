@@ -19,19 +19,17 @@ package com.github.k7t3.tcv.app.chat;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.filter.ChatFilters;
 import com.github.k7t3.tcv.app.model.AbstractViewModel;
-import com.github.k7t3.tcv.app.core.AppHelper;
-import com.github.k7t3.tcv.app.core.OS;
-import com.github.k7t3.tcv.app.model.TypeSafeNotificationObserver;
+import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.emoji.ChatEmojiStore;
-import com.github.k7t3.tcv.app.emoji.Emoji;
 import com.github.k7t3.tcv.app.event.ChatOpeningEvent;
 import com.github.k7t3.tcv.app.event.KeywordFilteringEvent;
 import com.github.k7t3.tcv.app.event.UserFilteringEvent;
 import com.github.k7t3.tcv.app.reactive.ChatMessageSubscriber;
 import com.github.k7t3.tcv.app.reactive.DownCastFXSubscriber;
 import com.github.k7t3.tcv.app.service.FXTask;
+import com.github.k7t3.tcv.app.service.FXTaskGroup;
+import com.github.k7t3.tcv.lifecycle.CloseActions;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
-import com.github.k7t3.tcv.domain.chat.GlobalChatBadges;
 import com.github.k7t3.tcv.domain.event.EventSubscribers;
 import com.github.k7t3.tcv.domain.event.chat.*;
 import com.github.k7t3.tcv.prefs.ChatPreferences;
@@ -44,16 +42,25 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.concurrent.WorkerStateEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.Objects;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 public class ChatRoomContainerViewModel extends AbstractViewModel {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ChatRoomContainerViewModel.class);
 
     private final ObservableList<ChatRoomViewModel> chatRoomList = FXCollections.observableArrayList(c -> new Observable[] { c.selectedProperty() });
     private final ObservableList<ChatRoomViewModel> floatingChatRoomList = FXCollections.observableArrayList();
@@ -65,11 +72,24 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
     private final ReadOnlyBooleanWrapper selectMode = new ReadOnlyBooleanWrapper(false);
     private final ReadOnlyIntegerWrapper selectingCount = new ReadOnlyIntegerWrapper();
     private final ReadOnlyBooleanWrapper loaded = new ReadOnlyBooleanWrapper(false);
+    private final ReadOnlyBooleanWrapper loading = new ReadOnlyBooleanWrapper(false);
+    private final ReadOnlyStringWrapper error = new ReadOnlyStringWrapper();
+    private final Supplier<LoadRequest> loadRequestFactory;
+    private final Executor executor;
+    private final Consumer<CompletionStage<Void>> shutdownAwaiter;
+    private final Object loadLock = new Object();
+    private Object loadAttempt;
+    private FXTask<Void> activeLoad;
+    private ChatResources pendingResources;
+    private ChatResources resources;
+    private final List<ChatOpeningEvent> pendingChatOpenings = new ArrayList<>();
+
+    /** 読込開始時のFX上で固定したフィルターと背景の取得処理。 */
+    public record LoadRequest(ChatFilters filters, Callable<ChatResources> loader) {}
 
     private GlobalChatBadgeStore globalBadgeStore;
     private ChatEmoteStore chatEmoteStore;
     private final DefinedChatColors definedChatColors = new DefinedChatColors();
-    private Emoji emoji;
     private ChatEmojiStore emojiStore;
     private ChatFilters chatFilters;
 
@@ -78,13 +98,16 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
     private final BooleanProperty showBadges = new SimpleBooleanProperty(true);
     private final ObjectProperty<ChatFont> font = new SimpleObjectProperty<>(null);
 
-    private final List<FlowableSubscriber<?>> subscribers = new ArrayList<>();
+    ChatRoomContainerViewModel(ChatFilters filters, Callable<ChatResources> loader, Executor executor) {
+        this(() -> new LoadRequest(filters, loader), executor, ignored -> {});
+    }
 
-    private TypeSafeNotificationObserver<ChatOpeningEvent> onChatOpened;
-    private TypeSafeNotificationObserver<KeywordFilteringEvent> onKeywordFiltered;
-    private TypeSafeNotificationObserver<UserFilteringEvent> onUserFiltered;
-
-    public ChatRoomContainerViewModel() {
+    /** 要求はFX上の読込開始時に固定し、取得は借用executorで実行する。結果の実解放を終了所有者へ登録する。 */
+    public ChatRoomContainerViewModel(Supplier<LoadRequest> loadRequestFactory, Executor executor,
+                                       Consumer<CompletionStage<Void>> shutdownAwaiter) {
+        this.loadRequestFactory = Objects.requireNonNull(loadRequestFactory);
+        this.executor = Objects.requireNonNull(executor);
+        this.shutdownAwaiter = Objects.requireNonNull(shutdownAwaiter);
         selectingCount.bind(Bindings.size(selectedList));
 
         // 一つ以上選択されているときは選択モード
@@ -99,7 +122,7 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
         chatCacheSize.bind(chatPreferences.chatCacheSizeProperty());
         showUserName.bind(chatPreferences.showUserNameProperty());
         showBadges.bind(chatPreferences.showBadgesProperty());
-        font.bind(chatPreferences.fontProperty());
+        font.bind(chatPreferences.fontProperty().map(settings -> new ChatFont(settings.family(), settings.size())));
     }
 
     private void injectionItemListener(ListChangeListener.Change<? extends ChatRoomViewModel> c) {
@@ -111,20 +134,20 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
         }
     }
 
-    private <T extends ChatRoomEvent> FlowableSubscriber<ChatRoomEvent> subscriber(Class<T> type, Consumer<T> consumer) {
-        return new DownCastFXSubscriber<>(type, consumer);
+    private <T extends ChatRoomEvent> FlowableSubscriber<ChatRoomEvent> subscriber(SessionSubscriptions subscriptions, Class<T> type, Consumer<T> consumer) {
+        return subscriptions.own(new DownCastFXSubscriber<>(type, consumer));
     }
 
     @Override
-    public void subscribeEvents(EventSubscribers eventSubscribers) {
-        var clearedSub = subscriber(ChatClearedEvent.class, this::onChatCleared);
-        var deleteSub = subscriber(ChatMessageDeletedEvent.class, this::onMessageDeleted);
-        var stateSub = subscriber(ChatRoomStateUpdatedEvent.class, this::onStateUpdated);
-        var cheeredSub = subscriber(CheeredEvent.class, this::onCheered);
-        var raidReceivedSub = subscriber(RaidReceivedEvent.class, this::onRaidReceived);
-        var giftedSub = subscriber(UserGiftedSubscribeEvent.class, this::onGiftedSubs);
-        var subsSub = subscriber(UserSubscribedEvent.class, this::onSubs);
-        var chatSub = new ChatMessageSubscriber(this::onChatPosted);
+    protected void onSubscribeEvents(EventSubscribers eventSubscribers, SessionSubscriptions subscriptions) {
+        var clearedSub = subscriber(subscriptions, ChatClearedEvent.class, this::onChatCleared);
+        var deleteSub = subscriber(subscriptions, ChatMessageDeletedEvent.class, this::onMessageDeleted);
+        var stateSub = subscriber(subscriptions, ChatRoomStateUpdatedEvent.class, this::onStateUpdated);
+        var cheeredSub = subscriber(subscriptions, CheeredEvent.class, this::onCheered);
+        var raidReceivedSub = subscriber(subscriptions, RaidReceivedEvent.class, this::onRaidReceived);
+        var giftedSub = subscriber(subscriptions, UserGiftedSubscribeEvent.class, this::onGiftedSubs);
+        var subsSub = subscriber(subscriptions, UserSubscribedEvent.class, this::onSubs);
+        var chatSub = subscriptions.own(new ChatMessageSubscriber(this::onChatPosted));
 
         eventSubscribers.subscribeChatEvent(clearedSub);
         eventSubscribers.subscribeChatEvent(deleteSub);
@@ -135,24 +158,9 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
         eventSubscribers.subscribeChatEvent(subsSub);
         eventSubscribers.subscribeMessageEvent(chatSub);
 
-        subscribers.addAll(List.of(
-                clearedSub,
-                deleteSub,
-                stateSub,
-                cheeredSub,
-                raidReceivedSub,
-                giftedSub,
-                subsSub,
-                chatSub
-        ));
-
-        onChatOpened = this::onChatOpened;
-        onKeywordFiltered = this::onKeywordFiltered;
-        onUserFiltered = this::onUserFiltered;
-
-        subscribe(ChatOpeningEvent.class, onChatOpened);
-        subscribe(KeywordFilteringEvent.class, onKeywordFiltered);
-        subscribe(UserFilteringEvent.class, onUserFiltered);
+        subscriptions.subscribe(ChatOpeningEvent.class, this::onChatOpened);
+        subscriptions.subscribe(KeywordFilteringEvent.class, this::onKeywordFiltered);
+        subscriptions.subscribe(UserFilteringEvent.class, this::onUserFiltered);
     }
 
     private Optional<ChatRoomViewModel> find(TwitchChannel channel) {
@@ -221,6 +229,10 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
     }
 
     private void onChatOpened(ChatOpeningEvent e) {
+        if (!loaded.get()) {
+            pendingChatOpenings.add(e);
+            return;
+        }
         switch (e.getChatOpenType()) {
             case MERGED -> openChatRooms(e.getChannels());
             case SEPARATED -> e.getChannels().forEach(this::openChatRoom);
@@ -231,45 +243,175 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
         return chatRoomList;
     }
 
+    /**
+     * 初期データの取得を開始して結果を FX スレッドで反映する。FX スレッドから呼び出す。
+     * 実行中は同じタスクを返す。UI の準備完了は {@link #loadedProperty()}、失敗は {@link #errorProperty()} で確認する。
+     * @return データを取得するタスク
+     * @throws IllegalStateException このモデルが終了している場合
+     */
     public FXTask<Void> loadAsync() {
+        if (isClosed()) throw new IllegalStateException("chat container is closed");
+        if (activeLoad != null) return activeLoad;
         if (loaded.get()) return FXTask.empty();
-        loaded.set(true);
-
-        var helper = AppHelper.getInstance();
-        var twitch = helper.getTwitch();
-
-        chatFilters = helper.getChatFilters();
-
+        var request = loadRequestFactory.get();
+        loading.set(true);
+        error.set(null);
+        var token = new Object();
+        synchronized (loadLock) {
+            loadAttempt = token;
+        }
+        var drained = new CompletableFuture<Void>();
+        var executionClaimed = new AtomicBoolean();
         var task = FXTask.<Void>task(() -> {
-            var appDir = OS.current().getApplicationDirectory();
-            emoji = new Emoji(appDir);
-            emojiStore = new ChatEmojiStore(emoji);
-
-            var eit = FXTask.task(() -> {
-                if (!emoji.validateArchive()) {
-                    emoji.extractArchive();
-                    emoji.validateArchive();
+            final ChatResources result;
+            try { result = request.loader().call(); }
+            catch (ChatResourcesLoader.CleanupFailure failure) {
+                drained.completeExceptionally(failure);
+                throw failure;
+            }
+            synchronized (loadLock) {
+                if (isCurrentLoad(token)) {
+                    pendingResources = result;
+                    return null;
                 }
-                return null;
-            }).runAsync();
-
-            var globalBadges = new GlobalChatBadges();
-            var gbt = FXTask.task(() -> globalBadges.load(twitch)).runAsync();
-            globalBadgeStore = new GlobalChatBadgeStore(globalBadges);
-            chatEmoteStore = new ChatEmoteStore();
-
-            var cft = FXTask.task(() -> chatFilters.loadAll()).runAsync();
-
-            gbt.waitForDone();
-            cft.waitForDone();
-            eit.waitForDone();
-
+            }
+            try { result.close(); }
+            catch (RuntimeException | Error failure) {
+                // 取消済みTaskの例外には残らないため、実解放の所有者にも保持する。
+                drained.completeExceptionally(failure);
+                throw failure;
+            }
             return null;
         });
-
-        task.runAsync();
-
+        activeLoad = task;
+        task.onDone(() -> adoptResources(token, request.filters()));
+        task.addEventHandler(WorkerStateEvent.WORKER_STATE_FAILED, event -> failLoading(token));
+        task.addEventHandler(WorkerStateEvent.WORKER_STATE_CANCELLED, event -> {
+            if (isCurrentLoad(token)) resetLoading();
+        });
+        task.setFinally(() -> {
+            if (activeLoad == task) {
+                activeLoad = null;
+                loading.set(false);
+            }
+        });
+        task.completion().whenComplete((ignored, failure) -> {
+            // 未開始の取消とワーカーの開始のどちらかだけが、この実行を引き受ける。
+            if (task.isCancelled() && executionClaimed.compareAndSet(false, true)) drained.complete(null);
+        });
+        try {
+            shutdownAwaiter.accept(drained.minimalCompletionStage());
+            executor.execute(() -> {
+                if (!executionClaimed.compareAndSet(false, true)) return;
+                try { task.run(); }
+                finally { drained.complete(null); }
+            });
+        } catch (RuntimeException | Error rejected) {
+            LOGGER.error("Failed to start chat resource loading", rejected);
+            failLoading(token);
+            task.cancel();
+            drained.complete(null);
+        }
         return task;
+    }
+
+    private boolean isCurrentLoad(Object token) {
+        synchronized (loadLock) {
+            return !isClosed() && loadAttempt == token;
+        }
+    }
+
+    private void adoptResources(Object token, ChatFilters filters) {
+        synchronized (loadLock) {
+            if (!isCurrentLoad(token)) return;
+            resources = pendingResources;
+            pendingResources = null;
+        }
+        try {
+            var result = resources;
+            filters.applySnapshot(result.filters());
+            if (!isCurrentLoad(token)) return;
+            chatFilters = filters;
+            globalBadgeStore = result.badgeStore();
+            chatEmoteStore = result.emoteStore();
+            emojiStore = result.emojiStore();
+            loaded.set(true);
+        } catch (RuntimeException failure) {
+            LOGGER.error("Failed to apply chat resources", failure);
+            failLoading(token);
+            return;
+        }
+        var openings = List.copyOf(pendingChatOpenings);
+        pendingChatOpenings.clear();
+        for (var opening : openings) {
+            if (!isCurrentLoad(token)) break;
+            onChatOpened(opening);
+        }
+    }
+
+    private void failLoading(Object token) {
+        if (!isCurrentLoad(token)) return;
+        resetLoading();
+        error.set(Resources.getString("chat.load.failed"));
+    }
+
+    private void resetLoading() {
+        final ChatResources pending;
+        final ChatResources adopted;
+        synchronized (loadLock) {
+            loadAttempt = null;
+            pending = pendingResources;
+            adopted = resources;
+            pendingResources = null;
+            resources = null;
+        }
+        var task = activeLoad;
+        activeLoad = null;
+        if (task != null) task.cancel();
+        loading.set(false);
+        loaded.set(false);
+        error.set(null);
+        chatFilters = null;
+        globalBadgeStore = null;
+        chatEmoteStore = null;
+        emojiStore = null;
+        releaseResources(pending);
+        if (adopted != pending) releaseResources(adopted);
+    }
+
+    private void releaseResources(ChatResources owned) {
+        if (owned == null) return;
+        var released = new CompletableFuture<Void>();
+        Runnable release = () -> {
+            try {
+                owned.close();
+                released.complete(null);
+            } catch (RuntimeException | Error failure) {
+                released.completeExceptionally(failure);
+                throw failure;
+            }
+        };
+        // 追跡の登録や借用workerの拒否でも実解放を続け、FX上ではI/Oを行わない。
+        CloseActions.runAll(
+                () -> shutdownAwaiter.accept(released.minimalCompletionStage()),
+                () -> {
+                    try { executor.execute(release); }
+                    catch (RuntimeException | Error rejected) {
+                        LOGGER.warn("Chat resource release worker is unavailable", rejected);
+                        try {
+                            Thread.ofVirtual().name("TCV-Chat-Resources-Close").start(() -> {
+                                try { release.run(); }
+                                catch (RuntimeException | Error failure) {
+                                    LOGGER.error("Failed to release chat resources on fallback worker", failure);
+                                }
+                            });
+                        } catch (RuntimeException | Error fallbackFailure) {
+                            if (fallbackFailure != rejected) rejected.addSuppressed(fallbackFailure);
+                            released.completeExceptionally(rejected);
+                            throw rejected;
+                        }
+                    }
+                });
     }
 
     private void openChatRooms(List<TwitchChannelViewModel> channels) {
@@ -312,7 +454,8 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
                 chatRooms,
                 emojiStore,
                 this,
-                chatFilters
+                chatFilters,
+                chatCacheSize.get()
         );
 
         chatRooms.forEach(SingleChatRoomViewModel::joinChatAsync);
@@ -382,8 +525,8 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
         if (chatRoomList.isEmpty()) return;
 
         var last = getChatRoomList().getLast();
-        last.leaveChatAsync();
         chatRoomList.remove(last);
+        leaveRooms(List.of(last));
     }
 
     void popOutAsFloatableStage(ChatRoomViewModel chatRoom) {
@@ -415,7 +558,20 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
      */
     public void closeAll() {
         var selectedList = new ArrayList<>(getSelectedList());
-        selectedList.forEach(ChatRoomViewModel::leaveChatAsync);
+        chatRoomList.removeAll(selectedList);
+        leaveRooms(selectedList);
+    }
+
+    private void leaveRooms(List<ChatRoomViewModel> rooms) {
+        if (!rooms.isEmpty()) trackExit(FXTaskGroup.startAll(rooms, ChatRoomViewModel::leaveChatAsync));
+    }
+
+    /** 取消可能な UI の task と分離して、全子タスクの終端と失敗をアプリ終了まで所有する。 */
+    void trackExit(FXTaskGroup.Batch exits) {
+        shutdownAwaiter.accept(exits.settled());
+        exits.settled().whenComplete((ignored, failure) -> {
+            if (failure != null) LOGGER.error("Failed to leave chat rooms", failure);
+        });
     }
 
     /**
@@ -473,7 +629,8 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
                 chatRooms,
                 emojiStore,
                 this,
-                chatFilters
+                chatFilters,
+                chatCacheSize.get()
         );
 
         bindChatRoomProperties(chatRoomViewModel);
@@ -483,61 +640,39 @@ public class ChatRoomContainerViewModel extends AbstractViewModel {
     }
 
     @Override
-    public void onLogout() {
-        subscribers.forEach(FlowableSubscriber::cancel);
-        subscribers.clear();
+    protected void onLoggedOut() {
+        releaseChatRooms();
+    }
 
-        var singles = getChatRoomList();
-        var floatings = getFloatingChatRoomList();
-
-        var chatRooms = new ArrayList<ChatRoomViewModel>();
-        chatRooms.addAll(singles);
-        chatRooms.addAll(floatings);
-
-        singles.clear();
-        floatings.clear();
-
-        chatRooms.forEach(ChatRoomViewModel::leaveChatAsync);
-
-        unsubscribe(onChatOpened);
-        unsubscribe(onKeywordFiltered);
-        unsubscribe(onUserFiltered);
-        onChatOpened = null;
-        onKeywordFiltered = null;
-        onUserFiltered = null;
+    private void releaseChatRooms() {
+        pendingChatOpenings.clear();
+        var chatRooms = new ArrayList<>(chatRoomList);
+        chatRooms.addAll(floatingChatRoomList);
+        CloseActions.runAll(chatRoomList::clear, floatingChatRoomList::clear,
+                this::resetLoading, () -> leaveRooms(chatRooms));
     }
 
     /**
-     * コンテナをクリアする。
-     * チャットがすべてログアウトされるまでスレッドをブロックする。
+     * チャットの退出を開始する。完了待ちはアプリケーションのワーカー終了処理が行う。
      */
     @Override
-    public void close() {
-        subscribers.forEach(FlowableSubscriber::cancel);
-
-        var singles = getChatRoomList();
-        var floatings = getFloatingChatRoomList();
-
-        if (emoji != null) {
-            emoji.close();
-        }
-
-        var chatRooms = new ArrayList<ChatRoomViewModel>();
-        chatRooms.addAll(singles);
-        chatRooms.addAll(floatings);
-        chatRooms.stream().map(ChatRoomViewModel::leaveChatAsync).forEach(task -> {
-            try {
-                task.get(10, TimeUnit.SECONDS);
-            } catch (InterruptedException | ExecutionException | TimeoutException ignored) {
-                // no-op
-            }
-        });
+    protected void onClose() {
+        CloseActions.runAll(this::releaseChatRooms,
+                chatCacheSize::unbind, showUserName::unbind, showBadges::unbind, font::unbind);
     }
 
     // ******************** PROPERTIES ********************
 
+    /** すべてのリソースとフィルターを UI に反映し、チャットを開ける状態。 */
     public ReadOnlyBooleanProperty loadedProperty() { return loaded.getReadOnlyProperty(); }
     public boolean isLoaded() { return loaded.get(); }
+
+    /** キューでの待機を含む初期ロード中の状態。 */
+    public ReadOnlyBooleanProperty loadingProperty() { return loading.getReadOnlyProperty(); }
+    public boolean isLoading() { return loading.get(); }
+
+    public ReadOnlyStringProperty errorProperty() { return error.getReadOnlyProperty(); }
+    public String getError() { return error.get(); }
 
     public ReadOnlyBooleanProperty selectModeProperty() { return selectMode.getReadOnlyProperty(); }
     public boolean isSelectMode() { return selectMode.get(); }

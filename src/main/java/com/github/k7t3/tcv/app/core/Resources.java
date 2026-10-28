@@ -28,11 +28,13 @@ public class Resources {
 
     private static final ResourceBundle RESOURCE_BUNDLE;
 
-    private static final TreeMap<Integer, Image> ICONS;
-
     static {
         RESOURCE_BUNDLE = ResourceBundle.getBundle("com.github.k7t3.tcv.tcv");
-        ICONS = new TreeMap<>(
+    }
+
+    /** 文字列の参照では画像・描画基盤を初期化しない。 */
+    private static class IconsHolder {
+        private static final TreeMap<Integer, Image> ICONS = new TreeMap<>(
                 Map.of(
                         16, smallerIcon(16),
                         32, smallerIcon(32),
@@ -56,7 +58,7 @@ public class Resources {
     }
 
     public static List<Image> getIcons() {
-        return ICONS.entrySet().stream()
+        return IconsHolder.ICONS.entrySet().stream()
                 .sorted(Comparator.comparingInt(Map.Entry::getKey))
                 .map(Map.Entry::getValue)
                 .toList();

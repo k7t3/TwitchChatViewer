@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * ユーザーデータを格納するSQLite形式のファイル
@@ -38,20 +37,22 @@ public class UserDataFile {
 
     private Path filePath;
 
-    private final AtomicReference<SQLiteDBConnector> connectorRef = new AtomicReference<>();
+    private SQLiteDBConnector connector;
 
     public UserDataFile(String filePath) {
         this(Path.of(filePath));
     }
 
     public UserDataFile(Path filePath) {
-        this.filePath = Objects.requireNonNull(filePath);
+        this.filePath = Objects.requireNonNull(filePath).toAbsolutePath().normalize();
     }
 
-    public DatabaseVersion connectDatabase(DatabaseVersion current) throws IOException {
-        var connector = connectorRef.get();
-        if (connector != null && connector.isConnected()) {
-            return current;
+    public synchronized DatabaseVersion connectDatabase(DatabaseVersion current) throws IOException {
+        if (connector != null) {
+            if (!connector.isConnected()) {
+                connector.reconnect(getFilePath());
+            }
+            return DatabaseVersion.latest();
         }
         var filePath = getFilePath();
         var parent = filePath.getParent();
@@ -70,44 +71,77 @@ public class UserDataFile {
         }
 
         c.connect();
-        connectorRef.set(c);
+        connector = c;
 
         return version;
     }
 
-    public void fileMove(Path moveTo) throws IOException {
-        var moveFrom = this.filePath;
-
-        boolean exists = Files.exists(moveFrom);
-        if (exists) {
-            Files.copy(moveFrom, moveTo);
-        }
-        var connector = connectorRef.get();
-        if (connector != null) {
-            connector.reconnect(moveTo);
-            this.filePath = moveTo;
-        }
-        if (exists) {
-            try {
-                Files.delete(moveFrom);
-            } catch (Exception e) {
-                LOGGER.warn("failed to delete an older user data file.");
+    /**
+     * DB を閉じてコピーし、同じコネクタを移動先へ接続する。
+     * 既存の移動先を上書きせず、失敗時は元ファイルへの接続を復旧する。
+     *
+     * @param moveTo 移動先。同じファイルを指す場合は何もしない
+     * @throws IOException コピーまたはファイルの同一性確認に失敗した場合
+     */
+    public synchronized void fileMove(Path moveTo) throws IOException {
+        var moveFrom = this.filePath.toAbsolutePath().normalize();
+        moveTo = Objects.requireNonNull(moveTo).toAbsolutePath().normalize();
+        if (moveFrom.equals(moveTo) || (Files.exists(moveFrom) && Files.exists(moveTo)
+                && Files.isSameFile(moveFrom, moveTo))) return;
+        if (connector == null) {
+            moveFile(moveFrom, moveTo, null);
+        } else {
+            // 保存タスクが close と reconnect の間に接続を使用しないようにする。
+            synchronized (connector) {
+                moveFile(moveFrom, moveTo, connector);
             }
         }
     }
 
-    public void closeDatabase() {
-        var connector = connectorRef.get();
+    private void moveFile(Path moveFrom, Path moveTo, SQLiteDBConnector connector) throws IOException {
+        if (connector != null) {
+            connector.close();
+        }
+
+        boolean exists = Files.exists(moveFrom);
+        try {
+            if (exists) {
+                Files.copy(moveFrom, moveTo);
+            }
+            if (connector != null) {
+                connector.reconnect(moveTo);
+            }
+            this.filePath = moveTo;
+        } catch (IOException | RuntimeException | Error failure) {
+            if (connector != null && !connector.isConnected()) {
+                try {
+                    connector.reconnect(moveFrom);
+                } catch (RuntimeException recoveryFailure) {
+                    failure.addSuppressed(recoveryFailure);
+                }
+            }
+            throw failure;
+        }
+        if (exists) {
+            try {
+                Files.delete(moveFrom);
+            } catch (IOException e) {
+                LOGGER.warn("failed to delete an older user data file", e);
+            }
+        }
+    }
+
+    public synchronized void closeDatabase() {
         if (connector == null) return;
         connector.close();
     }
 
-    public Path getFilePath() {
+    public synchronized Path getFilePath() {
         return filePath;
     }
 
-    public DBConnector getConnector() {
-        return connectorRef.get();
+    public synchronized DBConnector getConnector() {
+        return connector;
     }
 
 }

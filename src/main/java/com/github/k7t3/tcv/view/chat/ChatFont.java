@@ -21,7 +21,7 @@ import javafx.beans.value.ObservableDoubleValue;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
-import java.io.*;
+import com.github.k7t3.tcv.prefs.FontSettings;
 import java.util.Objects;
 
 public class ChatFont {
@@ -41,6 +41,7 @@ public class ChatFont {
     private final ObservableDoubleValue fontScale;
 
     public ChatFont(String family, double size) {
+        new FontSettings(family, size); // データ境界と同じ検証を表示モデルにも適用する。
         this.family = new ReadOnlyStringWrapper(family);
         this.font = new ReadOnlyObjectWrapper<>(Font.font(family, size));
         this.size = new ReadOnlyDoubleWrapper(size);
@@ -61,34 +62,11 @@ public class ChatFont {
         return DEFAULT;
     }
 
-    public byte[] serialize() {
-        try (var bo = new ByteArrayOutputStream();
-             var dos = new DataOutputStream(bo)) {
-            var family = getFamily();
-            var size = getSize();
-
-            dos.writeUTF(family);
-            dos.writeDouble(size);
-
-            return bo.toByteArray();
-
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    public byte[] serialize() { return new FontSettings(getFamily(), getSize()).serialize(); }
 
     public static ChatFont deserialize(byte[] bytes) {
-        try (var bi = new ByteArrayInputStream(bytes);
-             var dis = new DataInputStream(bi)) {
-
-            var family = dis.readUTF();
-            var size = dis.readDouble();
-
-            return new ChatFont(family, size);
-
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        var settings = FontSettings.deserialize(bytes);
+        return new ChatFont(settings.family(), settings.size());
     }
 
     @Override

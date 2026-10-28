@@ -20,6 +20,10 @@ import atlantafx.base.controls.Spacer;
 import atlantafx.base.theme.Styles;
 import com.github.k7t3.tcv.app.channel.FoundChannelViewModel;
 import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.app.service.FXTask;
+import javafx.concurrent.Worker;
+import javafx.concurrent.WorkerStateEvent;
+import javafx.event.EventHandler;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Insets;
@@ -35,7 +39,13 @@ import org.kordamp.ikonli.fontawesome5.FontAwesomeRegular;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
-public class FoundChannelListCell extends ListCell<FoundChannelViewModel> {
+public class FoundChannelListCell extends ListCell<FoundChannelViewModel> implements AutoCloseable {
+    private final java.util.function.Supplier<Alert> alerts;
+    private boolean closed;
+    private BrowserWatch browserWatch;
+    private Alert activeAlert;
+    private final java.util.List<Button> actions = new java.util.ArrayList<>();
+
 
     private static final double PROFILE_IMAGE_WIDTH = 32;
     private static final double PROFILE_IMAGE_HEIGHT = 32;
@@ -56,7 +66,9 @@ public class FoundChannelListCell extends ListCell<FoundChannelViewModel> {
 
     private BooleanProperty live;
 
-    public FoundChannelListCell() {
+    public FoundChannelListCell() { this(() -> new Alert(Alert.AlertType.WARNING)); }
+    FoundChannelListCell(java.util.function.Supplier<Alert> alerts) {
+        this.alerts = alerts;
         getStyleClass().add(STYLE_CLASS);
         setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
     }
@@ -98,23 +110,22 @@ public class FoundChannelListCell extends ListCell<FoundChannelViewModel> {
         var openChatButton = new Button("", new FontIcon(FontAwesomeRegular.COMMENT_DOTS));
         openChatButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.ACCENT);
         openChatButton.setTooltip(new Tooltip(Resources.getString("search.open.chat")));
-        openChatButton.setOnAction(e -> getItem().joinChatAsync());
+        openChatButton.setOnAction(e -> { if (!closed && !isEmpty() && getItem() != null) getItem().joinChatAsync(); });
 
         var openBrowser = new Button("", new FontIcon(FontAwesomeSolid.GLOBE));
         openBrowser.getStyleClass().addAll(Styles.BUTTON_ICON);
         openBrowser.setTooltip(new Tooltip(Resources.getString("search.open.browser")));
         openBrowser.setOnAction(e -> {
-            var task = getItem().openChannelPageOnBrowser();
-            task.setOnSucceeded(e2 -> {
-                if (task.getValue()) return;
-
-                var alert = new Alert(Alert.AlertType.WARNING);
-                alert.setTitle("Warning");
-                alert.setHeaderText("Failed to open Browser!");
-                alert.setContentText("Failed to Open Browser!");
-                alert.show();
-            });
+            var item = getItem();
+            if (closed || item == null || isEmpty()) return;
+            var task = item.openChannelPageOnBrowser();
+            if (closed || getItem() != item || isEmpty()) return;
+            if (browserWatch != null) browserWatch.close();
+            browserWatch = new BrowserWatch(task, item);
+            browserWatch.attach();
         });
+        actions.addAll(java.util.List.of(openChatButton, openBrowser));
+        actions.forEach(button -> button.setAccessibleText(button.getTooltip().getText()));
 
         layout = new HBox(profileImageView, center, new Spacer(), openChatButton, openBrowser);
         layout.setAlignment(Pos.CENTER_LEFT);
@@ -140,18 +151,72 @@ public class FoundChannelListCell extends ListCell<FoundChannelViewModel> {
 
     @Override
     protected void updateItem(FoundChannelViewModel item, boolean empty) {
+        if (closed || empty || item != getItem()) detachResult();
+        clearImage();
         super.updateItem(item, empty);
-
-        if (item == null || empty) {
+        if (closed || item == null || empty) {
             setGraphic(null);
             return;
         }
-
-        if (layout == null) {
-            initialize();
-        }
-
+        if (layout == null) initialize();
         update(item);
         setGraphic(layout);
+    }
+
+    private void clearImage() {
+        if (profileImageView != null) { profileImageView.imageProperty().unbind(); profileImageView.setImage(null); }
+    }
+
+    private void detachResult() {
+        if (browserWatch != null) browserWatch.close();
+        var alert = activeAlert;
+        activeAlert = null;
+        if (alert != null) { alert.setOnHidden(null); alert.hide(); }
+    }
+
+    @Override public void close() {
+        if (closed) return;
+        closed = true;
+        detachResult();
+        actions.forEach(button -> { button.setOnAction(null); if (button.getTooltip() != null) button.getTooltip().hide(); });
+        clearImage();
+        if (profileImageView != null) {
+            profileImageView.effectProperty().unbind();
+            profileImageView.setEffect(null);
+            if (profileImageView.getClip() instanceof Rectangle clip) { clip.widthProperty().unbind(); clip.heightProperty().unbind(); }
+        }
+        if (gameTitleLabel != null) { gameTitleLabel.visibleProperty().unbind(); gameTitleLabel.managedProperty().unbind(); }
+        updateItem(null, true);
+    }
+
+    private final class BrowserWatch implements AutoCloseable {
+        final FXTask<Boolean> task;
+        final FoundChannelViewModel item;
+        final EventHandler<WorkerStateEvent> completed = event -> finish(event.getEventType() == WorkerStateEvent.WORKER_STATE_SUCCEEDED);
+        BrowserWatch(FXTask<Boolean> task, FoundChannelViewModel item) { this.task = task; this.item = item; }
+        void attach() {
+            task.addEventHandler(WorkerStateEvent.WORKER_STATE_SUCCEEDED, completed);
+            task.addEventHandler(WorkerStateEvent.WORKER_STATE_FAILED, completed);
+            task.addEventHandler(WorkerStateEvent.WORKER_STATE_CANCELLED, completed);
+            var state = task.getState();
+            if (state == Worker.State.SUCCEEDED || state == Worker.State.FAILED || state == Worker.State.CANCELLED) finish(state == Worker.State.SUCCEEDED);
+        }
+        void finish(boolean succeeded) {
+            close();
+            if (!succeeded || closed || isEmpty() || getItem() != item || item.isClosed() || Boolean.TRUE.equals(task.getValue())) return;
+            var alert = alerts.get();
+            activeAlert = alert;
+            alert.setTitle("Warning");
+            alert.setHeaderText("Failed to open Browser!");
+            alert.setContentText("Failed to Open Browser!");
+            alert.setOnHidden(event -> { if (activeAlert == alert) activeAlert = null; });
+            alert.show();
+        }
+        @Override public void close() {
+            task.removeEventHandler(WorkerStateEvent.WORKER_STATE_SUCCEEDED, completed);
+            task.removeEventHandler(WorkerStateEvent.WORKER_STATE_FAILED, completed);
+            task.removeEventHandler(WorkerStateEvent.WORKER_STATE_CANCELLED, completed);
+            if (browserWatch == this) browserWatch = null;
+        }
     }
 }

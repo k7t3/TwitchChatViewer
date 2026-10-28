@@ -19,16 +19,22 @@ package com.github.k7t3.tcv.prefs;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.StringProperty;
 
-import java.util.Map;
+import com.github.k7t3.tcv.app.group.ChannelGroupOrder;
 import java.util.prefs.Preferences;
 
 public class StatePreferences extends PreferencesBase {
 
-    private static final String TOGGLE_CHANNELS = "toggle.channels";
-    private static final String ONLY_LIVE = "only.live";
-    private static final String ONLY_FOLLOWS = "only.follows";
-    private static final String GROUP_ORDER_DESCENDING = "group.order.descending";
-    private static final String GROUP_ORDER_ITEM = "group.order.item";
+    private static final PreferenceKey<Boolean> TOGGLE_CHANNELS = PreferenceKey.bool("toggle.channels", true);
+    private static final PreferenceKey<Boolean> ONLY_LIVE = PreferenceKey.bool("only.live", false);
+    private static final PreferenceKey<Boolean> ONLY_FOLLOWS = PreferenceKey.bool("only.follows", false);
+    private static final PreferenceKey<Boolean> GROUP_ORDER_DESCENDING = PreferenceKey.bool("group.order.descending", false);
+    private static final PreferenceKey<String> GROUP_ORDER_ITEM = new PreferenceKey<>("group.order.item",
+            () -> ChannelGroupOrder.NAME.name(), value -> ChannelGroupOrder.valueOf(value).name(), value -> value);
+
+    static java.util.Set<String> storedKeys() {
+        return java.util.Set.of(TOGGLE_CHANNELS.name(), ONLY_LIVE.name(), ONLY_FOLLOWS.name(),
+                GROUP_ORDER_DESCENDING.name(), GROUP_ORDER_ITEM.name());
+    }
 
     private BooleanProperty toggleChannels;
     private BooleanProperty onlyLive;
@@ -36,43 +42,14 @@ public class StatePreferences extends PreferencesBase {
     private BooleanProperty groupOrderDescending;
     private StringProperty groupOrderItem;
 
-    StatePreferences(Preferences preferences, Map<String, Object> defaults) {
-        super(preferences, defaults);
-
-        defaults.put(TOGGLE_CHANNELS, Boolean.TRUE);
-        defaults.put(ONLY_LIVE, Boolean.FALSE);
-        defaults.put(ONLY_FOLLOWS, Boolean.FALSE);
-        defaults.put(GROUP_ORDER_DESCENDING, Boolean.FALSE);
-        defaults.put(GROUP_ORDER_ITEM, "NAME"); // ChannelGroupListViewを参照
-    }
-
-    @Override
-    protected void readFromPreferences() {
-        boolean v;
-        if ((v = getBoolean(TOGGLE_CHANNELS)) != isToggleChannels())
-            setToggleChannels(v);
-        if ((v = getBoolean(ONLY_LIVE)) != isOnlyLive())
-            setOnlyLive(v);
-        if ((v = getBoolean(ONLY_FOLLOWS)) != isOnlyFollows())
-            setOnlyFollows(v);
-        if ((v = getBoolean(GROUP_ORDER_DESCENDING)) != isGroupOrderDescending())
-            setGroupOrderDescending(v);
-
-        String item;
-        if (!(item = get(GROUP_ORDER_ITEM)).equals(getGroupOrderItem()))
-            setGroupOrderItem(item);
-    }
-
-    @Override
-    protected void writeToPreferences() {
-        // no-op
-    }
+    StatePreferences(Preferences preferences) { super(preferences); }
+    StatePreferences(PreferenceStore store) { super(store, java.util.Set.of()); }
 
     public BooleanProperty toggleChannelsProperty() {
         if (toggleChannels == null) toggleChannels = createBooleanProperty(TOGGLE_CHANNELS);
         return toggleChannels;
     }
-    public boolean isToggleChannels() { return toggleChannels == null ? (boolean) defaults.get(TOGGLE_CHANNELS) : toggleChannels.get(); }
+    public boolean isToggleChannels() { return toggleChannelsProperty().get(); }
     public void setToggleChannels(boolean toggleChannels) { toggleChannelsProperty().set(toggleChannels); }
 
     public BooleanProperty onlyLiveProperty() {
@@ -80,27 +57,27 @@ public class StatePreferences extends PreferencesBase {
         return onlyLive;
     }
     public void setOnlyLive(boolean onlyLive) { onlyLiveProperty().set(onlyLive); }
-    public boolean isOnlyLive() { return onlyLive == null ? (boolean) defaults.get(ONLY_LIVE) : onlyLive.get(); }
+    public boolean isOnlyLive() { return onlyLiveProperty().get(); }
 
     public BooleanProperty onlyFollowsProperty() {
         if (onlyFollows == null) onlyFollows = createBooleanProperty(ONLY_FOLLOWS);
         return onlyFollows;
     }
-    public boolean isOnlyFollows() { return onlyFollows == null ? (boolean) defaults.get(ONLY_FOLLOWS) : onlyFollows.get(); }
+    public boolean isOnlyFollows() { return onlyFollowsProperty().get(); }
     public void setOnlyFollows(boolean onlyFollows) { onlyFollowsProperty().set(onlyFollows); }
 
     public BooleanProperty groupOrderDescendingProperty() {
         if (groupOrderDescending == null) groupOrderDescending = createBooleanProperty(GROUP_ORDER_DESCENDING);
         return groupOrderDescending;
     }
-    public boolean isGroupOrderDescending() { return groupOrderDescending == null ? (boolean) defaults.get(GROUP_ORDER_DESCENDING) : groupOrderDescending.get(); }
+    public boolean isGroupOrderDescending() { return groupOrderDescendingProperty().get(); }
     public void setGroupOrderDescending(boolean groupOrderDescending) { groupOrderDescendingProperty().set(groupOrderDescending); }
 
     public StringProperty groupOrderItemProperty() {
         if (groupOrderItem == null) groupOrderItem = createStringProperty(GROUP_ORDER_ITEM);
         return groupOrderItem;
     }
-    public String getGroupOrderItem() { return groupOrderItem == null ? (String) defaults.get(GROUP_ORDER_ITEM) : groupOrderItem.get(); }
+    public String getGroupOrderItem() { return groupOrderItemProperty().get(); }
     public void setGroupOrderItem(String groupOrderItem) { groupOrderItemProperty().set(groupOrderItem); }
 
 }

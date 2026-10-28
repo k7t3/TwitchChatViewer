@@ -20,7 +20,6 @@ import com.github.k7t3.tcv.app.channel.MultipleChatOpenType;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.prefs.GeneralPreferencesViewModel;
 import com.github.k7t3.tcv.app.theme.Theme;
-import com.github.k7t3.tcv.app.theme.ThemeManager;
 import com.github.k7t3.tcv.app.theme.ThemeType;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.fxml.FXML;
@@ -101,7 +100,6 @@ public class GeneralPreferencesView implements PreferencesPage<GeneralPreference
             }
         });
         // プレビューするためにテーマは即反映する
-        themeChoiceBox.valueProperty().addListener((ob, o, n) -> ThemeManager.getInstance().setTheme(n));
         themeChoiceBox.getSelectionModel().select(viewModel.getTheme());
         viewModel.themeProperty().bind(themeChoiceBox.valueProperty());
 
@@ -128,9 +126,15 @@ public class GeneralPreferencesView implements PreferencesPage<GeneralPreference
             }
         });
         // プレビューするためにテーマは即反映する
-        themeTypeChoiceBox.valueProperty().addListener((ob, o, n) -> ThemeManager.getInstance().setThemeType(n));
         themeTypeChoiceBox.getSelectionModel().select(viewModel.getThemeType());
         viewModel.themeTypeProperty().bind(themeTypeChoiceBox.valueProperty());
+    }
+
+    @Override public void close() {
+        if (viewModel == null) return;
+        viewModel.themeProperty().unbind();
+        viewModel.themeTypeProperty().unbind();
+        viewModel.chatOpenTypeProperty().unbind();
     }
 
     @Override

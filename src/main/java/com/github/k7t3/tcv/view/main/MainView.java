@@ -16,11 +16,19 @@
 
 package com.github.k7t3.tcv.view.main;
 
+import java.util.function.Function;
+
+import java.util.function.Supplier;
+
+import com.github.k7t3.tcv.app.keyboard.KeyBindingCombinations;
+
+import com.github.k7t3.tcv.app.service.BrowserActions;
+import com.github.k7t3.tcv.app.service.LiveStateNotificator;
+import com.github.k7t3.tcv.app.model.TypeSafeNotificationObserver;
 import atlantafx.base.controls.ModalPane;
 import atlantafx.base.theme.Styles;
 import atlantafx.base.util.Animations;
-import com.github.k7t3.tcv.app.auth.PreferencesCredentialStorage;
-import com.github.k7t3.tcv.app.core.AppHelper;
+import com.github.k7t3.tcv.domain.auth.CredentialStore;
 import com.github.k7t3.tcv.app.core.OS;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.event.ClipPostedAppEvent;
@@ -29,7 +37,7 @@ import com.github.k7t3.tcv.app.event.LoginEvent;
 import com.github.k7t3.tcv.app.keyboard.KeyBinding;
 import com.github.k7t3.tcv.app.keyboard.KeyBindingCommands;
 import com.github.k7t3.tcv.app.main.MainViewModel;
-import com.github.k7t3.tcv.app.service.LiveStateNotificator;
+import com.github.k7t3.tcv.lifecycle.CloseActions;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.view.channel.LiveStateNotificatorView;
 import com.github.k7t3.tcv.view.channel.TwitchChannelListView;
@@ -41,18 +49,60 @@ import com.github.k7t3.tcv.view.keyboard.KeyBindingAccelerator;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
+import java.net.URL;
+import java.util.ResourceBundle;
+import javafx.beans.value.ChangeListener;
+import javafx.animation.Animation;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 
-import java.net.URL;
-import java.util.ResourceBundle;
 
-public class MainView implements FxmlView<MainViewModel>, Initializable {
+public class MainView implements FxmlView<MainViewModel>, Initializable, AutoCloseable {
+    /** 起動側で接続した生成先。生成された各部品はこのViewが所有する。 */
+    public record Components(Supplier<KeyBindingCombinations> keys,
+                             Function<ModalPane, OpenChannelGroupCommand> groups,
+                             Function<ModalPane, OpenClipCommand> clips,
+                             Supplier<OpenPreferencesCommand> preferences,
+                             Function<ModalPane, OpenSearchChannelCommand> search,
+                             Supplier<OpenAboutCommand> about, Supplier<BrowserActions> links,
+                             Supplier<TwitchChannelListView> followers, Supplier<ChatContainerView> chats) {}
+
+    private final Components components;
+    private final AppPreferences preferences;
+    private final CredentialStore credentialStore;
+    private TwitchChannelListView followersView;
+    private ChatContainerView chatsView;
+    private BasicPopup livePopup;
+    private LiveStateNotificatorView liveView;
+    private LiveStateNotificator liveNotificator;
+    private TypeSafeNotificationObserver<LiveNotificationEvent> liveNoticeObserver;
+    private TypeSafeNotificationObserver<ClipPostedAppEvent> clipObserver;
+    private TypeSafeNotificationObserver<LoginEvent> loginObserver;
+    private Animation clipAnimation;
+    private Animation liveAnimation;
+    private AuthenticationMenuItem authMenuItem;
+    private LoadCredentialCommand initialAuthentication;
+    private OpenSearchChannelCommand searchCommand;
+    private OpenPreferencesCommand preferencesCommand;
+    private OpenChannelGroupCommand groupCommand;
+    private OpenClipCommand clipCommand;
+    private OpenAboutCommand aboutCommand;
+    private BrowserActions externalLinks;
+    private KeyBindingAccelerator accelerator;
+    private ChangeListener<Scene> sceneListener;
+    private boolean closed;
+
+    public MainView(AppPreferences preferences, CredentialStore credentialStore, Components components) {
+        this.preferences = java.util.Objects.requireNonNull(preferences);
+        this.credentialStore = java.util.Objects.requireNonNull(credentialStore);
+        this.components = java.util.Objects.requireNonNull(components);
+    }
 
     @FXML
     private MenuBar menuBar;
@@ -131,10 +181,12 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        var preferences = AppPreferences.getInstance();
+        if (closed) return;
 
         loadChatContainerView();
+        if (closed) return;
         loadFollowersView();
+        if (closed) return;
 
         // 認証されていないコンディション
         var notAuthorizedCondition = viewModel.authorizedProperty().not();
@@ -158,8 +210,7 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         footerLabel.getStyleClass().addAll(Styles.TEXT_SMALL);
 
         // 認証用メニューアイテム
-        var credentialStore = new PreferencesCredentialStorage(preferences.getPreferences());
-        var authMenuItem = new AuthenticationMenuItem(modalPane, credentialStore, rootPane, viewModel);
+        authMenuItem = new AuthenticationMenuItem(modalPane, credentialStore, rootPane, viewModel);
         authMenuItem.authorizedProperty().bind(viewModel.authorizedProperty());
         userMenuButton.getItems().add(authMenuItem);
 
@@ -175,13 +226,20 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         );
 
         // クリップが投稿されたらアニメーションを実行するリスナ
-        viewModel.subscribe(ClipPostedAppEvent.class, e -> {
+        clipObserver = e -> {
+            if (closed) return;
+            stopClipAnimation();
+            if (closed) return;
             var animation = Animations.wobble(clipButton);
+            if (closed) { animation.stop(); return; }
+            clipAnimation = animation;
             animation.play();
-        });
+        };
+        viewModel.subscribe(ClipPostedAppEvent.class, clipObserver);
 
         // ログインに成功したときのハンドラ
-        viewModel.subscribe(LoginEvent.class, this::onLoginEvent);
+        loginObserver = this::onLoginEvent;
+        viewModel.subscribe(LoginEvent.class, loginObserver);
 
         // システムメニューバーを有効化すると本来メニューバーがあった位置に
         // パディングが残るため、visibleとmanagedを常に無効化することで
@@ -191,31 +249,38 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         menuBar.setUseSystemMenuBar(true);
 
         initLiveNotificator();
+        if (closed) return;
 
         initCommands();
     }
 
     private void initCommands() {
-        var helper = AppHelper.getInstance();
         var commands = new KeyBindingCommands();
 
         var authCondition = viewModel.authorizedProperty();
 
         // チャンネルグループを開くコマンド
-        var openChannelGroupCommand = new OpenChannelGroupCommand(modalPane, helper.getChannelGroupRepository(), authCondition);
+        var openChannelGroupCommand = components.groups().apply(modalPane);
+        groupCommand = openChannelGroupCommand;
+        if (closed) { openChannelGroupCommand.close(); return; }
         commands.updateCommand(KeyBinding.OPEN_GROUPS_VIEW, openChannelGroupCommand);
 
         // クリップ一覧を開くコマンド
-        var clipCondition = authCondition.and(viewModel.clipCountProperty().greaterThan(0));
-        var openClipCommand = new OpenClipCommand(modalPane, viewModel.getClipRepository(), clipCondition);
+        var openClipCommand = components.clips().apply(modalPane);
+        clipCommand = openClipCommand;
+        if (closed) { openClipCommand.close(); return; }
         commands.updateCommand(KeyBinding.OPEN_CLIPS_VIEW, openClipCommand);
 
         // 設定を開くコマンド
-        var openPrefCommand = new OpenPreferencesCommand();
+        var openPrefCommand = components.preferences().get();
+        preferencesCommand = openPrefCommand;
+        if (closed) { openPrefCommand.close(); return; }
         commands.updateCommand(KeyBinding.OPEN_PREFERENCES, openPrefCommand);
 
         // 検索画面を開くコマンド
-        var openSearchCommand = new OpenSearchChannelCommand(modalPane, viewModel.getChannelRepository(), authCondition);
+        var openSearchCommand = components.search().apply(modalPane);
+        searchCommand = openSearchCommand;
+        if (closed) { openSearchCommand.close(); return; }
         commands.updateCommand(KeyBinding.OPEN_SEARCH_VIEW, openSearchCommand);
 
         // チャンネルリストの表示をトグルするコマンド
@@ -224,18 +289,25 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
 
         // Twitchの利用規約、コミュニティガイドライン
         // これらはショートカットに登録しない
-        var openTermsCommand = new OpenTermsCommand();
-        var openCommunityGuidelineCommand = new OpenCommunityGuidelineCommand();
+        externalLinks = components.links().get();
+        if (closed) { externalLinks.close(); return; }
+        var openTermsCommand = new OpenTermsCommand(externalLinks);
+        var openCommunityGuidelineCommand = new OpenCommunityGuidelineCommand(externalLinks);
 
         // このアプリケーションについてウインドウを開くコマンド
-        var openAboutCommand = new OpenAboutCommand();
+        var openAboutCommand = components.about().get();
+        aboutCommand = openAboutCommand;
+        if (closed) { openAboutCommand.close(); return; }
 
         // コマンド実行ハンドラを登録
-        var accelerator = new KeyBindingAccelerator(helper.getKeyBindingCombinations(), commands);
-        rootPane.sceneProperty().addListener((ob, o, n) -> {
-            if (n != null)
-                n.addEventHandler(KeyEvent.KEY_RELEASED, accelerator);
-        });
+        var keys = components.keys().get();
+        if (closed) return;
+        accelerator = new KeyBindingAccelerator(keys, commands);
+        sceneListener = (ob, oldScene, newScene) -> {
+            if (oldScene != null) oldScene.removeEventHandler(KeyEvent.KEY_RELEASED, accelerator);
+            if (newScene != null) newScene.addEventHandler(KeyEvent.KEY_RELEASED, accelerator);
+        };
+        rootPane.sceneProperty().addListener(sceneListener);
 
         // 各種呼び出し用コントロールにバインド
         groupCallerButton.disableProperty().bind(openChannelGroupCommand.notExecutableProperty());
@@ -263,8 +335,8 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
         mbAboutMenuItem.setOnAction(openAboutCommand);
 
         // カスタムされたキーバインドを復元
-        var preferences = AppPreferences.getInstance();
-        var combinations = helper.getKeyBindingCombinations();
+        var combinations = components.keys().get();
+        if (closed) return;
         var keyBinds = preferences.getKeyBindingPreferences();
         for (var binding : KeyBinding.values()) {
             var stored = keyBinds.readCustomCombination(binding);
@@ -276,48 +348,58 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
     private void loadFollowersView() {
         var channelsViewModel = viewModel.getChannelListViewModel();
 
-        var tuple = FluentViewLoader.fxmlView(TwitchChannelListView.class)
+        followersView = components.followers().get();
+        if (closed) { followersView.close(); return; }
+        var tuple = FluentViewLoader.fxmlView(TwitchChannelListView.class).codeBehind(followersView)
                 .resourceBundle(Resources.getResourceBundle())
                 .viewModel(channelsViewModel)
                 .load();
 
-        followersContainer.getChildren().add(tuple.getView());
+        if (!closed) followersContainer.getChildren().add(tuple.getView());
     }
 
     private void loadChatContainerView() {
         var chatContainerViewModel = viewModel.getChatContainer();
 
-        var tuple = FluentViewLoader.fxmlView(ChatContainerView.class)
+        chatsView = components.chats().get();
+        if (closed) { chatsView.close(); return; }
+        var tuple = FluentViewLoader.fxmlView(ChatContainerView.class).codeBehind(chatsView)
                 .resourceBundle(Resources.getResourceBundle())
                 .viewModel(chatContainerViewModel)
                 .load();
 
-        chatContainer.getChildren().add(tuple.getView());
+        if (!closed) chatContainer.getChildren().add(tuple.getView());
     }
 
     private void initLiveNotificator() {
-        var notificator = new LiveStateNotificator(viewModel.getChannelRepository());
+        var notificator = viewModel.getLiveNotificator();
 
-        var tuple = FluentViewLoader.javaView(LiveStateNotificatorView.class)
-                .viewModel(notificator)
-                .load();
-        var controller = tuple.getCodeBehind();
+        liveNotificator = notificator;
+        var controller = new LiveStateNotificatorView(notificator);
+        liveView = controller;
         var converter = controller.getConverter();
 
-        controller.setItems(notificator.getRecords());
         controller.setPrefWidth(340);
         controller.setPrefHeight(160);
 
-        notificator.subscribe(LiveNotificationEvent.class, e -> {
+        liveNoticeObserver = e -> {
+            if (closed) return;
             var record = e.getRecord();
             liveStateLink.setText(converter.toString(record));
             liveStateLink.setVisited(false);
             if (record.live()) {
-                Animations.shakeX(liveStateLink).playFromStart();
+                stopLiveAnimation();
+                if (closed) return;
+                var animation = Animations.shakeX(liveStateLink);
+                if (closed) { animation.stop(); return; }
+                liveAnimation = animation;
+                animation.playFromStart();
             }
-        });
+        };
+        notificator.subscribe(LiveNotificationEvent.class, liveNoticeObserver);
 
         var popup = new BasicPopup(controller);
+        livePopup = popup;
         popup.setAutoHide(true);
         popup.setOnShowing(e -> {
             var last = controller.getItems().size() - 1;
@@ -337,18 +419,87 @@ public class MainView implements FxmlView<MainViewModel>, Initializable {
     }
 
     public void startMainView() {
-        var preferences = AppPreferences.getInstance();
-        var command = new LoadCredentialCommand(
-                modalPane,
-                viewModel.authorizedProperty().not(),
-                new PreferencesCredentialStorage(preferences.getPreferences())
-        );
-        command.execute();
+        if (closed) return;
+        if (initialAuthentication == null) {
+            initialAuthentication = new LoadCredentialCommand(modalPane, viewModel.authorizedProperty().not(),
+                    () -> viewModel.createAuthenticator(credentialStore));
+            if (closed) { initialAuthentication.close(); return; }
+        }
+        initialAuthentication.execute();
+    }
+
+    @Override public void close() {
+        if (closed) return;
+        closed = true;
+        CloseActions.runAll(
+                () -> { if (viewModel != null && clipObserver != null) viewModel.unsubscribe(ClipPostedAppEvent.class, clipObserver); },
+                () -> { if (viewModel != null && loginObserver != null) viewModel.unsubscribe(LoginEvent.class, loginObserver); },
+                this::stopClipAnimation, this::stopLiveAnimation,
+                () -> { if (initialAuthentication != null) initialAuthentication.close(); },
+                () -> { if (authMenuItem != null) authMenuItem.close(); },
+                () -> { if (preferencesCommand != null) preferencesCommand.close(); },
+                () -> { if (aboutCommand != null) aboutCommand.close(); },
+                () -> { if (externalLinks != null) externalLinks.close(); },
+                () -> { if (searchCommand != null) searchCommand.close(); },
+                () -> { if (groupCommand != null) groupCommand.close(); },
+                () -> { if (clipCommand != null) clipCommand.close(); },
+                () -> { if (liveNotificator != null && liveNoticeObserver != null)
+                    liveNotificator.unsubscribe(LiveNotificationEvent.class, liveNoticeObserver); },
+                () -> { if (liveStateLink != null) liveStateLink.setOnAction(null); },
+                () -> { if (liveView != null) liveView.close(); },
+                () -> { if (livePopup != null) {
+                    livePopup.hide(); livePopup.setOnShowing(null); livePopup.setContent(null); livePopup.setSkin(null);
+                } },
+                () -> { if (followersView != null) followersView.close(); },
+                () -> { if (chatsView != null) chatsView.close(); },
+                () -> {
+                    if (rootPane != null && sceneListener != null) {
+                        rootPane.sceneProperty().removeListener(sceneListener);
+                        var scene = rootPane.getScene();
+                        if (scene != null) scene.removeEventHandler(KeyEvent.KEY_RELEASED, accelerator);
+                    }
+                },
+                () -> {
+                    if (followerToggle != null) followerToggle.selectedProperty()
+                            .unbindBidirectional(preferences.getStatePreferences().toggleChannelsProperty());
+                }, this::detachControls);
+    }
+
+    private void stopClipAnimation() {
+        var previous = clipAnimation; clipAnimation = null;
+        if (previous != null) previous.stop();
+    }
+
+    private void stopLiveAnimation() {
+        var previous = liveAnimation; liveAnimation = null;
+        if (previous != null) previous.stop();
+    }
+
+    private void detachControls() {
+        if (userNameLabel != null) userNameLabel.textProperty().unbind();
+        if (footerLabel != null) footerLabel.textProperty().unbind();
+        if (followersContainer != null) {
+            followersContainer.visibleProperty().unbind();
+            followersContainer.managedProperty().unbind();
+            followersContainer.disableProperty().unbind();
+        }
+        if (chatContainer != null) chatContainer.disableProperty().unbind();
+        if (clipButton != null) clipButton.visibleProperty().unbind();
+        for (var button : new ButtonBase[] {groupCallerButton, clipButton, searchChannelButton, followerToggle}) {
+            if (button != null) { button.disableProperty().unbind(); button.setOnAction(null); }
+        }
+        for (var item : new MenuItem[] {prefsMenuItem, mbPrefsMenuItem, termsMenuItem, mbTermsMenuItem,
+                guidelineMenuItem, mbGuidelineMenuItem, aboutMenuItem, mbAboutMenuItem}) {
+            if (item != null) { item.disableProperty().unbind(); item.setOnAction(null); }
+        }
+        if (userMenuButton != null) userMenuButton.hide();
+        if (menuBar != null) menuBar.getMenus().forEach(Menu::hide);
+        if (modalPane != null) modalPane.hide(true);
     }
 
     private void onLoginEvent(LoginEvent loginEvent) {
         // ModalPaneを非表示にする
-        modalPane.hide(true);
+        if (!closed) modalPane.hide(true);
     }
 
 }

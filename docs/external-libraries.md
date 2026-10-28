@@ -12,19 +12,15 @@ URL:     https://github.com/hfg-gmuend/openmoji
 License: CC BY-SA 4.0
 ```
 
+## OS-provided secret storage
+
+The application uses OS-provided native services through the JDK Foreign Function and Memory API. These native libraries are not bundled in the application image.
+
+- macOS: Security and CoreFoundation frameworks for Keychain access.
+- Windows: [Credential Manager](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credreadw), provided by Advapi32.dll.
+- Linux: [libsecret binary API](https://gnome.pages.gitlab.gnome.org/libsecret/func.password_storev_binary_sync.html) (0.19.0 or later), GLib, and a Secret Service available on the existing session D-Bus. The DEB declares a dependency on [libsecret-1-0](https://packages.debian.org/trixie/libsecret-1-0).
+
 ## License
-
-```yaml
-Name:    Apollo GraphQL Java libraries
-URL:     https://github.com/apollographql/apollo-kotlin
-License: MIT
-```
-
-```yaml
-Name:    UUID (com.benasher44)
-URL:     https://github.com/benasher44/uuid
-License: MIT
-```
 
 ```yaml
 Name:    JCommander
@@ -93,18 +89,6 @@ License: Apache-2.0
 ```
 
 ```yaml
-Name:    Netflix Archaius
-URL:     https://github.com/Netflix/archaius
-License: Apache-2.0
-```
-
-```yaml
-Name:    Hystrix
-URL:     https://github.com/Netflix/Hystrix
-License: Apache-2.0
-```
-
-```yaml
 Name:    OkHttp
 URL:     https://github.com/square/okhttp
 License: Apache-2.0
@@ -117,20 +101,8 @@ License: Apache-2.0
 ```
 
 ```yaml
-Name:    Apache Commons Configuration
-URL:     https://commons.apache.org/proper/commons-configuration/
-License: Apache-2.0
-```
-
-```yaml
 Name:    Apache Commons IO
 URL:     https://commons.apache.org/proper/commons-io/
-License: Apache-2.0
-```
-
-```yaml
-Name:    Apache Commons Lang
-URL:     https://commons.apache.org/proper/commons-lang/
 License: Apache-2.0
 ```
 
@@ -159,18 +131,6 @@ License: Apache-2.0
 ```
 
 ```yaml
-Name:    RxJava
-URL:     https://github.com/ReactiveX/RxJava
-License: Apache-2.0
-```
-
-```yaml
-Name:    Byte Buddy
-URL:     https://github.com/raphw/byte-buddy
-License: Apache-2.0
-```
-
-```yaml
 Name:    TypeTools
 URL:     https://github.com/jhalterman/typetools
 License: Apache-2.0
@@ -183,21 +143,9 @@ License: Apache-2.0
 ```
 
 ```yaml
-Name:    Checker Framework
-URL:     https://github.com/typetools/checker-framework
-License: MIT
-```
-
-```yaml
 Name:    Flowless
 URL:     https://github.com/FXMisc/Flowless
 License: BSD-2-Clause
-```
-
-```yaml
-Name:    HdrHistogram
-URL:     https://github.com/HdrHistogram/HdrHistogram
-License: BSD-2-Clause or Public Domain
 ```
 
 ```yaml
@@ -238,3 +186,26 @@ License: Apache-2.0
 
 
 [Format Reference](https://github.com/JabRef/jabref)
+```yaml
+Name:    JAI Image I/O Core
+URL:     https://github.com/jai-imageio/jai-imageio-core
+License: BSD 3-clause License w/nuclear disclaimer
+```
+
+```yaml
+Name:    Doc Annotations
+URL:     https://github.com/lestard/doc-annotations
+License: MIT
+```
+
+```yaml
+Name:    JSpecify
+URL:     https://jspecify.dev/
+License: Apache-2.0
+```
+
+```yaml
+Name:    ReactFX
+URL:     https://github.com/FXMisc/ReactFX
+License: BSD-2-Clause
+```

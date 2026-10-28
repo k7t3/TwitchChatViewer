@@ -19,30 +19,44 @@ package com.github.k7t3.tcv.view.chat;
 import atlantafx.base.theme.Styles;
 import atlantafx.base.theme.Tweaks;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
-import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.chat.SingleChatRoomViewModel;
-import com.github.k7t3.tcv.app.core.AppHelper;
-import com.github.k7t3.tcv.view.image.LazyImageView;
-import com.github.k7t3.tcv.prefs.AppPreferences;
+import com.github.k7t3.tcv.app.group.ChannelGroupRepository;
+import com.github.k7t3.tcv.app.service.WindowBoundsService;
+import com.github.k7t3.tcv.prefs.ChatPreferences;
 import com.github.k7t3.tcv.view.core.FloatableStage;
+import com.github.k7t3.tcv.view.core.ViewResources;
 import com.github.k7t3.tcv.view.group.menu.ChannelGroupMenu;
+import com.github.k7t3.tcv.view.image.LazyImageView;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
-import javafx.collections.FXCollections;
-import javafx.fxml.FXML;
-import javafx.fxml.Initializable;
-import javafx.scene.control.*;
-import javafx.scene.effect.SepiaTone;
-import javafx.scene.layout.*;
-import javafx.scene.shape.Rectangle;
-import org.fxmisc.flowless.VirtualFlow;
-import org.fxmisc.flowless.VirtualizedScrollPane;
-
 import java.net.URL;
 import java.util.List;
 import java.util.ResourceBundle;
+import javafx.beans.value.ChangeListener;
+import javafx.collections.FXCollections;
+import javafx.event.EventHandler;
+import javafx.fxml.FXML;
+import javafx.fxml.Initializable;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
+import javafx.stage.WindowEvent;
 
-public class FloatableSingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, Initializable {
+
+public class FloatableSingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, Initializable, AutoCloseable {
+    private final ChannelGroupRepository groups;
+    private final ChatPreferences preferences;
+    private final WindowBoundsService boundsService;
+    private final ViewResources owned = new ViewResources();
+
+    /** 共有サービスを借用し、窓と画面自身の監視だけを所有する。 */
+    public FloatableSingleChatRoomView(ChannelGroupRepository groups, ChatPreferences preferences,
+                                      WindowBoundsService boundsService) {
+        this.groups = java.util.Objects.requireNonNull(groups);
+        this.preferences = java.util.Objects.requireNonNull(preferences);
+        this.boundsService = java.util.Objects.requireNonNull(boundsService);
+    }
+    @Override public void close() { owned.close(); }
+
 
     private static final double PROFILE_IMAGE_SIZE = 48;
 
@@ -80,45 +94,63 @@ public class FloatableSingleChatRoomView implements FxmlView<SingleChatRoomViewM
 
     private TwitchChannelViewModel channel;
 
-    private VirtualFlow<ChatDataViewModel, ChatDataCell> virtualFlow;
 
     private FloatableStage floatableStage;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
+        if (owned.isClosed()) return;
         channel = viewModel.getChannel();
+        if (owned.isClosed()) return;
 
-        profileImageView = new LazyImageView();
+        var profile = new ChannelProfileView(channel, PROFILE_IMAGE_SIZE);
+        profileImageView = profile;
+        owned.add(profile::close);
+        if (owned.isClosed()) return;
         headerPane.getChildren().addFirst(profileImageView);
-        profileImageView.lazyImageProperty().bind(channel.profileImageProperty());
-        profileImageView.setFitWidth(PROFILE_IMAGE_SIZE);
-        profileImageView.setFitHeight(PROFILE_IMAGE_SIZE);
-        var clip = new Rectangle();
-        clip.widthProperty().bind(profileImageView.fitWidthProperty());
-        clip.heightProperty().bind(profileImageView.fitHeightProperty());
-        clip.arcWidthProperty().bind(profileImageView.fitWidthProperty());
-        clip.arcHeightProperty().bind(profileImageView.fitHeightProperty());
-        profileImageView.setClip(clip);
 
-        // 配信していないときののイメージを更新する
+        var background = ChatRoomViewUtils.offlineBackground(channel);
+        owned.add(() -> { backgroundImageLayer.backgroundProperty().unbind(); backgroundImageLayer.setBackground(null); background.dispose(); });
+        backgroundImageLayer.backgroundProperty().bind(background);
         updateLiveState();
-        channel.liveProperty().addListener((ob, o, n) -> updateLiveState());
+        ChangeListener<Boolean> liveChanged = (ob, oldValue, live) -> { if (!owned.isClosed()) updateLiveState(); };
+        channel.liveProperty().addListener(liveChanged); owned.add(() -> channel.liveProperty().removeListener(liveChanged));
 
-        ChatRoomViewUtils.installStreamInfoPopOver(channel, profileImageView);
 
         floatableStage = new FloatableStage();
-        ChatRoomViewUtils.initializeFloatableStage(floatableStage, viewModel);
+        owned.add(() -> floatableStage.setScene(null));
+        owned.add(() -> floatableStage.setContent(null));
+        owned.add(floatableStage::close);
+        floatableStage.onClose(this::close);
+        EventHandler<WindowEvent> hidden = event -> close();
+        floatableStage.addEventHandler(WindowEvent.WINDOW_HIDDEN, hidden);
+        owned.add(() -> floatableStage.removeEventHandler(WindowEvent.WINDOW_HIDDEN, hidden));
+        floatableStage.setOnCloseRequest(event -> {
+            event.consume();
+            if (owned.isClosed()) return;
+            floatableStage.close(); viewModel.leaveChatAsync();
+        });
+        owned.add(() -> floatableStage.setOnCloseRequest(null));
+        var bounds = ChatRoomViewUtils.initializeFloatableStage(floatableStage, viewModel, boundsService); owned.add(bounds::close);
+        if (owned.isClosed()) return;
 
-        var prefs = AppPreferences.getInstance().getChatPreferences();
+        var prefs = preferences;
+        owned.add(() -> {
+            autoScrollMenuItem.selectedProperty().unbindBidirectional(viewModel.autoScrollProperty());
+            floatableStage.backgroundOpacityProperty().unbindBidirectional(prefs.floatingChatOpacityProperty());
+            opacitySlider.valueProperty().unbindBidirectional(floatableStage.backgroundOpacityProperty());
+            alwaysOnTopMenuItem.selectedProperty().unbindBidirectional(prefs.floatingChatAlwaysTopProperty());
+            closeMenuItem.setOnAction(null); restoreMenuItem.setOnAction(null); menuButton.hide();
+        });
 
         menuButton.getStyleClass().addAll(Tweaks.NO_ARROW, Styles.BUTTON_ICON);
 
         // チャンネルグループに関するメニューを追加
-        var repository = AppHelper.getInstance().getChannelGroupRepository();
-        menuButton.getItems().addAll(0, List.of(
-                new ChannelGroupMenu(repository, FXCollections.observableArrayList(channel)),
-                new SeparatorMenuItem()
-        ));
+        if (owned.isClosed()) return;
+        var groupMenu = new ChannelGroupMenu(groups, FXCollections.observableArrayList(channel));
+        owned.add(groupMenu::close);
+        if (owned.isClosed()) return;
+        menuButton.getItems().addAll(0, List.of(groupMenu, new SeparatorMenuItem()));
 
         // 閉じるボタン
         closeMenuItem.setOnAction(e -> {
@@ -133,11 +165,9 @@ public class FloatableSingleChatRoomView implements FxmlView<SingleChatRoomViewM
         });
 
         // チャット
-        virtualFlow = VirtualFlow.createVertical(viewModel.getChatDataList(), ChatDataCell::of);
-        chatDataContainer.getChildren().add(new VirtualizedScrollPane<>(virtualFlow));
-
-        // 自動スクロールと仮想フローにおける動作を初期化
-        ChatRoomViewUtils.initializeVirtualFlowScrollActions(virtualFlow, viewModel.getChatDataList(), viewModel.autoScrollProperty());
+        var messages = ChatRoomViewUtils.installMessages(chatDataContainer, viewModel, false);
+        owned.add(messages::unsubscribe);
+        if (owned.isClosed()) return;
 
         autoScrollMenuItem.selectedProperty().bindBidirectional(viewModel.autoScrollProperty());
 
@@ -147,25 +177,12 @@ public class FloatableSingleChatRoomView implements FxmlView<SingleChatRoomViewM
 
         // 常に最前面に表示
         alwaysOnTopMenuItem.selectedProperty().bindBidirectional(prefs.floatingChatAlwaysTopProperty());
-        alwaysOnTopMenuItem.selectedProperty().addListener((ob, o, n) -> floatableStage.setAlwaysOnTop(n));
+        ChangeListener<Boolean> onTop = (ob, oldValue, value) -> { if (!owned.isClosed()) floatableStage.setAlwaysOnTop(value); };
+        alwaysOnTopMenuItem.selectedProperty().addListener(onTop); owned.add(() -> alwaysOnTopMenuItem.selectedProperty().removeListener(onTop));
         floatableStage.setAlwaysOnTop(alwaysOnTopMenuItem.isSelected());
     }
 
     private void updateLiveState() {
-        if (!channel.isLive()) {
-            var backgroundImage = channel.getOfflineImage();
-            if (backgroundImage != null) {
-                var bgSize = new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, true, true, true, false);
-                var bgImage = new BackgroundImage(backgroundImage, BackgroundRepeat.REPEAT, BackgroundRepeat.REPEAT, BackgroundPosition.DEFAULT, bgSize);
-                var bg = new Background(bgImage);
-                backgroundImageLayer.setBackground(bg);
-            }
-            profileImageView.setEffect(new SepiaTone());
-        } else {
-            backgroundImageLayer.setBackground(null);
-            profileImageView.setEffect(null);
-        }
-
         backgroundImageLayer.setVisible(!channel.isLive());
     }
 

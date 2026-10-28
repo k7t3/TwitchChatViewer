@@ -17,24 +17,35 @@
 package com.github.k7t3.tcv.app.main;
 
 import com.github.k7t3.tcv.app.channel.ChannelViewModelRepository;
+import com.github.k7t3.tcv.app.auth.AuthenticatorViewModel;
 import com.github.k7t3.tcv.app.channel.TwitchChannelListViewModel;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
 import com.github.k7t3.tcv.app.clip.PostedClipRepository;
 import com.github.k7t3.tcv.app.model.AbstractViewModel;
-import com.github.k7t3.tcv.app.core.AppHelper;
+import com.github.k7t3.tcv.app.service.LiveStateNotificator;
+import com.github.k7t3.tcv.lifecycle.CloseActions;
 import com.github.k7t3.tcv.app.event.ClientLoadedEvent;
 import com.github.k7t3.tcv.app.event.LoginEvent;
 import com.github.k7t3.tcv.app.event.LogoutEvent;
-import com.github.k7t3.tcv.app.group.ChannelGroupRepository;
-import com.github.k7t3.tcv.domain.channel.ChannelRepository;
-import com.github.k7t3.tcv.domain.event.EventSubscribers;
+import com.github.k7t3.tcv.app.event.SessionInvalidatedEvent;
+import com.github.k7t3.tcv.domain.auth.CredentialStore;
 import javafx.beans.property.*;
 import javafx.collections.ListChangeListener;
-
 import java.util.stream.Collectors;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.CompletionException;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import com.github.k7t3.tcv.app.core.ClientSessions;
+import com.github.k7t3.tcv.domain.event.EventSubscribers;
+import javafx.application.Platform;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MainViewModel extends AbstractViewModel {
+    private static final Logger LOGGER = LoggerFactory.getLogger(MainViewModel.class);
 
     private static final int NORM_STREAM_TITLE_LENGTH = 20;
 
@@ -48,12 +59,39 @@ public class MainViewModel extends AbstractViewModel {
     private final ChatRoomContainerViewModel chatContainer;
     private final TwitchChannelListViewModel channelList;
     private final PostedClipRepository clipRepository;
+    private AuthenticatorViewModel activeAuthenticator;
+    private final ClientSessions sessions;
+    private final EventSubscribers source;
+    private final Function<CredentialStore, AuthenticatorViewModel> authenticationFactory;
+    private final Consumer<Throwable> failures;
+    private final LiveStateNotificator liveNotificator;
+    private long sessionGeneration;
+    private long authenticationRequest;
 
-    public MainViewModel(ChannelGroupRepository groupRepository) {
-        channelRepository = new ChannelViewModelRepository(groupRepository);
-        chatContainer = new ChatRoomContainerViewModel();
-        channelList = new TwitchChannelListViewModel();
-        clipRepository = new PostedClipRepository();
+    /** 渡された子モデルを所有する。セッションと発行元は借用し、ここでは閉じない。 */
+    public MainViewModel(ClientSessions sessions, EventSubscribers source, ChannelViewModelRepository channelRepository,
+                         ChatRoomContainerViewModel chatContainer, TwitchChannelListViewModel channelList,
+                         PostedClipRepository clipRepository, LiveStateNotificator liveNotificator,
+                         Function<CredentialStore, AuthenticatorViewModel> authenticationFactory, Consumer<Throwable> failures) {
+        this.sessions = Objects.requireNonNull(sessions);
+        this.source = Objects.requireNonNull(source);
+        this.authenticationFactory = Objects.requireNonNull(authenticationFactory);
+        this.failures = Objects.requireNonNull(failures);
+        this.channelRepository = Objects.requireNonNull(channelRepository);
+        this.chatContainer = Objects.requireNonNull(chatContainer);
+        this.channelList = Objects.requireNonNull(channelList);
+        this.clipRepository = Objects.requireNonNull(clipRepository);
+        this.liveNotificator = Objects.requireNonNull(liveNotificator);
+        try { initialize(); }
+        catch (RuntimeException | Error failure) { closeAfterConstructionFailure(failure); throw failure; }
+    }
+
+    private void initialize() {
+        setEventSubscribers(source);
+        for (var child : List.of(channelRepository, chatContainer, channelList, clipRepository, liveNotificator)) {
+            child.setEventSubscribers(source);
+            child.delegateLifecycleToOwner();
+        }
 
         // 選択しているチャンネルのライブ配信タイトルを正規化してフッターに表示するためのリスナ
         channelList.getSelectedChannels().addListener(this::onChanged);
@@ -62,6 +100,9 @@ public class MainViewModel extends AbstractViewModel {
 
         // ログイン時のイベント
         subscribe(LoginEvent.class, this::onLogin);
+        subscribe(SessionInvalidatedEvent.class, event -> {
+            if (event.source() == sessions) detachSessionViews();
+        });
     }
 
     // 選択しているチャンネルの配信タイトルをフッターに表示するためのリスナ
@@ -90,38 +131,63 @@ public class MainViewModel extends AbstractViewModel {
         return title.substring(0, NORM_STREAM_TITLE_LENGTH);
     }
 
-    @Override
-    public void subscribeEvents(EventSubscribers eventSubscribers) {
-        // no-op
-    }
-
     private void onLogin(LoginEvent event) {
-        var helper = AppHelper.getInstance();
-        var twitch = helper.getTwitch();
-        var publishers = helper.getPublishers();
+        var generation = ++sessionGeneration;
+        if (!isCurrentLogin(generation)) return;
+        userName.bind(sessions.userNameProperty());
+        if (!isCurrentLogin(generation)) return;
+        authorized.bind(sessions.authorizedProperty());
+        if (!isCurrentLogin(generation)) return;
 
-        userName.bind(helper.userNameProperty());
-        authorized.bind(helper.authorizedProperty());
-
-        channelRepository.setRepository(new ChannelRepository(twitch, publishers));
+        channelRepository.setRepository(sessions.getChannelRepository());
+        if (!isCurrentLogin(generation)) return;
+        clipRepository.setSession(sessions.getTwitch());
+        if (!isCurrentLogin(generation)) return;
+        for (var child : List.of(channelRepository, chatContainer, channelList, clipRepository, liveNotificator)) {
+            if (!isCurrentLogin(generation)) return;
+            child.subscribeEvents(source);
+        }
         channelRepository.loadAllAsync().onDone(() -> {
+            if (!isCurrentLogin(generation)) return;
             var channels = channelRepository.getChannels();
             // リポジトリがロードしたチャンネルをリストにバインド
             channelList.bindChannels(channels);
 
             // チャンネルがロードできたら完了イベントを発行
-            publish(new ClientLoadedEvent());
+            if (isCurrentLogin(generation)) publish(new ClientLoadedEvent());
+        }).onFailure(failure -> {
+            if (isCurrentLogin(generation)) reportFailure(failure);
+            else LOGGER.debug("discarded initial-load failure from an ended session", failure);
         });
 
         // チャットに必要な部品をロード
-        chatContainer.loadAsync();
+        if (isCurrentLogin(generation)) chatContainer.loadAsync();
     }
 
-    public void logout() {
-        var helper = AppHelper.getInstance();
-        helper.logoutAsync();
+    private boolean isCurrentLogin(long generation) { return !isClosed() && sessionGeneration == generation; }
 
-        publish(new LogoutEvent());
+    public void logout() {
+        if (isClosed()) return;
+        sessions.logoutAsync(this::detachSessionViews).whenComplete((ignored, failure) -> {
+            if (failure == null) return;
+            var cause = failure instanceof CompletionException && failure.getCause() != null ? failure.getCause() : failure;
+            Platform.runLater(() -> {
+                if (isClosed()) LOGGER.error("logout failed during shutdown", cause);
+                else reportFailure(cause);
+            });
+        });
+    }
+
+    private void detachSessionViews() {
+        sessionGeneration++;
+        CloseActions.runAll(() -> CloseActions.runAll(
+                () -> { if (activeAuthenticator != null) activeAuthenticator.onLogout(); },
+                liveNotificator::onLogout, chatContainer::onLogout, channelList::onLogout, clipRepository::onLogout, channelRepository::onLogout),
+                () -> publish(new LogoutEvent()));
+    }
+
+    private void reportFailure(Throwable failure) {
+        failures.accept(failure);
     }
 
     public ChannelViewModelRepository getChannelRepository() {
@@ -140,14 +206,59 @@ public class MainViewModel extends AbstractViewModel {
         return clipRepository;
     }
 
-    @Override
-    public void onLogout() {
-        // ログアウトはlogout()メソッド起点で行うためここでは何もしない
+    public LiveStateNotificator getLiveNotificator() { return liveNotificator; }
+
+    private void closeAfterConstructionFailure(Throwable failure) {
+        try { close(); }
+        catch (RuntimeException | Error cleanupFailure) {
+            if (cleanupFailure != failure) failure.addSuppressed(cleanupFailure);
+        }
+    }
+
+    /** 既存の認証画面を閉じ、Main と寿命を共有する認証モデルを作成する。FX スレッドから呼び出す。 */
+    public AuthenticatorViewModel createAuthenticator(CredentialStore store) {
+        if (isClosed()) throw new IllegalStateException("main view model is closed");
+        var request = ++authenticationRequest;
+        var previous = activeAuthenticator;
+        activeAuthenticator = null;
+        if (previous != null) previous.close();
+        requireCurrentAuthentication(request, null);
+        var created = authenticationFactory.apply(store);
+        requireCurrentAuthentication(request, created);
+        activeAuthenticator = created;
+        return created;
+    }
+
+    private void requireCurrentAuthentication(long request, AuthenticatorViewModel created) {
+        if (isClosed() || request != authenticationRequest) {
+            var failure = new IllegalStateException(isClosed()
+                    ? "main view model is closed" : "authentication request was superseded");
+            try { if (created != null) created.close(); }
+            catch (RuntimeException | Error cleanup) { if (cleanup != failure) failure.addSuppressed(cleanup); }
+            throw failure;
+        }
     }
 
     @Override
-    public void close() {
-        // no-op
+    protected void onLoggedOut() {
+        // 終端済み Task の FX 成功・失敗イベントも、この時点で旧世代にする。
+        sessionGeneration++;
+        authenticationRequest++;
+    }
+
+    @Override
+    protected void onClose() {
+        sessionGeneration++;
+        authenticationRequest++;
+        var authenticator = activeAuthenticator;
+        activeAuthenticator = null;
+        CloseActions.runAll(() -> {
+            if (authenticator != null) authenticator.close();
+        }, () -> { if (liveNotificator != null) liveNotificator.close(); },
+                () -> { if (chatContainer != null) chatContainer.close(); },
+                () -> { if (channelList != null) channelList.close(); },
+                () -> { if (clipRepository != null) clipRepository.close(); },
+                () -> { if (channelRepository != null) channelRepository.close(); });
     }
 
     // ******************** PROPERTIES ********************

@@ -17,44 +17,33 @@
 package com.github.k7t3.tcv.view.command;
 
 import atlantafx.base.controls.ModalPane;
-import com.github.k7t3.tcv.app.service.BasicCommand;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.group.ChannelGroupListViewModel;
 import com.github.k7t3.tcv.app.group.ChannelGroupRepository;
+import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.view.group.ChannelGroupListView;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.Side;
+import javafx.scene.Parent;
 
-public class OpenChannelGroupCommand extends BasicCommand {
+public class OpenChannelGroupCommand extends OwnedModalCommand {
+    private final ChannelGroupRepository repository;
+    private final AppPreferences preferences;
 
-    private final ModalPane modalPane;
-    private final ChannelGroupRepository groupRepository;
-
-    public OpenChannelGroupCommand(
-            ModalPane modalPane,
-            ChannelGroupRepository groupRepository,
-            ObservableValue<Boolean> condition
-    ) {
-        this.modalPane = modalPane;
-        this.groupRepository = groupRepository;
-        executable.bind(condition);
+    public OpenChannelGroupCommand(ModalPane pane, ChannelGroupRepository repository, AppPreferences preferences,
+                                   ObservableValue<Boolean> condition) {
+        super(pane, condition, Side.LEFT);
+        this.repository = repository; this.preferences = preferences;
     }
 
-    @Override
-    public void execute() {
-        var tuple = FluentViewLoader.fxmlView(ChannelGroupListView.class)
-                .resourceBundle(Resources.getResourceBundle())
-                .viewModel(new ChannelGroupListViewModel(groupRepository))
-                .load();
-        var view = tuple.getView();
-        var behind = tuple.getCodeBehind();
-
-        modalPane.setPersistent(false);
-        modalPane.usePredefinedTransitionFactories(Side.LEFT);
-        modalPane.show(view);
-
-        // ListViewの表示要素を先頭にする処理
-        behind.onOpened();
+    @Override protected Parent load(ModalSession session) {
+        var model = new ChannelGroupListViewModel(repository); session.own(model::close);
+        model.delegateLifecycleToOwner();
+        var controller = new ChannelGroupListView(preferences); session.own(controller::close);
+        var tuple = FluentViewLoader.fxmlView(ChannelGroupListView.class).codeBehind(controller).viewModel(model)
+                .resourceBundle(Resources.getResourceBundle()).load();
+        session.onShown(controller::onOpened);
+        return tuple.getView();
     }
 }

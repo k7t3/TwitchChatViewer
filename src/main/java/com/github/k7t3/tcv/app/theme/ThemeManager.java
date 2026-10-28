@@ -17,17 +17,19 @@
 package com.github.k7t3.tcv.app.theme;
 
 import com.github.k7t3.tcv.app.core.OS;
+import java.util.Objects;
 import javafx.application.ColorScheme;
 import javafx.application.Platform;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ObjectPropertyBase;
 import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.scene.Scene;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // AtlantaFX samplerアプリケーションを参照
-public class ThemeManager {
+public class ThemeManager implements AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ThemeManager.class);
 
@@ -85,35 +87,44 @@ public class ThemeManager {
 
     private boolean initialized = false;
 
-    private ThemeManager() {
+    private boolean closed;
+    private long themeRevision;
+    private final ObservableValue<ColorScheme> colorScheme;
+
+    public ThemeManager() {
+        this(Platform.getPreferences().colorSchemeProperty());
     }
 
+    ThemeManager(ObservableValue<ColorScheme> colorScheme) { this.colorScheme = Objects.requireNonNull(colorScheme); }
+
     public void setScene(Scene scene) {
+        if (closed) throw new IllegalStateException("theme manager is closed");
         this.scene = scene;
     }
 
     private void updateTheme(Theme theme, ThemeType type) {
-        if (theme == null || type == null) return;
+        if (closed || scene == null || theme == null || type == null) return;
+        var revision = ++themeRevision;
 
         LOGGER.info("updated theme {}:{}", theme, type);
         if (systemColorSchemeListener != null) {
-            var preferences = Platform.getPreferences();
-            preferences.colorSchemeProperty().removeListener(systemColorSchemeListener);
+            colorScheme.removeListener(systemColorSchemeListener);
             systemColorSchemeListener = null;
         }
         switch (type) {
             case LIGHTER, DARKER -> theme.applyTheme(scene, type, initialized);
-            case SYSTEM -> systemTheme(theme);
+            case SYSTEM -> systemTheme(theme, revision);
         }
+        if (closed || revision != themeRevision) return;
         initialized = true;
     }
 
-    private void systemTheme(Theme theme) {
-        var preferences = Platform.getPreferences();
-        var colorScheme = preferences.getColorScheme();
-        updateSystemColorScheme(theme, colorScheme);
+    private void systemTheme(Theme theme, long revision) {
+        updateSystemColorScheme(theme, colorScheme.getValue());
+        // 色の反映通知から設定変更や終了へ再入した場合、古い適用から購読を追加しない。
+        if (closed || revision != themeRevision) return;
         systemColorSchemeListener = (ob, o, n) -> updateSystemColorScheme(theme, n);
-        preferences.colorSchemeProperty().addListener(systemColorSchemeListener);
+        colorScheme.addListener(systemColorSchemeListener);
     }
 
     private void updateSystemColorScheme(Theme theme, ColorScheme colorScheme) {
@@ -131,12 +142,15 @@ public class ThemeManager {
     public Theme getTheme() { return themeProperty().get(); }
     public void setTheme(Theme theme) { this.theme.set(theme); }
 
-    public static ThemeManager getInstance() {
-        return Holder.INSTANCE;
-    }
-
-    private static class Holder {
-        private static final ThemeManager INSTANCE = new ThemeManager();
+    @Override public void close() {
+        if (closed) return;
+        closed = true;
+        if (systemColorSchemeListener != null) {
+            colorScheme.removeListener(systemColorSchemeListener);
+            systemColorSchemeListener = null;
+        }
+        scene = null;
+        initialized = false;
     }
 
 }

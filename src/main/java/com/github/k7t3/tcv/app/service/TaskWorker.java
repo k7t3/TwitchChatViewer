@@ -16,9 +16,6 @@
 
 package com.github.k7t3.tcv.app.service;
 
-import com.github.k7t3.tcv.app.core.ExceptionHandler;
-import javafx.concurrent.WorkerStateEvent;
-
 import java.io.Closeable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -31,12 +28,8 @@ public class TaskWorker implements Closeable {
 
     private final ExecutorService executor = Executors.newThreadPerTaskExecutor(factory);
 
-    private TaskWorker() {
-    }
-
-    void submit(FXTask<?> task) {
-        task.addEventHandler(WorkerStateEvent.WORKER_STATE_FAILED, e -> ExceptionHandler.handle(task.getException()));
-        executor.submit(task);
+    /** 独立したワーカーを構築する。所有者が {@link #close()} で終了すること。 */
+    public TaskWorker() {
     }
 
     public Executor getExecutor() {
@@ -48,12 +41,5 @@ public class TaskWorker implements Closeable {
         executor.close();
     }
 
-    public static TaskWorker getInstance() {
-        return Holder.INSTANCE;
-    }
-
-    private static class Holder {
-        private static final TaskWorker INSTANCE = new TaskWorker();
-    }
 
 }

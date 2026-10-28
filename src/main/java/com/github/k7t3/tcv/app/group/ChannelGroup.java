@@ -51,9 +51,9 @@ public class ChannelGroup {
         return id;
     }
 
-    public void generateId() {
-        if (id != null) throw new IllegalStateException();
-        id = UUID.randomUUID();
+    void assignPersistedId(UUID value) {
+        if (id != null && !id.equals(value)) throw new IllegalStateException("group id cannot change");
+        id = java.util.Objects.requireNonNull(value);
     }
 
     // ******************** PROPERTIES ********************

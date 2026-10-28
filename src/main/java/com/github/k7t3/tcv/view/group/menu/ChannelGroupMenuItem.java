@@ -24,9 +24,26 @@ import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.scene.control.CheckMenuItem;
 
-import java.util.HashSet;
+import java.util.List;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.value.ChangeListener;
 
-class ChannelGroupMenuItem extends CheckMenuItem {
+class ChannelGroupMenuItem extends CheckMenuItem implements AutoCloseable {
+    private BooleanBinding membership;
+    private final ChangeListener<Boolean> membershipChanged = (observable, previous, current) -> setSelected(current);
+    private boolean closed;
+
+    @Override public void close() {
+        if (closed) return;
+        closed = true;
+        setOnAction(null);
+        textProperty().unbind();
+        if (membership != null) {
+            membership.removeListener(membershipChanged);
+            membership.dispose();
+            membership = null;
+        }
+    }
 
     private final ChannelGroupRepository repository;
 
@@ -51,22 +68,25 @@ class ChannelGroupMenuItem extends CheckMenuItem {
 
         // グループにチャンネルが登録されたときに選択状態を更新するリスナを追加
         var groupChannels = group.getChannels();
-        Bindings.createBooleanBinding(this::containsAllChannels, groupChannels)
-                .addListener((ob, o, n) -> setSelected(n));
+        membership = Bindings.createBooleanBinding(this::containsAllChannels, groupChannels, channels);
+        membership.addListener(membershipChanged);
 
         // 初期状態を設定
         setSelected(containsAllChannels());
 
         // メニューアクションの定義
-        addEventHandler(ActionEvent.ACTION, this::action);
+        setOnAction(this::action);
     }
 
     private boolean containsAllChannels() {
-        return new HashSet<>(group.getChannels()).containsAll(channels);
+        return group.getChannels().containsAll(channels);
     }
 
     private void action(ActionEvent e) {
         e.consume();
+        if (closed) return;
+        var selected = List.copyOf(this.channels);
+        if (selected.isEmpty()) return;
 
         // グループに登録されているチャンネルのリスト
         var channels = group.getChannels();
@@ -74,9 +94,8 @@ class ChannelGroupMenuItem extends CheckMenuItem {
         if (isSelected()) {
 
             // チャンネル一覧に追加
-            for (var channel : this.channels) {
+            for (var channel : selected) {
                 if (!channels.contains(channel)) {
-                    channel.setPersistent(true);
                     channels.add(channel);
                 }
             }
@@ -87,7 +106,7 @@ class ChannelGroupMenuItem extends CheckMenuItem {
         } else {
 
             // チャンネルの一覧から除去
-            this.channels.forEach(channels::remove);
+            selected.forEach(channels::remove);
 
             if (channels.isEmpty()) {
                 // 登録されているチャンネルが空になったら削除する

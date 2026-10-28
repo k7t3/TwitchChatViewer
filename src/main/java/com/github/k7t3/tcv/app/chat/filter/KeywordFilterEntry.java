@@ -48,8 +48,13 @@ public final class KeywordFilterEntry implements Predicate<ChatData> {
         return new KeywordFilterEntry(KeywordFilterType.EXACT_MATCH, keyword, null);
     }
 
+    /**
+     * 正規表現のフィルターを作成する。編集・保存用の文字列として元の式も保持する。
+     * @param pattern コンパイル済みの正規表現
+     * @return 正規表現のフィルター
+     */
     public static KeywordFilterEntry regexMatch(Pattern pattern) {
-        return new KeywordFilterEntry(KeywordFilterType.REGEXP, null, pattern);
+        return new KeywordFilterEntry(KeywordFilterType.REGEXP, pattern.pattern(), pattern);
     }
 
     private boolean startsWith(String message) {

@@ -22,7 +22,6 @@ import atlantafx.base.theme.Styles;
 import atlantafx.base.theme.Tweaks;
 import com.github.k7t3.tcv.app.channel.MultipleChatOpenType;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
-import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.event.ChatOpeningEvent;
 import com.github.k7t3.tcv.app.group.ChannelGroup;
@@ -45,13 +44,15 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.TilePane;
 import javafx.scene.shape.Rectangle;
 import org.fxmisc.flowless.Cell;
-import org.fxmisc.flowless.VirtualFlow;
 import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeRegular;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.util.Comparator;
-import java.util.function.Supplier;
+import java.util.ArrayList;
+import java.util.List;
+import javafx.beans.value.ChangeListener;
+import com.github.k7t3.tcv.lifecycle.CloseActions;
 
 public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Region> {
 
@@ -66,21 +67,28 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
     private final EditableLabel comment = new EditableLabel();
     private final TilePane tilePane = new TilePane();
 
+    private boolean disposed;
+    private Alert confirmation;
+    private final List<Runnable> tiles = new ArrayList<>();
+    private final List<Runnable> actions = new ArrayList<>();
     private final GeneralPreferences generalPrefs;
     private final ChannelGroup group;
     private final ChannelGroupListViewModel viewModel;
-    private final Supplier<VirtualFlow<ChannelGroup, ChannelGroupListCell>> vfInjector;
+    private final Runnable showTop;
+    private final ChangeListener<Boolean> pinnedChanged = (observable, old, value) -> { if (!disposed) pin.setSelected(value); };
+    private final ChangeListener<String> nameChanged = (observable, old, value) -> { if (!disposed) title.setText(value); };
+    private final ChangeListener<String> commentChanged = (observable, old, value) -> { if (!disposed) comment.setText(value); };
 
     public ChannelGroupListCell(
             GeneralPreferences generalPrefs,
             ChannelGroup group,
             ChannelGroupListViewModel viewModel,
-            Supplier<VirtualFlow<ChannelGroup, ChannelGroupListCell>> vfInjector
+            Runnable showTop
     ) {
         this.generalPrefs = generalPrefs;
         this.group = group;
         this.viewModel = viewModel;
-        this.vfInjector = vfInjector;
+        this.showTop = showTop;
         init();
         update();
     }
@@ -98,6 +106,7 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
 
         pin.getStyleClass().addAll(Styles.BUTTON_ICON);
         pin.setTooltip(new Tooltip(Resources.getString("group.pin.tooltip")));
+        pin.setAccessibleText(Resources.getString("group.pin.tooltip"));
 
         headerPane.getChildren().addAll(title, pin);
         setHeader(headerPane);
@@ -146,6 +155,7 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
         deleteButton.getStyleClass().addAll(Styles.DANGER);
         deleteButton.setOnAction(e -> {
             e.consume();
+            if (disposed) return;
 
             var alert = new Alert(Alert.AlertType.CONFIRMATION);
             alert.initOwner(getScene().getWindow());
@@ -153,14 +163,17 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
             alert.setHeaderText(Resources.getString("group.dialog.delete.header"));
             alert.setContentText(Resources.getString("group.dialog.delete.content").formatted(group.getName()));
             alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
-            var result = alert.showAndWait();
-            if (result.isEmpty() || result.get() != ButtonType.YES) {
+            confirmation = alert;
+            java.util.Optional<ButtonType> result;
+            try { result = alert.showAndWait(); }
+            finally { if (confirmation == alert) confirmation = null; }
+            if (disposed || result.isEmpty() || result.get() != ButtonType.YES) {
                 return;
             }
 
             setDisable(true);
             var t = viewModel.delete(group);
-            t.setFinally(() -> setDisable(false));
+            t.setFinally(() -> { if (!disposed) setDisable(false); });
         });
 
         var footer = new HBox(openChatButton, deleteButton);
@@ -169,21 +182,28 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
         footer.setPadding(new Insets(0d, 4d, 4d, 2d));
         setFooter(footer);
 
+        actions.add(() -> {
+            openSeparatedItem.setOnAction(null); openMergedItem.setOnAction(null);
+            openChatButton.setOnAction(null); openChatButton.hide(); deleteButton.setOnAction(null);
+        });
         pin.setOnAction(e -> {
             setDisable(true);
+            group.setPinned(pin.isSelected());
             var t = viewModel.update(group);
-            t.setFinally(() -> setDisable(false));
-            t.onDone(() -> vfInjector.get().show(0));
+            t.setFinally(() -> { if (!disposed) setDisable(false); });
+            t.onDone(showTop);
         });
         title.setOnEditCommit(e -> {
             setDisable(true);
+            group.setName(e.getNewValue());
             var t = viewModel.update(group);
-            t.setFinally(() -> setDisable(false));
+            t.setFinally(() -> { if (!disposed) setDisable(false); });
         });
         comment.setOnEditCommit(e -> {
             setDisable(true);
+            group.setComment(e.getNewValue());
             var t = viewModel.update(group);
-            t.setFinally(() -> setDisable(false));
+            t.setFinally(() -> { if (!disposed) setDisable(false); });
         });
     }
 
@@ -194,17 +214,34 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
 
     @Override
     public void dispose() {
-        title.textProperty().unbindBidirectional(group.nameProperty());
-        comment.textProperty().unbindBidirectional(group.commentProperty());
+        if (disposed) return;
+        disposed = true;
+        CloseActions.runAll(() -> {
+            var dialog = confirmation; confirmation = null;
+            if (dialog != null) { dialog.setResult(ButtonType.NO); dialog.close(); }
+        }, () -> {
+            group.nameProperty().removeListener(nameChanged);
+            group.commentProperty().removeListener(commentChanged);
+            group.pinnedProperty().removeListener(pinnedChanged);
+            title.setOnEditCommit(null); comment.setOnEditCommit(null); pin.setOnAction(null);
+        }, () -> release(actions), () -> release(tiles), () -> tilePane.getChildren().clear());
+    }
+
+    private static void release(List<Runnable> actions) {
+        var owned = actions.toArray(Runnable[]::new); actions.clear(); CloseActions.runAll(owned);
     }
 
     public void update() {
-        title.textProperty().bindBidirectional(group.nameProperty());
-        comment.textProperty().bindBidirectional(group.commentProperty());
+        if (disposed) return;
+        release(tiles);
+        group.nameProperty().removeListener(nameChanged); group.commentProperty().removeListener(commentChanged);
+        group.pinnedProperty().removeListener(pinnedChanged);
+        title.setText(group.getName()); comment.setText(group.getComment()); pin.setSelected(group.isPinned());
+        group.nameProperty().addListener(nameChanged); group.commentProperty().addListener(commentChanged);
+        group.pinnedProperty().addListener(pinnedChanged);
         tilePane.getChildren().clear();
         tilePane.setHgap(4);
         tilePane.setVgap(2);
-        pin.selectedProperty().bindBidirectional(group.pinnedProperty());
 
         group.getChannels().stream()
                 .sorted(Comparator.comparing(TwitchChannelViewModel::getUserName))
@@ -220,29 +257,28 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
         tile.titleProperty().bind(channel.liveProperty().map(live -> live ? "LIVE" : null));
         tile.descriptionProperty().bind(channel.observableUserName());
 
-        // ツールチップに配信のタイトルを割り当て
-        var tooltip = new Tooltip();
-        tooltip.textProperty().bind(channel.observableStreamTitle());
-
         // チャンネルページをブラウザで開く
         var openPageMenuItem = new OpenBrowserMenuItem(channel);
+        tiles.add(openPageMenuItem::close);
 
         // グループから削除
         var removeMenuItem = new MenuItem(Resources.getString("group.button.remove"), new FontIcon(Feather.X));
         removeMenuItem.setOnAction(e -> {
+            if (disposed) return;
             group.getChannels().remove(channel);
-            var repository = AppHelper.getInstance().getChannelGroupRepository();
             setDisable(true);
-            var t = repository.saveAsync(group);
-            t.onDone(() -> tilePane.getChildren().remove(tile));
-            t.setFinally(() -> setDisable(false));
+            var t = viewModel.update(group);
+            t.onDone(() -> { if (!disposed) tilePane.getChildren().remove(tile); });
+            t.setFinally(() -> { if (!disposed) setDisable(false); });
         });
 
         // チャットを開く
         var openChatMenuItem = new OpenChatMenuItem(channel);
+        tiles.add(openChatMenuItem::close);
 
         // タイルのアクション(MenuButton)
         var menuButton = new MenuButton(null, new FontIcon(Feather.MORE_VERTICAL));
+        menuButton.setAccessibleText(Resources.getString("group.channel.menu"));
         menuButton.getStyleClass().addAll(Styles.BUTTON_ICON, Tweaks.NO_ARROW);
         menuButton.getItems().addAll(
                 openChatMenuItem,
@@ -264,11 +300,20 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
         clip.arcHeightProperty().bind(imageView.fitHeightProperty());
         imageView.setClip(clip);
         tile.setGraphic(imageView);
-        installStreamInfoPopOver(channel, imageView);
+        tiles.add(installStreamInfoPopOver(channel, imageView));
 
         // ライブの状態に応じてエフェクトを切り替える
         updateLiveEffect(imageView, channel.isLive());
-        channel.liveProperty().addListener((ob, o, n) -> updateLiveEffect(imageView, n));
+        ChangeListener<Boolean> liveChanged = (observable, old, value) -> { if (!disposed) updateLiveEffect(imageView, value); };
+        channel.liveProperty().addListener(liveChanged);
+        tiles.add(() -> {
+            channel.liveProperty().removeListener(liveChanged);
+            tile.titleProperty().unbind(); tile.descriptionProperty().unbind();
+            imageView.lazyImageProperty().unbind(); imageView.setLazyImage(null); imageView.setEffect(null);
+            clip.widthProperty().unbind(); clip.heightProperty().unbind();
+            clip.arcWidthProperty().unbind(); clip.arcHeightProperty().unbind(); imageView.setClip(null);
+            menuButton.hide(); menuButton.getItems().forEach(item -> item.setOnAction(null)); menuButton.getItems().clear();
+        });
 
         return tile;
     }
@@ -281,7 +326,7 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
         }
     }
 
-    public static void installStreamInfoPopOver(TwitchChannelViewModel channel, Node node) {
+    public static Runnable installStreamInfoPopOver(TwitchChannelViewModel channel, Node node) {
         var popup = new LiveInfoPopup(channel);
         popup.setAutoHide(true);
 
@@ -303,6 +348,10 @@ public class ChannelGroupListCell extends Card implements Cell<ChannelGroup, Reg
             }
         });
         node.setOnMouseExited(e -> popup.hide());
+        return () -> {
+            node.setOnMousePressed(null); node.setOnMouseEntered(null); node.setOnMouseExited(null);
+            popup.close();
+        };
     }
 
     @Override

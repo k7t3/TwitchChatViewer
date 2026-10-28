@@ -16,8 +16,11 @@
 
 package com.github.k7t3.tcv.app.channel;
 
+import com.github.k7t3.tcv.app.service.BrowserActions;
 import com.github.k7t3.tcv.app.chat.ChannelChatBadgeStore;
+import com.github.k7t3.tcv.lifecycle.CloseActions;
 import com.github.k7t3.tcv.app.image.LazyImage;
+import com.github.k7t3.tcv.app.image.ImageLoader;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
 import com.github.k7t3.tcv.domain.channel.StreamInfo;
@@ -26,13 +29,11 @@ import com.github.k7t3.tcv.domain.chat.ChatRoom;
 import javafx.beans.property.*;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.image.Image;
+import java.util.concurrent.Executor;
+import java.util.concurrent.CompletionStage;
+import java.util.function.Consumer;
 
-import java.awt.*;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-
-public class TwitchChannelViewModel {
+public class TwitchChannelViewModel implements AutoCloseable {
 
     private static final String CHANNEL_URL_FORMAT = "https://www.twitch.tv/%s";
 
@@ -47,13 +48,25 @@ public class TwitchChannelViewModel {
 
     private final ChannelChatBadgeStore chatBadgeStore;
     private final TwitchChannel channel;
-    private final ChannelViewModelRepository repository;
+    private final ImageLoader images;
+    private LazyImage offlineLoad;
+    private boolean closed;
+    private final ChannelChatConnection chatConnection;
+    private final Consumer<Throwable> reportFailure;
+    private final BrowserActions browsers;
+    private FXTask<ChatRoom> observedJoin;
+    private FXTask<Void> observedLeave;
 
-    public TwitchChannelViewModel(TwitchChannel channel, ChannelViewModelRepository repository) {
+    public TwitchChannelViewModel(TwitchChannel channel, ChannelViewModelRepository repository, ImageLoader images,
+                          Executor executor, Consumer<Throwable> reportFailure) {
         this.channel = channel;
-        this.repository = repository;
+        this.images = images;
+        this.reportFailure = reportFailure;
+        browsers = new BrowserActions(executor, repository::trackChatOperation, reportFailure);
+        chatConnection = new ChannelChatConnection(channel, () -> repository.releaseChannel(this), executor,
+                repository::trackChatOperation);
         broadcaster = new ReadOnlyObjectWrapper<>(channel.getBroadcaster());
-        chatBadgeStore = new ChannelChatBadgeStore(channel);
+        chatBadgeStore = new ChannelChatBadgeStore(channel, images);
         following = new ReadOnlyBooleanWrapper(channel.isFollowing());
         persistent = new SimpleBooleanProperty(channel.isPersistent()) {
             @Override
@@ -83,47 +96,37 @@ public class TwitchChannelViewModel {
      * </p>
      */
     public void openChannelPageOnBrowser() {
-        var login = getBroadcaster().getUserLogin();
-
-        var desktop = Desktop.getDesktop();
-        if (!desktop.isSupported(Desktop.Action.BROWSE)) {
-            return;
-        }
-
-        try {
-            desktop.browse(new URI(CHANNEL_URL_FORMAT.formatted(login)));
-        } catch (IOException | URISyntaxException e) {
-            throw new RuntimeException(e);
-        }
+        checkOpen();
+        browsers.open(CHANNEL_URL_FORMAT.formatted(getBroadcaster().getUserLogin()));
     }
 
     public FXTask<ChatRoom> joinChatAsync() {
-        if (isChatJoined()) return FXTask.of(channel.getOrJoinChatRoom());
-
-        var task = FXTask.task(() -> {
-            channel.loadBadgesIfNotLoaded();
-            return channel.getOrJoinChatRoom();
+        checkOpen();
+        var task = chatConnection.join();
+        if (observedJoin == task) return task;
+        observedJoin = task;
+        task.onDone(() -> {
+            if (!closed && chatConnection.isCurrentJoin(task)) chatJoinedWrapper().set(true);
         });
-        task.onDone(() -> chatJoinedWrapper().set(true));
-        task.runAsync();
+        task.onFailure(failure -> {
+            if (!closed && chatConnection.isCurrentJoin(task)) reportFailure.accept(failure);
+        });
         return task;
     }
 
     public FXTask<Void> leaveChatAsync() {
-        if (!isChatJoined()) return FXTask.empty();
-
-        if (chatJoined != null) {
-            chatJoined.set(false);
-        }
-
-        var task = FXTask.task(() -> {
-            channel.leaveChat();
-            repository.releaseChannel(this);
+        if (chatJoined != null) chatJoined.set(false);
+        var task = chatConnection.leave();
+        if (observedLeave == task) return task;
+        observedLeave = task;
+        task.onFailure(failure -> {
+            if (!closed && chatConnection.isCurrentLeave(task)) reportFailure.accept(failure);
         });
-        task.runAsync();
-
         return task;
     }
+
+    public boolean isRetiring() { return closed || chatConnection.isRetiring(); }
+    CompletionStage<Void> retirement() { return chatConnection.retirement(); }
 
     public ChannelChatBadgeStore getChatBadgeStore() {
         return chatBadgeStore;
@@ -150,8 +153,9 @@ public class TwitchChannelViewModel {
     public String getGameName() { return streamInfo == null ? "" : observableGameName().getValue(); }
 
     private ReadOnlyObjectWrapper<LazyImage> profileImageWrapper() {
+        checkOpen();
         if (profileImage == null) {
-            profileImage = new ReadOnlyObjectWrapper<>(new LazyImage(
+            profileImage = new ReadOnlyObjectWrapper<>(loadOwnedImage(
                     channel.getBroadcaster().getProfileImageUrl(),
                     64,
                     64
@@ -163,14 +167,56 @@ public class TwitchChannelViewModel {
     public LazyImage getProfileImage() { return profileImageWrapper().get(); }
 
     private ReadOnlyObjectWrapper<Image> offlineImageWrapper() {
+        checkOpen();
         if (offlineImage == null) {
             offlineImage = new ReadOnlyObjectWrapper<>();
-            channel.getBroadcaster().getOfflineImageUrl().ifPresent(url -> offlineImage.set(new Image(url, true)));
+            channel.getBroadcaster().getOfflineImageUrl().ifPresent(url -> {
+                offlineLoad = loadOwnedImage(url, 0, 0);
+                offlineImage.bind(offlineLoad.valueProperty());
+            });
         }
         return offlineImage;
     }
     public ReadOnlyObjectProperty<Image> offlineImageProperty() { return offlineImageWrapper().getReadOnlyProperty(); }
     public Image getOfflineImage() { return offlineImageWrapper().get(); }
+
+    private LazyImage loadOwnedImage(String url, double width, double height) {
+        checkOpen();
+        var image = images.load(url, width, height);
+        if (closed) {
+            image.close();
+            checkOpen();
+        }
+        return image;
+    }
+
+    private void checkOpen() {
+        if (closed) throw new IllegalStateException("channel view model is closed");
+    }
+
+    /** FX 上で参加の取消と退出を要求し、所有画像・binding を解放する。通信の終了待ちはアプリ側が行う。 */
+    @Override
+    public void close() {
+        if (closed) return;
+        closed = true;
+        var profile = profileImage == null ? null : profileImage.get();
+        var offline = offlineLoad;
+        offlineLoad = null;
+        CloseActions.runAll(
+                chatConnection::close,
+                browsers::close,
+                () -> { if (chatJoined != null) chatJoined.set(false); },
+                () -> { if (profileImage != null) profileImage.set(null); },
+                () -> {
+                    if (offlineImage != null) {
+                        offlineImage.unbind();
+                        offlineImage.set(null);
+                    }
+                },
+                () -> { if (profile != null) profile.close(); },
+                () -> { if (offline != null) offline.close(); },
+                chatBadgeStore::close);
+    }
 
     private ReadOnlyObjectWrapper<StreamInfo> streamInfoWrapper() {
         if (streamInfo == null) {

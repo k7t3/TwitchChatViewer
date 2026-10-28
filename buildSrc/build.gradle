@@ -1,0 +1,21 @@
+plugins { id 'groovy' }
+
+repositories { mavenCentral() }
+
+def javaFeature = libs.versions.java.get().toInteger()
+java { toolchain { languageVersion = JavaLanguageVersion.of(javaFeature) } }
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = javaFeature
+}
+
+dependencies {
+    implementation gradleApi()
+    implementation localGroovy()
+    testImplementation platform(libs.junit.bom)
+    testImplementation libs.junit.jupiter
+    testImplementation libs.assertj
+    testRuntimeOnly libs.junit.launcher
+}
+
+test { useJUnitPlatform() }

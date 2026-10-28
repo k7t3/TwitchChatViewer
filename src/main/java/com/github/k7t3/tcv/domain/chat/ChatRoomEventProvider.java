@@ -18,80 +18,93 @@ package com.github.k7t3.tcv.domain.chat;
 
 import com.github.k7t3.tcv.domain.Twitch;
 import com.github.k7t3.tcv.domain.event.EventPublishers;
+import com.github.k7t3.tcv.domain.event.EventSubscriptionScope;
 import com.github.k7t3.tcv.domain.event.chat.*;
-import com.github.philippheuer.events4j.api.domain.IDisposable;
 import com.github.twitch4j.chat.events.channel.*;
 import com.github.twitch4j.chat.events.roomstate.EmoteOnlyEvent;
 import com.github.twitch4j.chat.events.roomstate.FollowersOnlyEvent;
 import com.github.twitch4j.chat.events.roomstate.SlowModeEvent;
 import com.github.twitch4j.chat.events.roomstate.SubscribersOnlyEvent;
-
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ChatRoomEventProvider {
 
-    private final ConcurrentHashMap<String, ChatRoom> chatRoomMap = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Set<ChatRoomState>> stateMap = new ConcurrentHashMap<>();
+    private record RoomRegistration(ChatRoom room, Set<ChatRoomState> states) {}
+    private final ConcurrentHashMap<String, RoomRegistration> rooms = new ConcurrentHashMap<>();
 
     private final Twitch twitch;
     private final EventPublishers eventPublishers;
     private final ChatMessageParser parser = new ChatMessageParser();
-    private final ClipFinder clipFinder;
+    private final ClipLinkParser clipLinks = new ClipLinkParser();
 
-    private List<IDisposable> subscriptions;
+    private final Object lifecycleLock = new Object();
+    private EventSubscriptionScope subscriptions;
 
     public ChatRoomEventProvider(Twitch twitch, EventPublishers eventPublishers) {
         this.twitch = twitch;
         this.eventPublishers = eventPublishers;
-        this.clipFinder = new ClipFinder(twitch);
     }
 
     public void onJoined(ChatRoom chatRoom) {
         var channelId = chatRoom.getBroadcaster().getUserId();
-        chatRoomMap.put(channelId, chatRoom);
-        stateMap.put(channelId, ConcurrentHashMap.newKeySet());
+        rooms.put(channelId, new RoomRegistration(chatRoom, ConcurrentHashMap.newKeySet()));
     }
 
     public void onLeft(ChatRoom chatRoom) {
         var channelId = chatRoom.getBroadcaster().getUserId();
-        chatRoomMap.remove(channelId);
-        stateMap.remove(channelId);
+        rooms.computeIfPresent(channelId, (id, current) -> current.room() == chatRoom ? null : current);
     }
 
     public void listen() {
-        if (subscriptions != null) throw new IllegalStateException();
-
-        var chat = twitch.getChat();
-        var eventManager = chat.getEventManager();
-
-        subscriptions = new ArrayList<>();
-        subscriptions.add(eventManager.onEvent(ChannelMessageEvent.class, this::onChannelMessageEvent));
-        subscriptions.add(eventManager.onEvent(SubscriptionEvent.class, this::onSubscriptionEvent));
-        subscriptions.add(eventManager.onEvent(ClearChatEvent.class, this::onClearChatEvent));
-        subscriptions.add(eventManager.onEvent(DeleteMessageEvent.class, this::onDeleteMessageEvent));
-        subscriptions.add(eventManager.onEvent(EmoteOnlyEvent.class, this::onEmoteOnlyEvent));
-        subscriptions.add(eventManager.onEvent(FollowersOnlyEvent.class, this::onFollowersOnlyEvent));
-        subscriptions.add(eventManager.onEvent(RaidEvent.class, this::onRaidEvent));
-        subscriptions.add(eventManager.onEvent(SlowModeEvent.class, this::onSlowModeEvent));
-        subscriptions.add(eventManager.onEvent(SubscribersOnlyEvent.class, this::onSubscribersOnlyEvent));
-        subscriptions.add(eventManager.onEvent(CheerEvent.class, this::onCheerEvent));
+        final EventSubscriptionScope opening;
+        synchronized (lifecycleLock) {
+            if (subscriptions != null) throw new IllegalStateException("chat events are already registered");
+            opening = new EventSubscriptionScope();
+            subscriptions = opening;
+        }
+        try {
+            opening.register(scope -> {
+                var eventManager = twitch.getChat().getEventManager();
+                scope.subscribe(eventManager, ChannelMessageEvent.class, this::onChannelMessageEvent);
+                scope.subscribe(eventManager, SubscriptionEvent.class, this::onSubscriptionEvent);
+                scope.subscribe(eventManager, ClearChatEvent.class, this::onClearChatEvent);
+                scope.subscribe(eventManager, DeleteMessageEvent.class, this::onDeleteMessageEvent);
+                scope.subscribe(eventManager, EmoteOnlyEvent.class, this::onEmoteOnlyEvent);
+                scope.subscribe(eventManager, FollowersOnlyEvent.class, this::onFollowersOnlyEvent);
+                scope.subscribe(eventManager, RaidEvent.class, this::onRaidEvent);
+                scope.subscribe(eventManager, SlowModeEvent.class, this::onSlowModeEvent);
+                scope.subscribe(eventManager, SubscribersOnlyEvent.class, this::onSubscribersOnlyEvent);
+                scope.subscribe(eventManager, CheerEvent.class, this::onCheerEvent);
+            });
+        } catch (RuntimeException | Error failure) {
+            synchronized (lifecycleLock) {
+                if (subscriptions == opening) subscriptions = null;
+            }
+            throw failure;
+        }
     }
 
     public void clean() {
-        if (subscriptions == null || subscriptions.isEmpty()) return;
-        for (var sub : subscriptions)
-            sub.dispose();
-        subscriptions.clear();
+        final EventSubscriptionScope owned;
+        synchronized (lifecycleLock) {
+            owned = subscriptions;
+            subscriptions = null;
+            rooms.clear();
+        }
+        if (owned != null) owned.close();
+    }
+
+    private ChatRoom findRoom(String channelId) {
+        var registration = rooms.get(channelId);
+        return registration == null ? null : registration.room();
     }
 
     private void updateRoomState(String channelId, ChatRoomState roomState, boolean active) {
-        var chatRoom = chatRoomMap.get(channelId);
-        if (chatRoom == null) return;
-        var roomStates = stateMap.get(channelId);
-        if (roomStates == null) return;
+        var registration = rooms.get(channelId);
+        if (registration == null) return;
+        var chatRoom = registration.room();
+        var roomStates = registration.states();
 
         if (active) {
             roomStates.add(roomState);
@@ -139,7 +152,7 @@ public class ChatRoomEventProvider {
     }
 
     private void onChannelMessageEvent(ChannelMessageEvent e) {
-        var chatRoom = chatRoomMap.get(e.getChannel().getId());
+        var chatRoom = findRoom(e.getChannel().getId());
         if (chatRoom == null) return;
 
         var message = e.getMessage();
@@ -148,7 +161,7 @@ public class ChatRoomEventProvider {
         var postedEvent = new ChatMessageEvent(chatRoom, chatData);
         eventPublishers.submitChatMessage(postedEvent);
 
-        var clipOp = clipFinder.findClip(message);
+        var clipOp = clipLinks.parse(message);
         clipOp.ifPresent(clipChatMessage -> {
             var clipPostedEvent = new ClipPostedEvent(chatRoom, clipChatMessage);
             eventPublishers.submit(clipPostedEvent);
@@ -156,7 +169,7 @@ public class ChatRoomEventProvider {
     }
 
     private void onSubscriptionEvent(SubscriptionEvent e) {
-        var chatRoom = chatRoomMap.get(e.getChannel().getId());
+        var chatRoom = findRoom(e.getChannel().getId());
         if (chatRoom == null) return;
 
         var user = e.getUser();
@@ -174,7 +187,7 @@ public class ChatRoomEventProvider {
     }
 
     private void onClearChatEvent(ClearChatEvent e) {
-        var chatRoom = chatRoomMap.get(e.getChannel().getId());
+        var chatRoom = findRoom(e.getChannel().getId());
         if (chatRoom == null) return;
 
         var clearedEvent = new ChatClearedEvent(chatRoom);
@@ -182,7 +195,7 @@ public class ChatRoomEventProvider {
     }
 
     private void onDeleteMessageEvent(DeleteMessageEvent e) {
-        var chatRoom = chatRoomMap.get(e.getChannel().getId());
+        var chatRoom = findRoom(e.getChannel().getId());
         if (chatRoom == null) return;
 
         var deletedEvent = new ChatMessageDeletedEvent(chatRoom, e.getMsgId());
@@ -206,7 +219,7 @@ public class ChatRoomEventProvider {
     }
 
     private void onRaidEvent(RaidEvent e) {
-        var chatRoom = chatRoomMap.get(e.getChannel().getId());
+        var chatRoom = findRoom(e.getChannel().getId());
         if (chatRoom == null) return;
 
         var raider = e.getRaider();
@@ -217,7 +230,7 @@ public class ChatRoomEventProvider {
     }
 
     private void onCheerEvent(CheerEvent event) {
-        var chatRoom = chatRoomMap.get(event.getChannel().getId());
+        var chatRoom = findRoom(event.getChannel().getId());
         if (chatRoom == null) return;
 
         var chatData = parseMessageEvent(event.getMessageEvent());

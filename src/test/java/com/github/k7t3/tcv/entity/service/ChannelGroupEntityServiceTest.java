@@ -29,6 +29,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.Set;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -48,6 +50,60 @@ class ChannelGroupEntityServiceTest {
     @AfterEach
     void cleanUp() {
         connector.close();
+    }
+
+    @Test
+    void retrievesGroupWithoutChannels() {
+        var timestamp = LocalDateTime.of(2024, 1, 1, 12, 0);
+        var group = new ChannelGroupEntity(UUID.randomUUID(), "empty group", "", false,
+                timestamp, timestamp, Set.of());
+        service.save(SaveType.INSERT, group);
+
+        var groups = service.retrieveAll();
+
+        assertThat(groups).containsExactly(group);
+    }
+
+    @Test
+    void retrievesGroupsWithTheSameUpdateTimeAndDistinctMemberships() {
+        var timestamp = LocalDateTime.of(2024, 1, 1, 12, 0);
+        var first = new ChannelGroupEntity(UUID.randomUUID(), "first", "comment", true,
+                timestamp, timestamp, Set.of("a", "d", "g"));
+        var second = new ChannelGroupEntity(UUID.randomUUID(), "second", null, false,
+                timestamp, timestamp, Set.of("b", "c", "g"));
+        var empty = new ChannelGroupEntity(UUID.randomUUID(), "empty", "", false,
+                timestamp, timestamp, Set.of());
+        var recent = new ChannelGroupEntity(UUID.randomUUID(), "recent", "", false,
+                timestamp, timestamp.plusDays(1), Set.of("e", "f"));
+        for (var group : java.util.List.of(first, second, empty, recent)) service.save(SaveType.INSERT, group);
+
+        var groups = service.retrieveAll();
+
+        assertThat(groups).hasSize(4).containsExactlyInAnyOrder(first, second, empty, recent);
+        assertThat(groups.getFirst()).isEqualTo(recent);
+    }
+
+    @Test
+    void failedMembershipUpdatePreservesStoredGroup() {
+        var timestamp = LocalDateTime.of(2024, 1, 1, 12, 0);
+        var original = new ChannelGroupEntity(UUID.randomUUID(), "original", "comment", false,
+                timestamp, timestamp, Set.of("first"));
+        service.save(SaveType.INSERT, original);
+        connector.execute("""
+                create trigger reject_membership before insert on group_users
+                when new.user_id = 'rejected'
+                begin
+                    select raise(abort, 'membership rejected');
+                end;
+                """);
+        connector.commit();
+        var updated = new ChannelGroupEntity(original.id(), "changed", "changed", true,
+                timestamp, timestamp.plusDays(1), Set.of("rejected"));
+
+        assertThatThrownBy(() -> service.save(SaveType.UPDATE, updated))
+                .isInstanceOf(RuntimeException.class).hasMessageContaining("membership rejected");
+
+        assertThat(service.retrieveAll()).containsExactly(original);
     }
 
     @Test

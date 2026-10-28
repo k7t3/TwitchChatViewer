@@ -7,7 +7,7 @@
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.StackPane?>
 
-<StackPane id="prefsRootStackPane" fx:id="root" styleClass="preference-view" stylesheets="@PreferencesView.css" xmlns="http://javafx.com/javafx/22" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.prefs.PreferencesView">
+<StackPane id="prefsRootStackPane" fx:id="root" styleClass="preference-view" stylesheets="@PreferencesView.css" xmlns="http://javafx.com/javafx/22" xmlns:fx="http://javafx.com/fxml/1">
    <children>
       <BorderPane>
          <center>
@@ -18,8 +18,6 @@
                <buttons>
                   <Button fx:id="enterButton" mnemonicParsing="false" text="OK" />
                   <Button fx:id="cancelButton" cancelButton="true" mnemonicParsing="false" text="Cancel" />
-                  <Button fx:id="resetButton" mnemonicParsing="false" text="%prefs.button.reset" />
-                  <Button fx:id="exportButton" mnemonicParsing="false" text="%prefs.button.export" />
                </buttons>
                <padding>
                   <Insets bottom="10.0" left="10.0" right="10.0" top="4.0" />

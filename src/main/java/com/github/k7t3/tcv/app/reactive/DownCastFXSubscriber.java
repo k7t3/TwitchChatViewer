@@ -41,7 +41,9 @@ public class DownCastFXSubscriber<T, R extends T> extends DownCastSubscriber<T, 
         if (Platform.isFxApplicationThread()) {
             consumer.accept(item);
         } else {
-            Platform.runLater(() -> consumer.accept(item));
+            Platform.runLater(() -> {
+                if (!isCancelled()) consumer.accept(item);
+            });
         }
     }
 

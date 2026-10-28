@@ -21,11 +21,14 @@ import atlantafx.base.controls.ToggleSwitch;
 import atlantafx.base.theme.Styles;
 import com.github.k7t3.tcv.app.group.ChannelGroup;
 import com.github.k7t3.tcv.app.group.ChannelGroupListViewModel;
+import com.github.k7t3.tcv.app.group.ChannelGroupOrder;
 import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.view.core.JavaFXHelper;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
-import javafx.application.Platform;
+import com.github.k7t3.tcv.lifecycle.CloseActions;
+import javafx.beans.value.ChangeListener;
+import javafx.util.Subscription;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.ComboBox;
@@ -39,9 +42,22 @@ import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.net.URL;
 import java.util.ResourceBundle;
-import java.util.function.Supplier;
 
-public class ChannelGroupListView implements FxmlView<ChannelGroupListViewModel>, Initializable {
+public class ChannelGroupListView implements FxmlView<ChannelGroupListViewModel>, Initializable, AutoCloseable {
+    private final AppPreferences preferences;
+    private boolean closed;
+    private Subscription sizing;
+    private FontIcon clearIcon;
+    private final ChangeListener<ChannelGroupOrder> orderChanged = (observable, old, value) -> orderChanged(value);
+    private void orderChanged(ChannelGroupOrder value) {
+        if (closed) return;
+        if (value != null) preferences.getStatePreferences().setGroupOrderItem(value.name());
+        filterUpdate();
+    }
+    private final ChangeListener<Boolean> descendingChanged = (observable, old, value) -> { if (!closed) filterUpdate(); };
+
+    public ChannelGroupListView(AppPreferences preferences) { this.preferences = preferences; }
+
 
     @FXML
     private Pane root;
@@ -56,7 +72,7 @@ public class ChannelGroupListView implements FxmlView<ChannelGroupListViewModel>
     private StackPane channelGroupListContainer;
 
     @FXML
-    private ComboBox<ChannelGroupListViewModel.Comparators> comparatorsComboBox;
+    private ComboBox<ChannelGroupOrder> comparatorsComboBox;
 
     @FXML
     private ToggleSwitch descendingSwitch;
@@ -68,44 +84,44 @@ public class ChannelGroupListView implements FxmlView<ChannelGroupListViewModel>
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
+        if (closed) throw new IllegalStateException("group view is closed");
         title.getStyleClass().addAll(Styles.TITLE_3);
 
         // フィルタ用キーワード
         viewModel.filterProperty().bindBidirectional(filterField.textProperty());
 
         // フィルタフィールドのアイコン
-        var clearIcon = new FontIcon(Feather.X);
+        clearIcon = new FontIcon(Feather.X);
         clearIcon.setOnMouseClicked(e -> viewModel.setFilter(null));
         filterField.setRight(clearIcon);
         filterField.setLeft(new FontIcon(Feather.SEARCH));
 
         // コンパレータ
-        comparatorsComboBox.getItems().setAll(ChannelGroupListViewModel.Comparators.values());
-        comparatorsComboBox.valueProperty().addListener((ob, o, n) -> filterUpdate());
-        descendingSwitch.selectedProperty().addListener((ob, o, n) -> filterUpdate());
+        comparatorsComboBox.getItems().setAll(ChannelGroupOrder.values());
+        comparatorsComboBox.valueProperty().addListener(orderChanged);
+        descendingSwitch.selectedProperty().addListener(descendingChanged);
 
-        var prefs = AppPreferences.getInstance();
+        var prefs = preferences;
 
         // VirtualFlow
-        Supplier<VirtualFlow<ChannelGroup, ChannelGroupListCell>> vfInjector = () -> virtualFlow; // 力技ではあるか？
-        virtualFlow = VirtualFlow.createVertical(viewModel.getChannelGroups(), g -> new ChannelGroupListCell(prefs.getGeneralPreferences(), g, viewModel, vfInjector));
+        virtualFlow = VirtualFlow.createVertical(viewModel.getChannelGroups(),
+                group -> new ChannelGroupListCell(prefs.getGeneralPreferences(), group, viewModel, this::showTop));
         channelGroupListContainer.getChildren().add(new VirtualizedScrollPane<>(virtualFlow));
 
         // ダイアログとして表示するための初期化
-        JavaFXHelper.initAsInnerWindow(root, 0.7, 0.9);
+        sizing = JavaFXHelper.initAsInnerWindow(root, 0.7, 0.9);
 
         // 設定とバインド
         bindPreferences();
     }
 
     private void bindPreferences() {
-        var preferences = AppPreferences.getInstance().getStatePreferences();
+        var preferences = this.preferences.getStatePreferences();
         descendingSwitch.selectedProperty().bindBidirectional(preferences.groupOrderDescendingProperty());
 
         var comparatorName = preferences.getGroupOrderItem();
-        var comparator = ChannelGroupListViewModel.Comparators.valueOf(comparatorName);
+        var comparator = ChannelGroupOrder.valueOf(comparatorName);
         comparatorsComboBox.getSelectionModel().select(comparator);
-        preferences.groupOrderItemProperty().bind(comparatorsComboBox.valueProperty().map(Enum::name));
     }
 
     private void filterUpdate() {
@@ -125,8 +141,32 @@ public class ChannelGroupListView implements FxmlView<ChannelGroupListViewModel>
      * 要素の先頭から表示するようにする
      */
     public void onOpened() {
-        Platform.runLater(() -> virtualFlow.show(0));
+        if (closed || virtualFlow == null) return;
+        showTop();
         filterField.requestFocus();
+    }
+
+    private void showTop() {
+        if (!closed && virtualFlow != null && !viewModel.getChannelGroups().isEmpty()) virtualFlow.show(0);
+    }
+
+    @Override public void close() {
+        if (closed) return;
+        closed = true;
+        CloseActions.runAll(() -> {
+            if (sizing != null) { sizing.unsubscribe(); sizing = null; }
+        }, () -> {
+            if (comparatorsComboBox != null) comparatorsComboBox.valueProperty().removeListener(orderChanged);
+            if (descendingSwitch != null) {
+                descendingSwitch.selectedProperty().removeListener(descendingChanged);
+                descendingSwitch.selectedProperty().unbindBidirectional(preferences.getStatePreferences().groupOrderDescendingProperty());
+            }
+            if (filterField != null && viewModel != null) viewModel.filterProperty().unbindBidirectional(filterField.textProperty());
+            if (clearIcon != null) clearIcon.setOnMouseClicked(null);
+        }, () -> {
+            var flow = virtualFlow; virtualFlow = null;
+            if (flow != null) flow.dispose();
+        }, () -> { if (channelGroupListContainer != null) channelGroupListContainer.getChildren().clear(); });
     }
 
 }

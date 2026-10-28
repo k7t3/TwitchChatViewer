@@ -18,13 +18,13 @@ package com.github.k7t3.tcv.app.group;
 
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.model.AbstractViewModel;
-import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.service.FXTask;
-import com.github.k7t3.tcv.domain.event.EventSubscribers;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.ObservableList;
+import javafx.collections.FXCollections;
+import javafx.beans.Observable;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 
@@ -33,13 +33,18 @@ import java.util.Comparator;
 public class ChannelGroupListViewModel extends AbstractViewModel {
 
     private final ChannelGroupRepository repository;
+    private final ObservableList<ChannelGroup> source;
+    private final ObservableList<ChannelGroup> items = FXCollections.observableArrayList(
+            group -> new Observable[] { group.pinnedProperty(), group.nameProperty(), group.updatedAtProperty() });
     private final SortedList<ChannelGroup> sorted;
     private final FilteredList<ChannelGroup> filtered;
     private final StringProperty filter = new SimpleStringProperty();
 
     public ChannelGroupListViewModel(ChannelGroupRepository repository) {
         this.repository = repository;
-        sorted = new SortedList<>(repository.getAll());
+        source = repository.getAll();
+        Bindings.bindContent(items, source);
+        sorted = new SortedList<>(items);
         filtered = new FilteredList<>(sorted);
         filtered.predicateProperty().bind(Bindings.createObjectBinding(() -> this::test, filter));
     }
@@ -73,7 +78,9 @@ public class ChannelGroupListViewModel extends AbstractViewModel {
     }
 
     public void setComparator(Comparator<ChannelGroup> comparator) {
-        sorted.setComparator(ChannelGroupPinnedComparator.INSTANCE.thenComparing(comparator));
+        checkOpen();
+        sorted.setComparator(comparator == null ? ChannelGroupPinnedComparator.INSTANCE
+                : ChannelGroupPinnedComparator.INSTANCE.thenComparing(comparator));
     }
 
     public ObservableList<ChannelGroup> getChannelGroups() {
@@ -81,16 +88,19 @@ public class ChannelGroupListViewModel extends AbstractViewModel {
     }
 
     public FXTask<?> create(String name) {
+        checkOpen();
         var group = new ChannelGroup();
         group.setName(name);
         return repository.saveAsync(group);
     }
 
     public FXTask<?> update(ChannelGroup group) {
+        checkOpen();
         return repository.saveAsync(group);
     }
 
     public FXTask<?> delete(ChannelGroup group) {
+        checkOpen();
         return repository.removeAsync(group);
     }
 
@@ -98,54 +108,13 @@ public class ChannelGroupListViewModel extends AbstractViewModel {
     public String getFilter() { return filter.get(); }
     public void setFilter(String filter) { this.filter.set(filter); }
 
-    @Override
-    public void subscribeEvents(EventSubscribers eventSubscribers) {
-        // no-op
-    }
+    private void checkOpen() { if (isClosed()) throw new IllegalStateException("group editor is closed"); }
 
-    @Override
-    public void onLogout() {
-        // no-op
-    }
-
-    @Override
-    public void close() {
-        // no-op
-    }
-
-    public enum Comparators implements Comparator<ChannelGroup> {
-
-        UPDATED_AT("group.comparator.updated", Comparator.comparing(ChannelGroup::getUpdatedAt)),
-
-        CREATED_AT("group.comparator.created", Comparator.comparing(ChannelGroup::getCreatedAt)),
-
-        LIVE_COUNT("group.comparator.liver", Comparator.comparingLong(g -> g.getChannels()
-                .stream()
-                .filter(TwitchChannelViewModel::isLive)
-                .count()
-        )),
-
-        /** 状態の規定値として名前を使用しているので変更しないようにするか別の形で定義したい・・・。*/
-        NAME("group.comparator.name", Comparator.comparing(ChannelGroup::getName));
-
-        private final String display;
-
-        private final Comparator<ChannelGroup> comparator;
-
-        Comparators(String display, Comparator<ChannelGroup> comparator) {
-            this.display = Resources.getString(display);
-            this.comparator = comparator;
-        }
-
-        @Override
-        public String toString() {
-            return display;
-        }
-
-        @Override
-        public int compare(ChannelGroup o1, ChannelGroup o2) {
-            return comparator.compare(o1, o2);
-        }
+    @Override protected void onClose() {
+        Bindings.unbindContent(items, source);
+        filtered.predicateProperty().unbind();
+        filter.unbind();
+        items.clear();
     }
 
 }

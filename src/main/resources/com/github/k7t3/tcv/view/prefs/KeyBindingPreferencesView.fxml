@@ -10,7 +10,7 @@
 <?import javafx.scene.layout.VBox?>
 
 
-<VBox fx:id="root" styleClass="key-binding-preferences-view" stylesheets="@KeyBindingPreferencesView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.prefs.KeyBindingPreferencesView">
+<VBox fx:id="root" styleClass="key-binding-preferences-view" stylesheets="@KeyBindingPreferencesView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
    <children>
       <TableView fx:id="combinationsTableView" editable="true" VBox.vgrow="ALWAYS">
         <columns>

@@ -40,7 +40,7 @@ public class ChatUserFilterEntityService {
 
         var list = new ArrayList<ChatUserFilterEntity>();
 
-        connector.query(query, rs -> {
+        connector.readTransaction(() -> connector.query(query, rs -> {
             while (rs.next()) {
                 var i = 0;
                 var userId = rs.getString(++i);
@@ -49,12 +49,16 @@ public class ChatUserFilterEntityService {
                 var entity = new ChatUserFilterEntity(userId, userName, comment);
                 list.add(entity);
             }
-        });
+        }));
 
         return list;
     }
 
     public void save(ChatUserFilterEntity entity) {
+        connector.transaction(() -> saveInTransaction(entity));
+    }
+
+    void saveInTransaction(ChatUserFilterEntity entity) {
         LOGGER.info("save entity {}", entity);
         var sql = "insert or replace into chat_user_filter values(?, ?, ?);";
 
@@ -65,10 +69,13 @@ public class ChatUserFilterEntityService {
             stmt.setString(++i, entity.comment());
             stmt.executeUpdate();
         });
-        connector.commit();
     }
 
     public void delete(ChatUserFilterEntity entity) {
+        connector.transaction(() -> deleteInTransaction(entity));
+    }
+
+    void deleteInTransaction(ChatUserFilterEntity entity) {
         LOGGER.info("delete entity {}", entity);
         var sql = "delete from chat_user_filter where user_id = ?;";
 
@@ -76,7 +83,6 @@ public class ChatUserFilterEntityService {
             stmt.setString(1, entity.userId());
             stmt.executeUpdate();
         });
-        connector.commit();
     }
 
 }

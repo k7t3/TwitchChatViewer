@@ -16,44 +16,47 @@
 
 package com.github.k7t3.tcv.prefs;
 
-import com.github.k7t3.tcv.view.chat.ChatFont;
+import javafx.scene.text.Font;
 import javafx.beans.property.*;
 
 import java.util.Map;
-import java.util.Objects;
+import java.util.Optional;
+import java.util.Base64;
 import java.util.prefs.Preferences;
 
 public class ChatPreferences extends PreferencesBase {
 
-    private static final int DEFAULT_CHAT_CACHE_SIZE = 256;
+    private static final PreferenceKey<FontSettings> CHAT_FONT = new PreferenceKey<>("chat.font.family",
+            () -> new FontSettings(Font.getDefault().getFamily(), Font.getDefault().getSize()),
+            value -> FontSettings.deserialize(Base64.getDecoder().decode(value)),
+            value -> Base64.getEncoder().encodeToString(value.serialize()));
+    private static final PreferenceKey<Boolean> CHAT_SHOW_USERNAME = PreferenceKey.bool("chat.show.username", true);
+    private static final PreferenceKey<Boolean> CHAT_SHOW_BADGES = PreferenceKey.bool("chat.show.badges", true);
+    private static final PreferenceKey<Double> FLOATABLE_CHAT_OPACITY = PreferenceKey.decimal("floatable.chat.opacity", 0.7,
+            value -> Double.isFinite(value) && value >= 0.1 && value <= 1);
+    private static final PreferenceKey<Boolean> FLOATABLE_CHAT_TOP = PreferenceKey.bool("floatable.chat.always.top", true);
+    private static final PreferenceKey<Integer> CHAT_CACHE_SIZE = PreferenceKey.integer("chat.cache.size", 256, value -> value > 0);
 
-    /**
-     * チャットビューで適用されるフォントファミリ
-     */
-    private static final String CHAT_FONT_FAMILY = "chat.font.family";
+    static Map<String, PreferenceKey<?>> editorSettings() {
+        return Map.of(CHAT_FONT.name(), CHAT_FONT, CHAT_SHOW_USERNAME.name(), CHAT_SHOW_USERNAME,
+                CHAT_SHOW_BADGES.name(), CHAT_SHOW_BADGES, CHAT_CACHE_SIZE.name(), CHAT_CACHE_SIZE);
+    }
 
-    /**
-     * チャットビューでユーザー名を表示するか
-     */
-    private static final String CHAT_SHOW_USERNAME = "chat.show.username";
+    static java.util.Set<String> storedKeys() {
+        var keys = new java.util.HashSet<>(editorSettings().keySet());
+        keys.add(FLOATABLE_CHAT_OPACITY.name());
+        keys.add(FLOATABLE_CHAT_TOP.name());
+        return java.util.Set.copyOf(keys);
+    }
 
-    /**
-     * チャットビューでユーザーのバッジを表示するか
-     */
-    private static final String CHAT_SHOW_BADGES = "chat.show.badges";
+    public static Map<String, Optional<String>> editorValues(FontSettings font, boolean names, boolean badges, int cache) {
+        return Map.of(CHAT_FONT.name(), Optional.of(CHAT_FONT.encode(font)),
+                CHAT_SHOW_USERNAME.name(), Optional.of(CHAT_SHOW_USERNAME.encode(names)),
+                CHAT_SHOW_BADGES.name(), Optional.of(CHAT_SHOW_BADGES.encode(badges)),
+                CHAT_CACHE_SIZE.name(), Optional.of(CHAT_CACHE_SIZE.encode(cache)));
+    }
 
-    /** 透過ウインドウの透過度*/
-    private static final String FLOATABLE_CHAT_OPACITY = "floatable.chat.opacity";
-
-    /** 透過ウインドウを常に最前面に表示するか*/
-    private static final String FLOATABLE_CHAT_TOP = "floatable.chat.always.top";
-
-    /**
-     * チャンネルビューごとにチャットをキャッシュする数
-     */
-    private static final String CHAT_CACHE_SIZE = "chat.cache.size";
-
-    private ObjectProperty<ChatFont> font;
+    private ObjectProperty<FontSettings> font;
 
     private BooleanProperty showUserName;
 
@@ -65,80 +68,19 @@ public class ChatPreferences extends PreferencesBase {
 
     private IntegerProperty chatCacheSize;
 
-    ChatPreferences(Preferences preferences, Map<String, Object> defaults) {
-        super(preferences, defaults);
-
-        defaults.put(CHAT_FONT_FAMILY, ChatFont.getDefault().serialize());
-        defaults.put(CHAT_SHOW_USERNAME, Boolean.TRUE);
-        defaults.put(CHAT_SHOW_BADGES, Boolean.TRUE);
-        defaults.put(FLOATABLE_CHAT_OPACITY, 0.7d);
-        defaults.put(FLOATABLE_CHAT_TOP, Boolean.TRUE);
-        defaults.put(CHAT_CACHE_SIZE, DEFAULT_CHAT_CACHE_SIZE);
-    }
-
-    @Override
-    protected void readFromPreferences() {
-        var font = ChatFont.deserialize(getByteArray(CHAT_FONT_FAMILY));
-        if (!Objects.equals(getFont(), font)) {
-            setFont(font);
-        }
-
-        if (isShowBadges() != getBoolean(CHAT_SHOW_BADGES)) {
-            setShowBadges(getBoolean(CHAT_SHOW_BADGES));
-        }
-
-        if (isShowUserName() != getBoolean(CHAT_SHOW_USERNAME)) {
-            setShowUserName(getBoolean(CHAT_SHOW_USERNAME));
-        }
-
-        if (getFloatingChatAlwaysTop() != getBoolean(FLOATABLE_CHAT_TOP)) {
-            setFloatingChatAlwaysTop(getBoolean(FLOATABLE_CHAT_TOP));
-        }
-
-        if (getFloatingChatOpacity() != getDouble(FLOATABLE_CHAT_OPACITY)) {
-            setFloatingChatOpacity(getDouble(FLOATABLE_CHAT_OPACITY));
-        }
-
-        var chatCacheSize = getInt(CHAT_CACHE_SIZE);
-        if (chatCacheSize != getChatCacheSize()) {
-            setChatCacheSize(chatCacheSize);
-        }
-    }
-
-    @Override
-    protected void writeToPreferences() {
-        if (font != null) {
-            var bytes = font.get().serialize();
-            preferences.putByteArray(CHAT_FONT_FAMILY, bytes);
-        }
-
-        if (showUserName != null) {
-            preferences.putBoolean(CHAT_SHOW_USERNAME, showUserName.get());
-        }
-
-        if (showBadges != null) {
-            preferences.putBoolean(CHAT_SHOW_BADGES, showBadges.get());
-        }
-
-        if (floatingChatOpacity != null) {
-            preferences.putDouble(FLOATABLE_CHAT_OPACITY, floatingChatOpacity.get());
-        }
-
-        if (floatingChatAlwaysTop != null) {
-            preferences.putBoolean(FLOATABLE_CHAT_TOP, floatingChatAlwaysTop.get());
-        }
-    }
+    ChatPreferences(Preferences preferences) { super(preferences, editorSettings().keySet()); }
+    ChatPreferences(PreferenceStore store) { super(store, editorSettings().keySet()); }
 
     // ******************** PROPERTIES ********************
 
-    public ObjectProperty<ChatFont> fontProperty() {
+    public ObjectProperty<FontSettings> fontProperty() {
         if (font == null) {
-            font = createBytesObjectProperty(CHAT_FONT_FAMILY, ChatFont::deserialize, ChatFont::serialize);
+            font = createObjectProperty(CHAT_FONT);
         }
         return font;
     }
-    public ChatFont getFont() { return fontProperty().get(); }
-    public void setFont(ChatFont font) { this.fontProperty().set(font); }
+    public FontSettings getFont() { return fontProperty().get(); }
+    public void setFont(FontSettings font) { this.fontProperty().set(font); }
 
     public BooleanProperty showUserNameProperty() {
         if (showUserName == null) showUserName = createBooleanProperty(CHAT_SHOW_USERNAME);

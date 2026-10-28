@@ -28,7 +28,10 @@ import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.util.List;
 
-public class OpenChatMenuItem extends MenuItem {
+public class OpenChatMenuItem extends MenuItem implements AutoCloseable {
+    private boolean closed;
+    private final javafx.event.EventHandler<ActionEvent> actionHandler = this::action;
+
 
     private final MultipleChatOpenType openType;
     private final List<TwitchChannelViewModel> channels;
@@ -41,15 +44,23 @@ public class OpenChatMenuItem extends MenuItem {
         super(Resources.getString("channel.open.chat"), new FontIcon(FontAwesomeRegular.COMMENT_DOTS));
         this.openType = openType;
         this.channels = channels;
-        addEventHandler(ActionEvent.ACTION, this::action);
+        addEventHandler(ActionEvent.ACTION, actionHandler);
     }
 
     private void action(ActionEvent e) {
         e.consume();
+        if (closed) return;
         var opening = new ChatOpeningEvent(openType, channels);
 
         // FIXME イベントの通知方法
         var notificator = MvvmFX.getNotificationCenter();
         notificator.publish(opening.getClass().getName(), opening);
     }
+    @Override public void close() {
+        if (closed) return;
+        closed = true;
+        removeEventHandler(ActionEvent.ACTION, actionHandler);
+        setOnAction(null);
+    }
+
 }

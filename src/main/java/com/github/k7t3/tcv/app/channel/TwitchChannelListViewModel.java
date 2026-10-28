@@ -16,10 +16,10 @@
 
 package com.github.k7t3.tcv.app.channel;
 
+import com.github.k7t3.tcv.lifecycle.CloseActions;
 import com.github.k7t3.tcv.app.model.AbstractViewModel;
 import com.github.k7t3.tcv.app.event.ChatOpeningEvent;
-import com.github.k7t3.tcv.app.service.FXTask;
-import com.github.k7t3.tcv.domain.event.EventSubscribers;
+import com.github.k7t3.tcv.app.service.BrowserActions;
 import com.github.k7t3.tcv.prefs.GeneralPreferences;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
@@ -28,9 +28,8 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
-
-import java.util.Collections;
 import java.util.Comparator;
+import java.util.Locale;
 
 /**
  * 永続化しているチャンネルのリスト
@@ -65,7 +64,11 @@ public class TwitchChannelListViewModel extends AbstractViewModel {
     private final StringProperty filter = new SimpleStringProperty();
     private final ObjectProperty<MultipleChatOpenType> multipleOpenType = new SimpleObjectProperty<>(MultipleChatOpenType.SEPARATED);
 
-    public TwitchChannelListViewModel() {
+    private final BrowserActions browsers;
+    private boolean loggedOut;
+
+    public TwitchChannelListViewModel(BrowserActions browsers) {
+        this.browsers = browsers;
         var sorted = new SortedList<>(loadedChannels);
         sorted.setComparator(DEFAULT_COMPARATOR);
 
@@ -83,16 +86,17 @@ public class TwitchChannelListViewModel extends AbstractViewModel {
     private boolean filter(TwitchChannelViewModel channel) {
         var liveState = !isOnlyLive() || channel.isLive();
         var followingState = !isOnlyFollow() || channel.isFollowing();
+        if (!liveState || !followingState) return false;
 
-        var keyword = getFilter() == null ? "" : getFilter().trim().toLowerCase();
+        var keyword = getFilter() == null ? "" : getFilter().trim().toLowerCase(Locale.ROOT);
         if (keyword.isEmpty()) {
-            return liveState && followingState;
+            return true;
         }
 
         var gameTitle = channel.getGameName() == null ? "" : channel.getGameName();
-        return (liveState && followingState) && channel.getUserName().toLowerCase().contains(keyword) ||
-               channel.getUserLogin().toLowerCase().contains(keyword) ||
-               gameTitle.toLowerCase().contains(keyword);
+        return channel.getUserName().toLowerCase(Locale.ROOT).contains(keyword) ||
+               channel.getUserLogin().toLowerCase(Locale.ROOT).contains(keyword) ||
+               gameTitle.toLowerCase(Locale.ROOT).contains(keyword);
     }
 
     /**
@@ -104,6 +108,10 @@ public class TwitchChannelListViewModel extends AbstractViewModel {
      * @param channels バインドソース
      */
     public void bindChannels(ObservableList<TwitchChannelViewModel> channels) {
+        if (isClosed()) throw new IllegalStateException("channel list is closed");
+        if (lazySource != null) Bindings.unbindContent(loadedChannels, lazySource);
+        loggedOut = false;
+        selectedChannels.clear();
         lazySource = channels;
         Bindings.bindContent(loadedChannels, lazySource);
     }
@@ -113,17 +121,13 @@ public class TwitchChannelListViewModel extends AbstractViewModel {
     }
 
     public void openSelectedChannelPageOnBrowser() {
-        var selectedChannels = getSelectedChannels();
-        if (selectedChannels.isEmpty()) return;
-
-        var channels = Collections.unmodifiableList(selectedChannels);
-
-        FXTask.task(() -> {
-            channels.forEach(TwitchChannelViewModel::openChannelPageOnBrowser);
-        }).runAsync();
+        checkActive();
+        var urls = selectedChannels.stream().map(channel -> "https://www.twitch.tv/" + channel.getBroadcaster().getUserLogin()).toList();
+        if (!urls.isEmpty()) browsers.openAll(urls);
     }
 
     public void joinChat() {
+        checkActive();
         var selectedChannels = getSelectedChannels();
         if (selectedChannels.isEmpty()) return;
 
@@ -150,12 +154,10 @@ public class TwitchChannelListViewModel extends AbstractViewModel {
     }
 
     @Override
-    public void subscribeEvents(EventSubscribers eventSubscribers) {
-        // no-op
-    }
-
-    @Override
-    public void onLogout() {
+    protected void onLoggedOut() {
+        loggedOut = true;
+        browsers.cancelAll();
+        selectedChannels.clear();
         if (lazySource != null) {
             Bindings.unbindContent(loadedChannels, lazySource);
             lazySource = null;
@@ -163,9 +165,13 @@ public class TwitchChannelListViewModel extends AbstractViewModel {
         loadedChannels.clear();
     }
 
-    @Override
-    public void close() {
-        // no-op
+    private void checkActive() {
+        if (isClosed() || loggedOut) throw new IllegalStateException("channel list is no longer active");
+    }
+
+    @Override protected void onClose() {
+        CloseActions.runAll(this::onLoggedOut, browsers::close,
+                () -> multipleOpenType.unbind(), () -> transformedChannels.predicateProperty().unbind());
     }
 
     public StringProperty filterProperty() { return filter; }

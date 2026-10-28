@@ -21,7 +21,7 @@ import javafx.scene.input.KeyCombination;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
+import java.util.Optional;
 import java.util.prefs.Preferences;
 
 /**
@@ -30,47 +30,38 @@ import java.util.prefs.Preferences;
  *     キーバインドの規定値は{@link KeyBinding}列挙クラスの通り。
  * </p>
  */
-public class KeyBindingPreferences extends PreferencesBase {
+public class KeyBindingPreferences {
+    private final PreferenceStore store;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KeyBindingPreferences.class);
 
-    KeyBindingPreferences(Preferences preferences, Map<String, Object> defaults) {
-        super(preferences, defaults);
-    }
+    KeyBindingPreferences(Preferences preferences) { this(new PreferenceStore(preferences, null)); }
+    KeyBindingPreferences(PreferenceStore store) { this.store = java.util.Objects.requireNonNull(store); }
 
     public KeyCombination readCustomCombination(KeyBinding binding) {
-        var code = get(binding.getId());
+        var code = store.read(binding.getId()).orElse(null);
         if (code == null) return KeyCombination.NO_MATCH;
         try {
             return KeyCombination.keyCombination(code);
-        } catch (Exception ignored) {
+        } catch (IllegalArgumentException ignored) {
             LOGGER.warn("stored invalid key combination");
             return KeyCombination.NO_MATCH;
         }
     }
 
     public void storeCombination(KeyBinding binding, KeyCombination combination) {
-        // デフォルトキーが指定されたときは既存のカスタムキーバインドを削除
-        if (binding.getDefaultCombination().equals(combination)) {
-            preferences.remove(binding.getId());
-        } else {
-            preferences.put(binding.getId(), combination.getName());
-        }
+        store.write(binding.getId(), editorValue(binding, combination), true);
+    }
+
+    public static Optional<String> editorValue(KeyBinding binding, KeyCombination combination) {
+        return binding.getDefaultCombination().equals(combination) ? Optional.empty()
+                : Optional.of(combination.getName());
     }
 
     public void clear() {
         for (var binding : KeyBinding.values()) {
-            preferences.remove(binding.getId());
+            store.write(binding.getId(), Optional.empty(), true);
         }
     }
 
-    @Override
-    protected void readFromPreferences() {
-        // no-op
-    }
-
-    @Override
-    protected void writeToPreferences() {
-        // no-op
-    }
 }

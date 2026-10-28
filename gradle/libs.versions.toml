@@ -1,0 +1,49 @@
+[versions]
+java = "25"
+javafx = "27.0.1"
+junit = "6.1.3"
+mockito = "5.24.0"
+assertj = "3.27.7"
+testfx = "4.0.18"
+twitch4j = "1.27.0"
+feign = "13.9.3"
+bucket4j = "8.10.1"
+
+slf4j = "2.0.20"
+caffeine = "3.3.1"
+sqlite = "3.53.4.0"
+zxing = "3.5.4"
+atlantafx = "3.0.0"
+ikonli = "12.4.0"
+mvvmfx = "1.8.0"
+flowless = "0.7.4"
+hamcrest = "3.0"
+
+[libraries]
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+mockito = { module = "org.mockito:mockito-core", version.ref = "mockito" }
+assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
+testfx-junit5 = { module = "org.testfx:testfx-junit5", version.ref = "testfx" }
+twitch-auth = { module = "com.github.twitch4j:twitch4j-auth", version.ref = "twitch4j" }
+twitch-chat = { module = "com.github.twitch4j:twitch4j-chat", version.ref = "twitch4j" }
+twitch-common = { module = "com.github.twitch4j:twitch4j-common", version.ref = "twitch4j" }
+twitch-helix = { module = "com.github.twitch4j:twitch4j-helix", version.ref = "twitch4j" }
+feign-core = { module = "io.github.openfeign:feign-core", version.ref = "feign" }
+feign-jackson = { module = "io.github.openfeign:feign-jackson", version.ref = "feign" }
+feign-okhttp = { module = "io.github.openfeign:feign-okhttp", version.ref = "feign" }
+bucket4j = { module = "com.bucket4j:bucket4j_jdk8-core", version.ref = "bucket4j" }
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+slf4j-jdk14 = { module = "org.slf4j:slf4j-jdk14", version.ref = "slf4j" }
+caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
+sqlite = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite" }
+zxing = { module = "com.google.zxing:javase", version.ref = "zxing" }
+atlantafx = { module = "io.github.mkpaz:atlantafx-base", version.ref = "atlantafx" }
+ikonli-javafx = { module = "org.kordamp.ikonli:ikonli-javafx", version.ref = "ikonli" }
+ikonli-feather = { module = "org.kordamp.ikonli:ikonli-feather-pack", version.ref = "ikonli" }
+ikonli-material2 = { module = "org.kordamp.ikonli:ikonli-material2-pack", version.ref = "ikonli" }
+ikonli-fontawesome5 = { module = "org.kordamp.ikonli:ikonli-fontawesome5-pack", version.ref = "ikonli" }
+mvvmfx = { module = "de.saxsys:mvvmfx", version.ref = "mvvmfx" }
+flowless = { module = "org.fxmisc.flowless:flowless", version.ref = "flowless" }
+hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }

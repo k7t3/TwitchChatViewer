@@ -16,13 +16,10 @@
 
 package com.github.k7t3.tcv.app.clip;
 
-import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.DesktopUtils;
 import com.github.k7t3.tcv.app.image.LazyImage;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
-import com.github.k7t3.tcv.domain.chat.ClipChatMessage;
-import com.github.k7t3.tcv.domain.chat.ClipFinder;
 import com.github.k7t3.tcv.domain.clip.VideoClip;
 import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.ReadOnlyIntegerWrapper;
@@ -48,10 +45,13 @@ public class PostedClipItem {
     private ReadOnlyObjectWrapper<VideoClip> clip;
 
     private final PostedClipRepository repository;
+    private final long scope;
+    private boolean retired;
 
     public PostedClipItem(PostedClipRepository repository, String id, String url, VideoClip clip) {
         if (!url.startsWith("https")) throw new IllegalArgumentException("illegal url: " + url);
         this.repository = repository;
+        scope = repository.scope();
         this.id.set(id);
         this.url.set(url);
 
@@ -61,27 +61,15 @@ public class PostedClipItem {
     }
 
     public FXTask<?> retry() {
-        var helper = AppHelper.getInstance();
-        var finder = new ClipFinder(helper.getTwitch());
-        var url = getUrl();
-
-        var task = FXTask.task(() -> finder.findClip(url).flatMap(ClipChatMessage::getClip).orElse(null));
-        return task.onDone(c -> {
-            if (c != null) {
-                clip().set(c);
-            }
-        }).runAsync();
+        return repository.retry(this);
     }
 
     public void remove() {
-        repository.getItems().remove(getId());
+        repository.remove(this);
     }
 
     public FXTask<?> browseClipPageAsync() {
-        return FXTask.task(() -> {
-            DesktopUtils.browse(getUrl());
-            return null;
-        }).runAsync();
+        return repository.browse(this);
     }
 
     public void copyClipURL() {
@@ -89,14 +77,19 @@ public class PostedClipItem {
     }
 
     public LazyImage getThumbnailImage() {
-        return repository.getThumbnailStore().get(this);
+        return repository.getThumbnailImage(this);
     }
 
     public void onPosted(Broadcaster broadcaster) {
+        if (!repository.isActive(this)) return;
         postedChannels.add(broadcaster);
         lastPostedAt.set(LocalDateTime.now());
-        times.set(times.get() + 1);
+        if (repository.isActive(this)) times.set(times.get() + 1);
     }
+
+    long scope() { return scope; }
+    boolean isRetired() { return retired; }
+    void retire() { retired = true; }
 
     public boolean isPosted(Broadcaster broadcaster) {
         return postedChannels.contains(broadcaster);
@@ -121,7 +114,7 @@ public class PostedClipItem {
     }
     public ReadOnlyObjectProperty<VideoClip> clipProperty() { return clip().getReadOnlyProperty(); }
     public VideoClip getClip() { return clip == null ? null : clip.get(); }
-    private void setClip(VideoClip clip) { clip().set(clip); }
+    void setClip(VideoClip clip) { clip().set(clip); }
 
     public ObservableValue<String> observableThumbnailLink() { return clip().map(VideoClip::thumbnailUrl); }
     String getThumbnailLink() { return observableThumbnailLink().getValue(); }

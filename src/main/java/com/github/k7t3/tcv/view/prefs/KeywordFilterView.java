@@ -23,21 +23,19 @@ import com.github.k7t3.tcv.app.chat.filter.KeywordFilterType;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.prefs.KeywordFilterViewModel;
 import com.github.k7t3.tcv.view.core.DeleteButtonTableColumn;
-import com.github.k7t3.tcv.view.core.JavaFXHelper;
+import com.github.k7t3.tcv.view.core.ViewResources;
+import com.github.k7t3.tcv.lifecycle.CloseActions;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
-import javafx.scene.control.Cell;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.ComboBoxTableCell;
-import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.util.StringConverter;
-import javafx.util.converter.DefaultStringConverter;
 import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.javafx.FontIcon;
 
@@ -47,6 +45,7 @@ import java.util.Map;
 import java.util.ResourceBundle;
 
 public class KeywordFilterView implements PreferencesPage<KeywordFilterViewModel> {
+    private final ViewResources owned = new ViewResources();
 
     @FXML
     private TableView<KeywordFilterViewModel.Wrapper> keywordTableView;
@@ -71,6 +70,7 @@ public class KeywordFilterView implements PreferencesPage<KeywordFilterViewModel
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        if (owned.isClosed()) { releaseControls(); return; }
         keywordTableView.setEditable(true);
         keywordTableView.setItems(viewModel.getKeywordEntries());
         keywordTableView.getStyleClass().addAll(Styles.BORDERED, Tweaks.EDGE_TO_EDGE);
@@ -101,20 +101,15 @@ public class KeywordFilterView implements PreferencesPage<KeywordFilterViewModel
         filterTypeColumn.setEditable(true);
 
         keywordColumn.setCellValueFactory(features -> features.getValue().keywordProperty());
-        keywordColumn.setCellFactory(TextFieldTableCell.forTableColumn());
-        keywordColumn.setCellFactory(column -> new TextFieldTableCell<>(new DefaultStringConverter()) {
-            {
-                var invalidCondition = tableRowProperty().flatMap(Cell::itemProperty)
-                        .flatMap(KeywordFilterViewModel.Wrapper::invalidProperty)
-                        .orElse(false);
-                JavaFXHelper.registerPseudoClass(this, "invalid", invalidCondition);
-
-                getStyleClass().add("keyword-filter-cell");
-            }
+        keywordColumn.setCellFactory(column -> {
+            var cell = new KeywordFilterCell(); owned.add(cell::close); return cell;
         });
         keywordColumn.setEditable(true);
 
-        trashColumn.setCellFactory(DeleteButtonTableColumn.create(entry -> entry.setRemoved(true)));
+        trashColumn.setCellFactory(column -> {
+            var cell = new DeleteButtonTableColumn<KeywordFilterViewModel.Wrapper>(entry -> entry.setRemoved(true));
+            owned.add(cell::close); return cell;
+        });
         trashColumn.setCellValueFactory(features -> new ReadOnlyObjectWrapper<>(features.getValue()));
 
         addButton.getStyleClass().addAll(Styles.SMALL, Styles.ROUNDED, Styles.ACCENT);
@@ -126,8 +121,29 @@ public class KeywordFilterView implements PreferencesPage<KeywordFilterViewModel
 
     @FXML
     private void addItem() {
+        if (owned.isClosed()) return;
         var entry = KeywordFilterEntry.containsMatch("");
         viewModel.addEntry(entry);
+    }
+
+    @Override public void close() {
+        if (owned.isClosed()) return;
+        CloseActions.runAll(owned::close, this::releaseControls);
+    }
+
+    private void releaseControls() {
+        if (addButton != null) addButton.setOnAction(null);
+        if (addMenuItem != null) addMenuItem.setOnAction(null);
+        if (keywordTableView != null) {
+            keywordTableView.edit(-1, null);
+            keywordTableView.getSelectionModel().clearSelection();
+            if (keywordTableView.getContextMenu() != null) keywordTableView.getContextMenu().hide();
+            keywordTableView.setItems(null);
+            keywordTableView.setEditable(false);
+        }
+        if (keywordColumn != null) { keywordColumn.setCellFactory(null); keywordColumn.setCellValueFactory(null); }
+        if (filterTypeColumn != null) { filterTypeColumn.setCellFactory(null); filterTypeColumn.setCellValueFactory(null); }
+        if (trashColumn != null) { trashColumn.setCellFactory(null); trashColumn.setCellValueFactory(null); }
     }
 
     @Override

@@ -19,31 +19,37 @@ package com.github.k7t3.tcv.view.chat;
 import atlantafx.base.theme.Styles;
 import atlantafx.base.theme.Tweaks;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
-import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.chat.SingleChatRoomViewModel;
-import com.github.k7t3.tcv.app.core.AppHelper;
-import com.github.k7t3.tcv.view.image.LazyImageView;
+import com.github.k7t3.tcv.app.group.ChannelGroupRepository;
 import com.github.k7t3.tcv.domain.chat.ChatRoomState;
 import com.github.k7t3.tcv.view.core.JavaFXHelper;
+import com.github.k7t3.tcv.view.core.ViewResources;
 import com.github.k7t3.tcv.view.group.menu.ChannelGroupMenu;
+import com.github.k7t3.tcv.view.image.LazyImageView;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
+import java.net.URL;
+import java.util.ResourceBundle;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.SetChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
-import javafx.scene.effect.SepiaTone;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.*;
-import javafx.scene.shape.Rectangle;
-import org.fxmisc.flowless.VirtualFlow;
-import org.fxmisc.flowless.VirtualizedScrollPane;
 
-import java.net.URL;
-import java.util.ResourceBundle;
 
-public class SingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, Initializable {
+public class SingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, Initializable, AutoCloseable {
+    private final ChannelGroupRepository groups;
+    private final ViewResources owned = new ViewResources();
+
+    /** 共有のグループ管理を借用し、この画面自身の監視だけを所有する。 */
+    public SingleChatRoomView(ChannelGroupRepository groups) {
+        this.groups = java.util.Objects.requireNonNull(groups);
+    }
+    @Override public void close() { owned.close(); }
+
 
     private static final double PROFILE_IMAGE_SIZE = 48;
 
@@ -88,7 +94,6 @@ public class SingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, In
     @FXML
     private Pane backgroundImageLayer;
 
-    private VirtualFlow<ChatDataViewModel, ChatDataCell> virtualFlow;
 
     @InjectViewModel
     private SingleChatRoomViewModel viewModel;
@@ -97,19 +102,27 @@ public class SingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, In
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        if (owned.isClosed()) return;
+        owned.add(() -> {
+            scrollToEnd.selectedProperty().unbindBidirectional(viewModel.autoScrollProperty());
+            selectedMenuItem.selectedProperty().unbindBidirectional(viewModel.selectedProperty());
+            selectedCheckBox.selectedProperty().unbindBidirectional(viewModel.selectedProperty());
+            chatRoomControlsContainer.visibleProperty().unbind(); chatRoomControlsContainer.managedProperty().unbind();
+            selectedCheckBox.visibleProperty().unbind(); selectedCheckBox.managedProperty().unbind();
+            headerPane.setOnMouseClicked(null); closeMenuItem.setOnAction(null); popoutMenuItem.setOnAction(null);
+            actionsMenuButton.hide();
+            userNameLabel.textProperty().unbind(); streamTitleLabel.textProperty().unbind(); streamTitleLabel.visibleProperty().unbind();
+            if (streamTitleLabel.getTooltip() != null) streamTitleLabel.getTooltip().textProperty().unbind();
+            streamTitleLabel.setTooltip(null);
+        });
         channel = viewModel.getChannel();
+        if (owned.isClosed()) return;
 
-        profileImageView = new LazyImageView();
+        var profile = new ChannelProfileView(channel, PROFILE_IMAGE_SIZE);
+        profileImageView = profile;
+        owned.add(profile::close);
+        if (owned.isClosed()) return;
         headerPane.add(profileImageView, 0, 0);
-        profileImageView.lazyImageProperty().bind(channel.profileImageProperty());
-        profileImageView.setFitWidth(PROFILE_IMAGE_SIZE);
-        profileImageView.setFitHeight(PROFILE_IMAGE_SIZE);
-        var clip = new Rectangle();
-        clip.widthProperty().bind(profileImageView.fitWidthProperty());
-        clip.heightProperty().bind(profileImageView.fitHeightProperty());
-        clip.arcWidthProperty().bind(profileImageView.fitWidthProperty());
-        clip.arcHeightProperty().bind(profileImageView.fitHeightProperty());
-        profileImageView.setClip(clip);
 
         userNameLabel.textProperty().bind(channel.observableUserName());
 
@@ -117,40 +130,47 @@ public class SingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, In
         closeMenuItem.setOnAction(e -> viewModel.leaveChatAsync());
 
         // チャンネルグループに関するメニュー
-        var repository = AppHelper.getInstance().getChannelGroupRepository();
-        actionsMenuButton.getItems().add(1, new ChannelGroupMenu(repository, FXCollections.observableArrayList(channel)));
+        if (owned.isClosed()) return;
+        var groupMenu = new ChannelGroupMenu(groups, FXCollections.observableArrayList(channel));
+        owned.add(groupMenu::close);
+        if (owned.isClosed()) return;
+        actionsMenuButton.getItems().add(1, groupMenu);
 
         popoutMenuItem.setOnAction(e -> viewModel.popOutAsFloatableStage());
 
-        virtualFlow = VirtualFlow.createVertical(viewModel.getChatDataList(), ChatDataCell::of);
-        chatDataContainer.getChildren().add(new VirtualizedScrollPane<>(virtualFlow));
+        var messages = ChatRoomViewUtils.installMessages(chatDataContainer, viewModel, false);
+        owned.add(messages::unsubscribe);
+        if (owned.isClosed()) return;
 
-        // 配信していないときののイメージを更新する
+        var background = ChatRoomViewUtils.offlineBackground(channel);
+        owned.add(() -> { backgroundImageLayer.backgroundProperty().unbind(); backgroundImageLayer.setBackground(null); background.dispose(); });
+        backgroundImageLayer.backgroundProperty().bind(background);
         updateLiveState();
-        channel.liveProperty().addListener((ob, o, n) -> updateLiveState());
+        ChangeListener<Boolean> liveChanged = (ob, oldValue, live) -> { if (!owned.isClosed()) updateLiveState(); };
+        channel.liveProperty().addListener(liveChanged); owned.add(() -> channel.liveProperty().removeListener(liveChanged));
 
 
         var roomStateNodes = new ChatRoomStateNodes();
-        viewModel.getRoomStates().addListener((SetChangeListener<? super ChatRoomState>) (c) -> {
+        SetChangeListener<ChatRoomState> statesChanged = c -> {
+            if (owned.isClosed()) return;
             if (c.wasAdded()) {
                 var node = roomStateNodes.getIcon(c.getElementAdded());
-                stateContainer.getChildren().add(node);
+                if (node != null) stateContainer.getChildren().add(node);
             }
             if (c.wasRemoved()) {
                 var node = roomStateNodes.getIcon(c.getElementRemoved());
                 stateContainer.getChildren().remove(node);
             }
-        });
+        };
+        viewModel.getRoomStates().addListener(statesChanged);
+        owned.add(() -> { viewModel.getRoomStates().removeListener(statesChanged); stateContainer.getChildren().clear(); });
         viewModel.getRoomStates().stream()
                 .map(roomStateNodes::getIcon)
+                .filter(java.util.Objects::nonNull)
                 .forEach(stateContainer.getChildren()::add);
-
-        // 自動スクロールと仮想フローにおける動作を初期化
-        ChatRoomViewUtils.initializeVirtualFlowScrollActions(virtualFlow, viewModel.getChatDataList(), viewModel.autoScrollProperty());
 
         scrollToEnd.selectedProperty().bindBidirectional(viewModel.autoScrollProperty());
 
-        ChatRoomViewUtils.installStreamInfoPopOver(channel, profileImageView);
 
         streamTitleLabel.visibleProperty().bind(channel.liveProperty());
         streamTitleLabel.textProperty().bind(channel.observableStreamTitle());
@@ -170,7 +190,9 @@ public class SingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, In
 
         selectedMenuItem.selectedProperty().bindBidirectional(viewModel.selectedProperty());
         selectedCheckBox.selectedProperty().bindBidirectional(viewModel.selectedProperty());
-        JavaFXHelper.registerPseudoClass(headerPane, "selected", viewModel.selectedProperty());
+        ChangeListener<Boolean> selection = (ob, oldValue, selected) -> { if (!owned.isClosed()) JavaFXHelper.updatePseudoClass(headerPane, "selected", selected); };
+        viewModel.selectedProperty().addListener(selection); owned.add(() -> viewModel.selectedProperty().removeListener(selection));
+        JavaFXHelper.updatePseudoClass(headerPane, "selected", viewModel.selectedProperty().get());
         chatRoomControlsContainer.visibleProperty().bind(viewModel.selectModeProperty().not());
         chatRoomControlsContainer.managedProperty().bind(viewModel.selectModeProperty().not());
 
@@ -179,20 +201,6 @@ public class SingleChatRoomView implements FxmlView<SingleChatRoomViewModel>, In
     }
 
     private void updateLiveState() {
-        if (!channel.isLive()) {
-            var backgroundImage = channel.getOfflineImage();
-            if (backgroundImage != null) {
-                var bgSize = new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, true, true, true, false);
-                var bgImage = new BackgroundImage(backgroundImage, BackgroundRepeat.REPEAT, BackgroundRepeat.REPEAT, BackgroundPosition.DEFAULT, bgSize);
-                var bg = new Background(bgImage);
-                backgroundImageLayer.setBackground(bg);
-            }
-            profileImageView.setEffect(new SepiaTone());
-        } else {
-            backgroundImageLayer.setBackground(null);
-            profileImageView.setEffect(null);
-        }
-
         backgroundImageLayer.setVisible(!channel.isLive());
     }
 

@@ -22,32 +22,73 @@ import com.github.k7t3.tcv.app.chat.ChatRoomContainerViewModel;
 import com.github.k7t3.tcv.app.chat.ChatRoomViewModel;
 import com.github.k7t3.tcv.app.chat.MergedChatRoomViewModel;
 import com.github.k7t3.tcv.app.chat.SingleChatRoomViewModel;
-import com.github.k7t3.tcv.view.core.FloatableStage;
 import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.app.group.ChannelGroupRepository;
+import com.github.k7t3.tcv.app.service.WindowBoundsService;
+import com.github.k7t3.tcv.prefs.ChatPreferences;
+import com.github.k7t3.tcv.lifecycle.CloseActions;
+import com.github.k7t3.tcv.view.core.FloatableStage;
+import com.github.k7t3.tcv.view.core.ViewResources;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
+import de.saxsys.mvvmfx.ViewModel;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.ResourceBundle;
+import java.util.function.BiFunction;
+import java.util.function.Supplier;
 import javafx.animation.Timeline;
+import javafx.beans.binding.Bindings;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.input.DataFormat;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.TransferMode;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 
-import java.net.URL;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.ResourceBundle;
 
-public class ChatContainerView implements FxmlView<ChatRoomContainerViewModel>, Initializable {
+public class ChatContainerView implements FxmlView<ChatRoomContainerViewModel>, Initializable, AutoCloseable {
+    private final ViewResources owned = new ViewResources();
+    @FunctionalInterface interface Loader {
+        LoadedChat load(ChatRoomViewModel room, boolean floating, ViewResources owner);
+    }
+    private final Loader loader;
+
+    /** 親のサービスを子画面へ渡す。窓位置保存はポップアウトの生成時に取得する。 */
+    public ChatContainerView(ChannelGroupRepository groups, ChatPreferences preferences, Supplier<WindowBoundsService> bounds) {
+        Objects.requireNonNull(groups);
+        Objects.requireNonNull(preferences);
+        Objects.requireNonNull(bounds);
+        loader = (room, floating, owner) -> loadChat(room, floating, owner, groups, preferences, bounds);
+    }
+    ChatContainerView(Loader loader) { this.loader = loader; }
+    ChatContainerView(BiFunction<ChatRoomViewModel, Boolean, LoadedChat> loader) { this.loader = (room, floating, owner) -> loader.apply(room, floating); }
+    @Override public void close() { owned.close(); }
+
+    record LoadedChat(Parent view, Runnable release, FloatableStage stage) implements AutoCloseable {
+        @Override public void close() { release.run(); }
+    }
+
+    private static final class Opened implements AutoCloseable {
+        final ViewResources owned = new ViewResources();
+        @Override public void close() { owned.close(); }
+    }
+
 
     @FXML
     private HBox selectingPane;
@@ -68,27 +109,55 @@ public class ChatContainerView implements FxmlView<ChatRoomContainerViewModel>, 
     private Button closeButton;
 
     @FXML
-    private BorderPane container;
+    private StackPane contentStack;
+
+    @FXML
+    private VBox loadStatePane;
+
+    @FXML
+    private ProgressIndicator loadProgress;
+
+    @FXML
+    private Label loadMessage;
+
+    @FXML
+    private Button retryLoadButton;
 
     private GridPane chatContainer;
 
     @InjectViewModel
     private ChatRoomContainerViewModel viewModel;
 
-    private Map<ChatRoomViewModel, Node> items;
-
-    private Map<ChatRoomViewModel, FloatableStage> floatableStages;
+    private final Map<ChatRoomViewModel, Opened> items = new IdentityHashMap<>();
+    private final Map<ChatRoomViewModel, Opened> floating = new IdentityHashMap<>();
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        items = new HashMap<>();
-        viewModel.getChatRoomList().addListener(this::chatChanged);
-
-        floatableStages = new HashMap<>();
-        viewModel.getFloatingChatRoomList().addListener(this::floatableChatChanged);
+        owned.add(() -> {
+            var children = new ArrayList<>(items.values()); children.addAll(floating.values());
+            items.clear(); floating.clear();
+            CloseActions.runAll(children.stream().map(child -> (Runnable) child::close).toArray(Runnable[]::new));
+        });
+        owned.add(() -> {
+            loadStatePane.visibleProperty().unbind(); loadStatePane.managedProperty().unbind();
+            loadProgress.visibleProperty().unbind(); loadProgress.managedProperty().unbind(); loadMessage.textProperty().unbind();
+            retryLoadButton.visibleProperty().unbind(); retryLoadButton.managedProperty().unbind(); retryLoadButton.setOnAction(null);
+            selectingCountLabel.textProperty().unbind(); selectingPane.managedProperty().unbind(); selectingPane.visibleProperty().unbind();
+            mergeButton.disableProperty().unbind();
+            selectAllButton.setOnAction(null); mergeButton.setOnAction(null); closeButton.setOnAction(null); cancelButton.setOnAction(null);
+        });
 
         chatContainer = new GridPane();
-        container.setCenter(chatContainer);
+        contentStack.getChildren().addFirst(chatContainer);
+        loadStatePane.visibleProperty().bind(viewModel.loadingProperty().or(viewModel.errorProperty().isNotEmpty()));
+        loadStatePane.managedProperty().bind(loadStatePane.visibleProperty());
+        loadProgress.visibleProperty().bind(viewModel.loadingProperty());
+        loadProgress.managedProperty().bind(loadProgress.visibleProperty());
+        loadMessage.textProperty().bind(Bindings.when(viewModel.loadingProperty())
+                .then(Resources.getString("chat.load.loading")).otherwise(viewModel.errorProperty()));
+        retryLoadButton.visibleProperty().bind(viewModel.errorProperty().isNotEmpty());
+        retryLoadButton.managedProperty().bind(retryLoadButton.visibleProperty());
+        retryLoadButton.setOnAction(event -> viewModel.loadAsync());
 
         selectingCountLabel.textProperty().bind(
                 viewModel.selectingCountProperty().asString(Resources.getString("container.selecting.count.format"))
@@ -108,150 +177,101 @@ public class ChatContainerView implements FxmlView<ChatRoomContainerViewModel>, 
 
         cancelButton.getStyleClass().addAll(Styles.ROUNDED, Styles.SMALL);
         cancelButton.setOnAction(e -> viewModel.unselectAll());
+
+        ListChangeListener<ChatRoomViewModel> chatsChanged = change -> changed(change, false);
+        ListChangeListener<ChatRoomViewModel> floatingChanged = change -> changed(change, true);
+        viewModel.getChatRoomList().addListener(chatsChanged);
+        owned.add(() -> viewModel.getChatRoomList().removeListener(chatsChanged));
+        viewModel.getFloatingChatRoomList().addListener(floatingChanged);
+        owned.add(() -> viewModel.getFloatingChatRoomList().removeListener(floatingChanged));
+        for (var chat : List.copyOf(viewModel.getChatRoomList())) added(chat, false);
+        for (var chat : List.copyOf(viewModel.getFloatingChatRoomList())) added(chat, true);
+
     }
 
-    private void floatableChatChanged(ListChangeListener.Change<? extends ChatRoomViewModel> c) {
-        while (c.next()) {
-            if (c.wasAdded()) {
-                for (var chat : c.getAddedSubList())
-                    floatableAdded(chat);
+    private void changed(ListChangeListener.Change<? extends ChatRoomViewModel> change, boolean floatable) {
+        if (owned.isClosed()) return;
+        while (change.next()) {
+            for (var chat : List.copyOf(change.getRemoved())) removed(chat, floatable);
+            for (var chat : List.copyOf(change.getAddedSubList())) added(chat, floatable);
+        }
+    }
+
+    private void removed(ChatRoomViewModel chat, boolean floatable) {
+        var child = (floatable ? floating : items).remove(chat);
+        if (child != null) child.close();
+    }
+
+    private boolean current(ChatRoomViewModel chat, boolean floatable, Opened child) {
+        return !owned.isClosed() && !child.owned.isClosed() && (floatable ? floating : items).get(chat) == child
+                && (floatable ? viewModel.getFloatingChatRoomList() : viewModel.getChatRoomList()).contains(chat);
+    }
+
+    private void added(ChatRoomViewModel chat, boolean floatable) {
+        if (owned.isClosed()) return;
+        var children = floatable ? floating : items;
+        if (children.containsKey(chat)) return;
+        var child = new Opened(); children.put(chat, child);
+        try {
+            var loaded = loader.load(chat, floatable, child.owned);
+            if (loaded == null) { children.remove(chat, child); child.close(); return; }
+            child.owned.add(loaded::close);
+            if (!current(chat, floatable, child)) { child.close(); return; }
+            var node = loaded.view();
+            if (floatable) {
+                var stage = loaded.stage();
+                stage.setContent(node); stage.setTitle("Twitch Chat Viewer - Floating Window"); stage.getIcons().setAll(Resources.getIcons());
+                if (current(chat, true, child)) stage.show();
+            } else {
+                var drag = new DragController(); drag.installDragEvents(node); child.owned.add(drag::close);
+                child.owned.add(() -> chatContainer.getChildren().remove(node));
+                GridPane.setFillWidth(node, true); GridPane.setFillHeight(node, true);
+                GridPane.setHgrow(node, Priority.ALWAYS); GridPane.setVgrow(node, Priority.ALWAYS);
+                chatContainer.addColumn(chatContainer.getColumnCount(), node);
+                if (current(chat, false, child) && chat instanceof SingleChatRoomViewModel single) single.joinChatAsync();
             }
-            if (c.wasRemoved()) {
-                for (var chat : c.getRemoved())
-                    floatableRemoved(chat);
-            }
+        } catch (RuntimeException | Error failure) {
+            children.remove(chat, child);
+            CloseActions.runAll(() -> { if (failure instanceof RuntimeException exception) throw exception; throw (Error) failure; }, child::close);
         }
     }
 
-    private void floatableAdded(ChatRoomViewModel chat) {
-        var stage = floatableStages.get(chat);
-        if (stage != null) return;
-
-        // マージされたチャット
-        if (chat instanceof MergedChatRoomViewModel mergedChatRoom) {
-
-            var tuple = FluentViewLoader.fxmlView(FloatableMergedChatRoomView.class)
-                    .resourceBundle(Resources.getResourceBundle())
-                    .viewModel(mergedChatRoom)
-                    .load();
-
-            var view = tuple.getView();
-            var behind = tuple.getCodeBehind();
-
-            stage = behind.getFloatableStage();
-            stage.setContent(view);
-
+    private static LoadedChat loadChat(ChatRoomViewModel chat, boolean floating, ViewResources owner,
+                                       ChannelGroupRepository groups, ChatPreferences preferences, Supplier<WindowBoundsService> bounds) {
+        if (chat instanceof SingleChatRoomViewModel single) {
+            if (floating) return load(FloatableSingleChatRoomView.class, new FloatableSingleChatRoomView(groups, preferences, bounds.get()), single, owner);
+            return load(SingleChatRoomView.class, new SingleChatRoomView(groups), single, owner);
         }
-
-        // 単体のチャット
-        else if (chat instanceof SingleChatRoomViewModel chatRoom) {
-
-            var tuple = FluentViewLoader.fxmlView(FloatableSingleChatRoomView.class)
-                    .resourceBundle(Resources.getResourceBundle())
-                    .viewModel(chatRoom)
-                    .load();
-
-            var view = tuple.getView();
-            var behind = tuple.getCodeBehind();
-
-            stage = behind.getFloatableStage();
-            stage.setContent(view);
-
+        if (chat instanceof MergedChatRoomViewModel merged) {
+            if (floating) return load(FloatableMergedChatRoomView.class, new FloatableMergedChatRoomView(groups, preferences, bounds.get()), merged, owner);
+            return load(MergedChatRoomView.class, new MergedChatRoomView(groups), merged, owner);
         }
-
-        else {
-            return;
-        }
-
-        floatableStages.put(chat, stage);
-        stage.setTitle("Twitch Chat Viewer - Floating Window");
-        stage.getIcons().addAll(Resources.getIcons());
-        stage.show();
+        return null;
     }
 
-    private void floatableRemoved(ChatRoomViewModel chat) {
-        var stage = floatableStages.get(chat);
-        if (stage == null) return;
-
-        stage.close();
-        floatableStages.remove(chat);
+    static <M extends ViewModel, C extends FxmlView<M> & AutoCloseable> LoadedChat load(Class<C> type, C controller, M model, ViewResources owner) {
+        owner.add(() -> release(controller));
+        if (owner.isClosed()) return null;
+        var tuple = FluentViewLoader.fxmlView(type).codeBehind(controller).viewModel(model).resourceBundle(Resources.getResourceBundle()).load();
+        FloatableStage stage = controller instanceof FloatableSingleChatRoomView single ? single.getFloatableStage()
+                : controller instanceof FloatableMergedChatRoomView merged ? merged.getFloatableStage() : null;
+        return new LoadedChat(tuple.getView(), () -> {}, stage);
     }
 
-    private void chatChanged(ListChangeListener.Change<? extends ChatRoomViewModel> c) {
-        while (c.next()) {
-            if (c.wasAdded()) {
-                for (var chat : c.getAddedSubList())
-                    onAdded(chat);
-            }
-            if (c.wasRemoved()) {
-                for (var chat : c.getRemoved())
-                    onRemoved(chat);
-            }
-        }
+    private static void release(AutoCloseable controller) {
+        try { controller.close(); }
+        catch (RuntimeException | Error failure) { throw failure; }
+        catch (Exception failure) { throw new IllegalStateException("chat view release failed", failure); }
     }
 
-    private void onRemoved(ChatRoomViewModel chat) {
-        var node = items.get(chat);
-        if (node == null) return;
-
-        chatContainer.getChildren().remove(node);
-    }
-
-    private void onAdded(ChatRoomViewModel chat) {
-
-        // 通常のチャットビュー
-        if (chat instanceof SingleChatRoomViewModel c2) {
-            var tuple = FluentViewLoader.fxmlView(SingleChatRoomView.class)
-                    .viewModel(c2)
-                    .resourceBundle(Resources.getResourceBundle())
-                    .load();
-
-            var node = tuple.getView();
-
-            var dragController = new DragController();
-            dragController.installDragEvents(node);
-
-            var columnCount = chatContainer.getColumnCount();
-            GridPane.setFillWidth(node, true);
-            GridPane.setFillHeight(node, true);
-            GridPane.setHgrow(node, Priority.ALWAYS);
-            GridPane.setVgrow(node, Priority.ALWAYS);
-            chatContainer.addColumn(columnCount, node);
-
-            tuple.getViewModel().joinChatAsync();
-
-            items.put(chat, node);
-        }
-
-        // マージされたチャットビュー
-        else if (chat instanceof MergedChatRoomViewModel merged) {
-            var tuple = FluentViewLoader.fxmlView(MergedChatRoomView.class)
-                    .viewModel(merged)
-                    .resourceBundle(Resources.getResourceBundle())
-                    .load();
-
-            var node = tuple.getView();
-
-            var dragController = new DragController();
-            dragController.installDragEvents(node);
-
-            var columnCount = chatContainer.getColumnCount();
-            GridPane.setFillWidth(node, true);
-            GridPane.setFillHeight(node, true);
-            GridPane.setHgrow(node, Priority.ALWAYS);
-            GridPane.setVgrow(node, Priority.ALWAYS);
-            chatContainer.addColumn(columnCount, node);
-
-            items.put(chat, node);
-        }
-    }
-
-    private static class DragController {
+    private static class DragController implements AutoCloseable {
+        private Node node;
         private static final DataFormat MOVE_DATA = new DataFormat("application/chat-view");
 
         private Timeline dragOverAnimation;
 
         public void installDragEvents(Node node) {
+            this.node = node;
             // ドラッグの開始
             node.setOnDragDetected(e -> {
 
@@ -279,7 +299,7 @@ public class ChatContainerView implements FxmlView<ChatRoomContainerViewModel>, 
 
             // ドラッグ領域から出た
             node.setOnDragExited(e -> {
-                dragOverAnimation.stop();
+                if (dragOverAnimation != null) dragOverAnimation.stop();
                 dragOverAnimation = null;
             });
 
@@ -335,6 +355,12 @@ public class ChatContainerView implements FxmlView<ChatRoomContainerViewModel>, 
                 GridPane.setColumnIndex(node, toColumn);
 
             });
+        }
+        @Override public void close() {
+            if (dragOverAnimation != null) { dragOverAnimation.stop(); dragOverAnimation = null; }
+            if (node == null) return;
+            node.setOnDragDetected(null); node.setOnDragEntered(null); node.setOnDragExited(null);
+            node.setOnDragOver(null); node.setOnDragDropped(null); node.setOnDragDone(null); node = null;
         }
     }
 

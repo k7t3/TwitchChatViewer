@@ -27,6 +27,9 @@ import javafx.scene.control.Skin;
 import javafx.scene.layout.StackPane;
 
 import java.util.Objects;
+import javafx.beans.value.ChangeListener;
+import javafx.event.EventHandler;
+import javafx.stage.WindowEvent;
 
 /**
  * 標準的な汎用ポップアップコントロール。
@@ -76,14 +79,19 @@ public class BasicPopup extends PopupControl {
         private final StackPane layout = new StackPane();
 
         private boolean disposed = false;
+        private final StackPane backgroundLayer = new StackPane();
+        private final StackPane contentLayer = new StackPane();
+        private final ChangeListener<Node> contentChanged = (observable, old, value) -> {
+            if (disposed) return;
+            if (value == null) contentLayer.getChildren().clear(); else contentLayer.getChildren().setAll(value);
+        };
+        private final EventHandler<WindowEvent> shown = this::onShown;
 
         public BasicPopupSkin(BasicPopup control) {
             this.control = control;
 
-            var backgroundLayer = new StackPane();
             backgroundLayer.getStyleClass().add(BACKGROUND_CLASS);
             backgroundLayer.opacityProperty().bind(control.transparency);
-            var contentLayer = new StackPane();
             contentLayer.setPadding(new Insets(10));
             layout.getChildren().addAll(backgroundLayer, contentLayer);
             layout.getStylesheets().add(Objects.requireNonNull(getClass().getResource("BasicPopup.css")).toExternalForm());
@@ -91,12 +99,15 @@ public class BasicPopup extends PopupControl {
             if (control.getContent() != null) {
                 contentLayer.getChildren().setAll(control.getContent());
             }
-            control.content.addListener((ob, o, n) -> contentLayer.getChildren().setAll(n));
+            control.content.addListener(contentChanged);
 
             // 初回表示時のみ位置を補正するイベントハンドラ
-            JavaFXHelper.shownOnce(control, e -> {
-                control.setX(control.getX() - control.getWidth() / 2);
-            });
+            control.addEventHandler(WindowEvent.WINDOW_SHOWN, shown);
+        }
+
+        private void onShown(WindowEvent event) {
+            control.removeEventHandler(WindowEvent.WINDOW_SHOWN, shown);
+            if (!disposed) control.setX(control.getX() - control.getWidth() / 2);
         }
 
         @Override
@@ -113,6 +124,10 @@ public class BasicPopup extends PopupControl {
         public void dispose() {
             if (disposed) return;
             disposed = true;
+            control.content.removeListener(contentChanged);
+            control.removeEventHandler(WindowEvent.WINDOW_SHOWN, shown);
+            backgroundLayer.opacityProperty().unbind();
+            contentLayer.getChildren().clear();
             layout.getChildren().clear();
         }
     }

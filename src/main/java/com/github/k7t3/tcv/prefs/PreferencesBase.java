@@ -17,127 +17,87 @@
 package com.github.k7t3.tcv.prefs;
 
 import javafx.beans.property.*;
-import org.slf4j.LoggerFactory;
-
+import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Function;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Consumer;
 import java.util.prefs.Preferences;
 
 public abstract class PreferencesBase {
+    protected final PreferenceStore store;
+    private final Map<String, Consumer<Optional<String>>> updates = new HashMap<>();
+    private boolean applying;
+    private final Set<String> recoveryKeys;
 
-    protected final Preferences preferences;
+    PreferencesBase(Preferences preferences) { this(preferences, Set.of()); }
 
-    protected final Map<String, Object> defaults;
-
-    PreferencesBase(Preferences preferences, Map<String, Object> defaults) {
-        this.preferences = preferences;
-        this.defaults = defaults;
+    PreferencesBase(Preferences preferences, Set<String> recoveryKeys) {
+        this(new PreferenceStore(preferences, null), recoveryKeys);
     }
 
-    /**
-     * ストアに保存される内容を明示的に読み込む
-     */
-    protected abstract void readFromPreferences();
-
-    /**
-     * バッファリングされる設定内容を明示的にバッキングストアに書き込む
-     */
-    protected abstract void writeToPreferences();
-
-    protected BooleanProperty createBooleanProperty(String key) {
-        var property = new SimpleBooleanProperty(getBoolean(key));
-        property.addListener((ob, o, n) -> preferences.putBoolean(key, n));
-        return property;
+    PreferencesBase(PreferenceStore store, Set<String> recoveryKeys) {
+        this.store = java.util.Objects.requireNonNull(store);
+        this.recoveryKeys = Set.copyOf(recoveryKeys);
     }
 
-    protected IntegerProperty createIntegerProperty(String key) {
-        var property = new SimpleIntegerProperty(getInt(key));
-        property.addListener((ob, o, n) -> preferences.putInt(key, n.intValue()));
-        return property;
+    final void applyCommittedValues(Map<String, Optional<String>> values) {
+        var previous = applying;
+        applying = true;
+        try { values.forEach((key, value) -> { var update = updates.get(key); if (update != null) update.accept(value); }); }
+        finally { applying = previous; }
     }
 
-    protected DoubleProperty createDoubleProperty(String key) {
-        var property = new SimpleDoubleProperty(getDouble(key));
-        property.addListener((ob, o, n) -> preferences.putDouble(key, n.doubleValue()));
-        return property;
-    }
-
-    protected StringProperty createStringProperty(String key) {
-        var property = new SimpleStringProperty(get(key));
-        property.addListener((ob, o, n) -> preferences.put(key, n));
-        return property;
-    }
-
-    protected <T> ObjectProperty<T> createBytesObjectProperty(
-            String key,
-            Function<byte[], T> fromBytes,
-            Function<T, byte[]> toBytes) {
-        var property = new SimpleObjectProperty<>(fromBytes.apply(getByteArray(key)));
-        property.addListener((ob, o, n) -> preferences.putByteArray(key, toBytes.apply(n)));
-        return property;
-    }
-
-    protected <T> ObjectProperty<T> createObjectProperty(
-            String key,
-            Function<String, T> fromString,
-            Function<T, String> toString
-    ) {
-        Function<String, T> f = s -> {
-            try {
-                return fromString.apply(s);
-            } catch (Exception e) {
-                LoggerFactory.getLogger(getClass()).warn(e.getMessage());
-                return fromString.apply((String) defaults.get(key));
-            }
+    protected BooleanProperty createBooleanProperty(PreferenceKey<Boolean> key) {
+        var property = new SimpleBooleanProperty(key.read(store.read(key.name()))) {
+            @Override public void set(boolean value) { checkWritable(); super.set(value); }
         };
-        var property = new SimpleObjectProperty<>(f.apply(get(key)));
-        property.addListener((ob, o, n) -> preferences.put(key, toString.apply(n)));
+        updates.put(key.name(), value -> property.set(key.read(value)));
+        property.addListener((ob, old, next) -> write(key, next));
         return property;
     }
 
-    protected String get(String key) {
-        try {
-            return preferences.get(key, (String) defaults.get(key));
-        } catch (Exception e) {
-            LoggerFactory.getLogger(getClass()).warn(e.getMessage(), e);
-            return (String) defaults.get(key);
-        }
+    protected IntegerProperty createIntegerProperty(PreferenceKey<Integer> key) {
+        var property = new SimpleIntegerProperty(key.read(store.read(key.name()))) {
+            @Override public void set(int value) { checkWritable(); key.encode(value); super.set(value); }
+        };
+        updates.put(key.name(), value -> property.set(key.read(value)));
+        property.addListener((ob, old, next) -> write(key, next.intValue()));
+        return property;
     }
 
-    protected int getInt(String key) {
-        try {
-            return preferences.getInt(key, (Integer) defaults.get(key));
-        } catch (Exception e) {
-            LoggerFactory.getLogger(getClass()).warn(e.getMessage(), e);
-            return (Integer) defaults.get(key);
-        }
+    protected DoubleProperty createDoubleProperty(PreferenceKey<Double> key) {
+        var property = new SimpleDoubleProperty(key.read(store.read(key.name()))) {
+            @Override public void set(double value) { checkWritable(); key.encode(value); super.set(value); }
+        };
+        updates.put(key.name(), value -> property.set(key.read(value)));
+        property.addListener((ob, old, next) -> write(key, next.doubleValue()));
+        return property;
     }
 
-    protected double getDouble(String key) {
-        try {
-            return preferences.getDouble(key, (Double) defaults.get(key));
-        } catch (Exception e) {
-            LoggerFactory.getLogger(getClass()).warn(e.getMessage(), e);
-            return (Double) defaults.get(key);
-        }
+    protected StringProperty createStringProperty(PreferenceKey<String> key) {
+        var property = new SimpleStringProperty(key.read(store.read(key.name()))) {
+            @Override public void set(String value) { checkWritable(); key.encode(value); super.set(value); }
+        };
+        updates.put(key.name(), value -> property.set(key.read(value)));
+        property.addListener((ob, old, next) -> write(key, next));
+        return property;
     }
 
-    protected boolean getBoolean(String key) {
-        try {
-            return preferences.getBoolean(key, (Boolean) defaults.get(key));
-        } catch (Exception e) {
-            LoggerFactory.getLogger(getClass()).warn(e.getMessage(), e);
-            return (Boolean) defaults.get(key);
-        }
+    protected <T> ObjectProperty<T> createObjectProperty(PreferenceKey<T> key) {
+        var property = new SimpleObjectProperty<T>(key.read(store.read(key.name()))) {
+            @Override public void set(T value) { checkWritable(); key.encode(value); super.set(value); }
+        };
+        updates.put(key.name(), value -> property.set(key.read(value)));
+        property.addListener((ob, old, next) -> write(key, next));
+        return property;
     }
 
-    protected byte[] getByteArray(String key) {
-        try {
-            return preferences.getByteArray(key, (byte[]) defaults.get(key));
-        } catch (Exception e) {
-            LoggerFactory.getLogger(getClass()).warn(e.getMessage(), e);
-            return (byte[]) defaults.get(key);
-        }
+    private <T> void write(PreferenceKey<T> key, T value) {
+        if (applying) return;
+        var encoded = key.encode(value);
+        store.write(key.name(), Optional.of(encoded), recoveryKeys.contains(key.name()));
     }
 
+    private void checkWritable() { if (!applying) store.checkOpen(); }
 }

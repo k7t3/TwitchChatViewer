@@ -36,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.LinkedList;
+import java.util.List;
 
 public abstract class ChatRoomViewModel {
 
@@ -155,9 +156,7 @@ public abstract class ChatRoomViewModel {
     }
 
     public void addChat(ChatDataViewModel chat) {
-        chat.visibleNameProperty().bind(showName);
-        chat.visibleBadgeProperty().bind(showBadges);
-        chat.fontProperty().bind(font);
+        bindPresentation(chat);
 
         // 上限制限
         if (getChatCacheSize() <= chatDataList.size()) {
@@ -166,11 +165,23 @@ public abstract class ChatRoomViewModel {
         chatDataList.add(chat);
     }
 
+    /** 呼出元で選択した履歴を、このモデルの表示設定へ接続して置き換える。 */
+    protected final void replaceChatHistory(List<ChatDataViewModel> history) {
+        var snapshot = List.copyOf(history);
+        snapshot.forEach(this::bindPresentation);
+        chatDataList.setAll(snapshot);
+    }
+
+    private void bindPresentation(ChatDataViewModel chat) {
+        chat.visibleNameProperty().bind(showName);
+        chat.visibleBadgeProperty().bind(showBadges);
+        chat.fontProperty().bind(font);
+    }
+
     public void deleteChatMessage(String msgId) {
         for (var item : chatDataList) {
             if (item.getChatData().msgId().equalsIgnoreCase(msgId)) {
                 item.setDeleted(true);
-                break;
             }
         }
     }

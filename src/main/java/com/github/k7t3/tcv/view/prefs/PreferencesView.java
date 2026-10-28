@@ -16,15 +16,20 @@
 
 package com.github.k7t3.tcv.view.prefs;
 
+import java.util.function.Consumer;
+
+import java.util.function.Supplier;
+
 import atlantafx.base.util.Animations;
-import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.prefs.*;
-import com.github.k7t3.tcv.prefs.AppPreferences;
-import com.github.k7t3.tcv.app.theme.ThemeManager;
+import com.github.k7t3.tcv.app.core.ExceptionHandler;
+import com.github.k7t3.tcv.lifecycle.CloseActions;
+import com.github.k7t3.tcv.view.core.ViewResources;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
+import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
@@ -44,7 +49,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
 
-public class PreferencesView implements FxmlView<PreferencesViewModel>, Initializable {
+public class PreferencesView implements FxmlView<PreferencesViewModel>, Initializable, AutoCloseable {
+    /** ページと保存の適用先は起動側で接続し、生成されたページモデルはViewが所有する。 */
+    public record Pages(Supplier<GeneralPreferencesViewModel> general, Supplier<ChatPreferencesViewModel> chat,
+                        Supplier<KeywordFilterViewModel> keywords, Supplier<UserFilterViewModel> users,
+                        Supplier<KeyBindingPreferencesViewModel> keys,
+                        Supplier<Consumer<SettingsSaveService.SavedSettings>> prepareCommit) {}
+
+    private final Pages pages;
+    private final ViewResources pageResources = new ViewResources();
+    private final ViewResources modelResources = new ViewResources();
+    private boolean closed;
+
+    public PreferencesView(Pages pages) {
+        this.pages = java.util.Objects.requireNonNull(pages);
+    }
 
     @FXML
     private Pane root;
@@ -64,50 +83,46 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
     @FXML
     private Button cancelButton;
 
-    @FXML
-    private Button resetButton;
-
-    @FXML
-    private Button exportButton;
-
     @InjectViewModel
     private PreferencesViewModel viewModel;
 
     private TreeItem<PreferencesPage<?>> pagesRoot;
 
-    private AppPreferences preferences;
-    private GeneralPreferencesViewModel generalViewModel;
     private List<PreferencesViewModelBase> viewModels;
     private Map<PreferencesViewModelBase, TreeItem<PreferencesPage<?>>> pageMap;
     private Map<PreferencesPage<?>, Node> viewMap;
+    private ChangeListener<TreeItem<PreferencesPage<?>>> pageSelection;
 
     private Stage preferencesStage;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        if (closed) return;
         viewModels = new ArrayList<>();
         pageMap = new HashMap<>();
         viewMap = new HashMap<>();
         pagesRoot = new TreeItem<>();
-        preferences = AppPreferences.getInstance();
 
         pagesTreeView.setRoot(pagesRoot);
         pagesTreeView.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
         pagesTreeView.setCellFactory(v -> new PreferencesPageTreeCell());
-        pagesTreeView.getSelectionModel().selectedItemProperty().addListener((ob, o, n) -> {
+        pageSelection = (ob, o, n) -> {
+            if (closed) return;
             if (n == null) {
                 contentPane.getChildren().clear();
             } else {
                 var node = viewMap.get(n.getValue());
                 contentPane.getChildren().setAll(node);
             }
-        });
+        };
+        pagesTreeView.getSelectionModel().selectedItemProperty().addListener(pageSelection);
 
-        loadGeneralViewModel();
-        loadChatViewModel();
-        loadFilterViewModel();
-        loadUserFilterViewModel();
-        loadKeyBindingViewModel();
+        for (var load : List.<Runnable>of(this::loadGeneralViewModel, this::loadChatViewModel,
+                this::loadFilterViewModel, this::loadUserFilterViewModel, this::loadKeyBindingViewModel)) {
+            if (closed) return;
+            load.run();
+        }
+        if (closed) return;
 
         initButtons();
 
@@ -118,14 +133,29 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         this.preferencesStage = preferencesStage;
     }
 
+    private <M extends PreferencesViewModelBase> M ownModel(M model) {
+        modelResources.add(model::close);
+        if (!closed) viewModels.add(model);
+        return model;
+    }
+
+    private <P extends PreferencesPage<?>> P ownPage(P page) {
+        pageResources.add(page::close);
+        return page;
+    }
+
     private void loadGeneralViewModel() {
-        generalViewModel = new GeneralPreferencesViewModel(preferences.getGeneralPreferences());
-        viewModels.add(generalViewModel);
+        var generalViewModel = ownModel(pages.general().get());
+        if (closed) return;
+        var controller = ownPage(new GeneralPreferencesView());
+        if (closed) return;
 
         var tuple = FluentViewLoader.fxmlView(GeneralPreferencesView.class)
+                .codeBehind(controller)
                 .viewModel(generalViewModel)
                 .resourceBundle(Resources.getResourceBundle())
                 .load();
+        if (closed) return;
 
         var view = tuple.getView();
         var codeBehind = tuple.getCodeBehind();
@@ -137,13 +167,17 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
     }
 
     private void loadChatViewModel() {
-        var chatViewModel = new ChatPreferencesViewModel();
-        viewModels.add(chatViewModel);
+        var chatViewModel = ownModel(pages.chat().get());
+        if (closed) return;
+        var controller = ownPage(new ChatPreferencesView());
+        if (closed) return;
 
         var tuple = FluentViewLoader.fxmlView(ChatPreferencesView.class)
+                .codeBehind(controller)
                 .viewModel(chatViewModel)
                 .resourceBundle(Resources.getResourceBundle())
                 .load();
+        if (closed) return;
 
         var view = tuple.getView();
         var codeBehind = tuple.getCodeBehind();
@@ -155,14 +189,15 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
     }
 
     private void loadFilterViewModel() {
-        var helper = AppHelper.getInstance();
-        var filterViewModel = new KeywordFilterViewModel(helper.getChatFilters());
-        viewModels.add(filterViewModel);
-
-        var tuple = FluentViewLoader.fxmlView(KeywordFilterView.class)
+        var filterViewModel = ownModel(pages.keywords().get());
+        if (closed) return;
+        var controller = ownPage(new KeywordFilterView());
+        if (closed) return;
+        var tuple = FluentViewLoader.fxmlView(KeywordFilterView.class).codeBehind(controller)
                 .viewModel(filterViewModel)
                 .resourceBundle(Resources.getResourceBundle())
                 .load();
+        if (closed) return;
 
         var view = tuple.getView();
         var codeBehind = tuple.getCodeBehind();
@@ -174,14 +209,15 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
     }
 
     private void loadUserFilterViewModel() {
-        var helper = AppHelper.getInstance();
-        var userFilterViewModel = new UserFilterViewModel(helper.getChatFilters());
-        viewModels.add(userFilterViewModel);
-
-        var tuple = FluentViewLoader.fxmlView(UserFilterView.class)
+        var userFilterViewModel = ownModel(pages.users().get());
+        if (closed) return;
+        var controller = ownPage(new UserFilterView());
+        if (closed) return;
+        var tuple = FluentViewLoader.fxmlView(UserFilterView.class).codeBehind(controller)
                 .viewModel(userFilterViewModel)
                 .resourceBundle(Resources.getResourceBundle())
                 .load();
+        if (closed) return;
 
         var view = tuple.getView();
         var codeBehind = tuple.getCodeBehind();
@@ -193,17 +229,15 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
     }
 
     private void loadKeyBindingViewModel() {
-        var helper = AppHelper.getInstance();
-        var keyBindingViewModel = new KeyBindingPreferencesViewModel(
-                preferences.getKeyBindingPreferences(),
-                helper.getKeyBindingCombinations()
-        );
-        viewModels.add(keyBindingViewModel);
-
-        var tuple = FluentViewLoader.fxmlView(KeyBindingPreferencesView.class)
+        var keyBindingViewModel = ownModel(pages.keys().get());
+        if (closed) return;
+        var controller = ownPage(new KeyBindingPreferencesView());
+        if (closed) return;
+        var tuple = FluentViewLoader.fxmlView(KeyBindingPreferencesView.class).codeBehind(controller)
                 .viewModel(keyBindingViewModel)
                 .resourceBundle(Resources.getResourceBundle())
                 .load();
+        if (closed) return;
 
         var view = tuple.getView();
         var codeBehind = tuple.getCodeBehind();
@@ -217,22 +251,15 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
     private void initButtons() {
         ButtonBar.setButtonData(enterButton, ButtonBar.ButtonData.OK_DONE);
         ButtonBar.setButtonData(cancelButton, ButtonBar.ButtonData.CANCEL_CLOSE);
-        ButtonBar.setButtonData(resetButton, ButtonBar.ButtonData.LEFT);
-        ButtonBar.setButtonData(exportButton, ButtonBar.ButtonData.HELP_2);
-
-        exportButton.setVisible(false);
-        resetButton.setVisible(false);
-
-        cancelButton.setOnAction(e -> {
-            var tm = ThemeManager.getInstance();
-            tm.setTheme(generalViewModel.getDefaultTheme());
-            tm.setThemeType(generalViewModel.getThemeType());
-            preferencesStage.close();
-        });
+        enterButton.disableProperty().bind(viewModel.busyProperty());
+        contentPane.disableProperty().bind(viewModel.busyProperty());
+        pagesTreeView.disableProperty().bind(viewModel.busyProperty());
+        cancelButton.setOnAction(e -> preferencesStage.close());
         enterButton.setOnAction(e -> save());
     }
 
     private void save() {
+        if (closed || viewModel.isBusy()) return;
         for (var viewModel : viewModels) {
             if (!viewModel.canSync()) {
                 var page = pageMap.get(viewModel);
@@ -244,9 +271,35 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
             }
         }
 
-        viewModels.forEach(PreferencesViewModelBase::sync);
-        viewModel.saveAsync();
-        preferencesStage.close();
+        try {
+            var builder = new SettingsDraft.Builder();
+            viewModels.forEach(model -> model.prepare(builder));
+            var apply = pages.prepareCommit().get();
+            viewModel.saveAsync(builder.build(), apply).onDone(() -> { if (!closed) preferencesStage.close(); });
+        } catch (RuntimeException | Error failure) { ExceptionHandler.handle(preferencesStage, failure); }
+    }
+
+    @Override public void close() {
+        if (closed) return;
+        closed = true;
+        CloseActions.runAll(
+                () -> {
+                    if (pagesTreeView != null && pageSelection != null)
+                        pagesTreeView.getSelectionModel().selectedItemProperty().removeListener(pageSelection);
+                    pageSelection = null;
+                },
+                pageResources::close,
+                modelResources::close,
+                () -> { if (viewModel != null) viewModel.close(); },
+                () -> {
+                    if (enterButton != null) { enterButton.disableProperty().unbind(); enterButton.setOnAction(null); }
+                    if (cancelButton != null) cancelButton.setOnAction(null);
+                    if (contentPane != null) { contentPane.disableProperty().unbind(); contentPane.getChildren().clear(); }
+                    if (pagesTreeView != null) { pagesTreeView.disableProperty().unbind(); pagesTreeView.setRoot(null); }
+                    if (viewMap != null) viewMap.clear();
+                    if (pageMap != null) pageMap.clear();
+                    if (viewModels != null) viewModels.clear();
+                });
     }
 
 }

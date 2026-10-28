@@ -23,6 +23,9 @@ import com.github.k7t3.tcv.app.keyboard.KeyBinding;
 import com.github.k7t3.tcv.app.keyboard.KeyBindingCombination;
 import com.github.k7t3.tcv.app.prefs.KeyBindingPreferencesViewModel;
 import com.github.k7t3.tcv.view.core.ToStringConverter;
+import com.github.k7t3.tcv.view.core.OwnedDialog;
+import com.github.k7t3.tcv.view.core.ViewResources;
+import com.github.k7t3.tcv.lifecycle.CloseActions;
 import com.github.k7t3.tcv.view.keyboard.KeyCombinationCell;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.event.ActionEvent;
@@ -37,8 +40,14 @@ import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.net.URL;
 import java.util.ResourceBundle;
+import java.util.function.Supplier;
 
 public class KeyBindingPreferencesView implements PreferencesPage<KeyBindingPreferencesViewModel> {
+    private final ViewResources owned = new ViewResources();
+    private final OwnedDialog<ButtonType> confirmation;
+
+    public KeyBindingPreferencesView() { this(() -> new Alert(Alert.AlertType.WARNING)); }
+    KeyBindingPreferencesView(Supplier<? extends Dialog<ButtonType>> dialogs) { confirmation = new OwnedDialog<>(dialogs); }
 
     @FXML
     private Pane root;
@@ -63,13 +72,16 @@ public class KeyBindingPreferencesView implements PreferencesPage<KeyBindingPref
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
+        if (owned.isClosed()) { releaseControls(); return; }
         // キーバインド名を扱う列
         bindingTableColumn.setCellValueFactory(p -> p.getValue().bindingProperty());
         bindingTableColumn.setCellFactory(TextFieldTableCell.forTableColumn(new ToStringConverter<>(KeyBinding::getDisplayText)));
 
         // キーコンビネーションを扱う列
         combinationTableColumn.setCellValueFactory(param -> param.getValue().combinationProperty());
-        combinationTableColumn.setCellFactory(cell -> new KeyCombinationCell());
+        combinationTableColumn.setCellFactory(column -> {
+            var cell = new KeyCombinationCell(); owned.add(cell::close); return cell;
+        });
 
         // アイテムを追加
         combinationsTableView.setItems(viewModel.getCombinationList());
@@ -82,25 +94,44 @@ public class KeyBindingPreferencesView implements PreferencesPage<KeyBindingPref
 
     @FXML
     private void resetAll(ActionEvent e) {
-        var alert = new Alert(Alert.AlertType.WARNING);
-        alert.initOwner(root.getScene().getWindow());
-        alert.setTitle(Resources.getString("alert.title.confirmation"));
-        alert.setHeaderText(Resources.getString("prefs.keybind.reset.confirm.header"));
-        alert.setContentText(Resources.getString("prefs.keybind.reset.confirm.content"));
-        alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
-
-        var result = alert.showAndWait();
-        if (result.isPresent() && result.get() == ButtonType.YES) {
-            viewModel.resetAll();
-        }
+        if (owned.isClosed()) return;
+        confirmation.show(alert -> {
+            alert.initOwner(root.getScene().getWindow());
+            alert.setTitle(Resources.getString("alert.title.confirmation"));
+            alert.setHeaderText(Resources.getString("prefs.keybind.reset.confirm.header"));
+            alert.setContentText(Resources.getString("prefs.keybind.reset.confirm.content"));
+            alert.getDialogPane().getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
+        }).filter(result -> result == ButtonType.YES).ifPresent(result -> {
+            if (!owned.isClosed()) viewModel.resetAll();
+        });
     }
 
     @FXML
     private void resetBinding(ActionEvent e) {
+        if (owned.isClosed()) return;
         var item = combinationsTableView.getSelectionModel().getSelectedItem();
         if (item != null) {
             item.resetKeyCombination();
         }
+    }
+
+    @Override public void close() {
+        if (owned.isClosed()) return;
+        CloseActions.runAll(owned::close, confirmation::close, this::releaseControls);
+    }
+
+    private void releaseControls() {
+        if (resetAllButton != null) resetAllButton.setOnAction(null);
+        if (resetMenuItem != null) resetMenuItem.setOnAction(null);
+        if (combinationsTableView != null) {
+            combinationsTableView.edit(-1, null);
+            combinationsTableView.getSelectionModel().clearSelection();
+            if (combinationsTableView.getContextMenu() != null) combinationsTableView.getContextMenu().hide();
+            combinationsTableView.setItems(null);
+            combinationsTableView.setEditable(false);
+        }
+        if (combinationTableColumn != null) { combinationTableColumn.setCellFactory(null); combinationTableColumn.setCellValueFactory(null); }
+        if (bindingTableColumn != null) { bindingTableColumn.setCellFactory(null); bindingTableColumn.setCellValueFactory(null); }
     }
 
     @Override

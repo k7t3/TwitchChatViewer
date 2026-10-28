@@ -21,6 +21,7 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.function.BooleanSupplier;
 
 public record WindowBounds(double x, double y, double width, double height, boolean maximized) {
 
@@ -31,7 +32,11 @@ public record WindowBounds(double x, double y, double width, double height, bool
         if (height < 0) throw new IllegalArgumentException("height");
     }
 
-    public void apply(Stage stage) {
+    public void apply(Stage stage) { apply(stage, () -> true); }
+
+    /** プロパティ通知から所有者の終了へ再入した場合、残りの変更を停止する。 */
+    public void apply(Stage stage, BooleanSupplier active) {
+        if (!active.getAsBoolean()) return;
         var rect = new Rectangle2D(x, y, width, height);
 
         // いずれのスクリーンの範囲にも当てはまらないときは適用しない
@@ -40,11 +45,15 @@ public record WindowBounds(double x, double y, double width, double height, bool
             return;
         }
 
+        if (!active.getAsBoolean()) return;
         stage.setX(x);
+        if (!active.getAsBoolean()) return;
         stage.setY(y);
+        if (!active.getAsBoolean()) return;
         stage.setWidth(width);
+        if (!active.getAsBoolean()) return;
         stage.setHeight(height);
-        stage.setMaximized(maximized);
+        if (active.getAsBoolean()) stage.setMaximized(maximized);
     }
 }
 
