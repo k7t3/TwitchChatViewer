@@ -1,8 +1,10 @@
 package com.github.k7t3.tcv.domain;
 
+import com.github.k7t3.tcv.app.auth.PreferencesCredentialStorage;
 import com.github.k7t3.tcv.domain.auth.CredentialController;
 import com.github.k7t3.tcv.domain.auth.CredentialStore;
 import com.github.k7t3.tcv.domain.auth.SessionCredentialStore;
+import com.github.k7t3.tcv.support.MemoryPreferences;
 import com.github.philippheuer.credentialmanager.CredentialManager;
 import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
 import com.github.k7t3.tcv.domain.TwitchClients;
@@ -25,6 +27,78 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class TwitchLoaderTest {
+    @Test
+    void refreshingAStoredCredentialPreservesOtherStoredCredentials() {
+        var saved = new OAuth2Credential("twitch", "expired", "refresh", null, null, 3600, List.of("chat:read"));
+        var refreshed = new OAuth2Credential("twitch", "new-token", "new-refresh", null, null, 3600, List.of("chat:read"));
+        var enriched = new OAuth2Credential("twitch", "new-token", "new-refresh", "123", "First", 3600, List.of("chat:read"));
+        var other = new OAuth2Credential("twitch", "second", "other-refresh", "456", "Second", 3600, List.of("chat:read"));
+        enriched.setReceivedAt(java.time.Instant.ofEpochMilli(1_700_000_000_000L));
+        other.setReceivedAt(java.time.Instant.ofEpochMilli(1_700_000_001_000L));
+        var backing = new PreferencesCredentialStorage(new MemoryPreferences(), bytes -> bytes, bytes -> bytes);
+        backing.saveCredentials(List.of(saved, other));
+        var resources = mock(TwitchClientFactory.Resources.class);
+        when(resources.client()).thenReturn(mock(TwitchClients.class));
+        try (var identities = mockConstruction(TwitchIdentityProvider.class, (identity, context) -> {
+            when(identity.getProviderName()).thenReturn("twitch");
+            when(identity.getProviderType()).thenReturn("oauth2");
+            when(identity.isCredentialValid(any())).thenReturn(Optional.of(false));
+            when(identity.refreshCredential(any())).thenReturn(Optional.of(refreshed));
+            when(identity.getAdditionalCredentialInformation(any())).thenReturn(Optional.of(enriched));
+        }); var factories = mockStatic(TwitchClientFactory.class)) {
+            factories.when(() -> TwitchClientFactory.create(any(), any(), any())).thenReturn(resources);
+            try (var loader = new TwitchLoader(backing); var twitch = loader.load().orElseThrow()) {
+                assertThat(twitch.getUserId()).isEqualTo("123");
+                assertThat(backing.loadCredentials()).containsExactly(enriched, other);
+            }
+        }
+    }
+
+    @Test
+    void resolvingAStoredCredentialPreservesOtherStoredCredentials() {
+        var saved = new OAuth2Credential("twitch", "first", "refresh", null, null, 3600, List.of("chat:read"));
+        var enriched = new OAuth2Credential("twitch", "first", "refresh", "123", "First", 3600, List.of("chat:read"));
+        var other = new OAuth2Credential("twitch", "second", "other-refresh", "456", "Second", 3600, List.of("chat:read"));
+        enriched.setReceivedAt(java.time.Instant.ofEpochMilli(1_700_000_000_000L));
+        other.setReceivedAt(java.time.Instant.ofEpochMilli(1_700_000_001_000L));
+        var backing = new PreferencesCredentialStorage(new MemoryPreferences(), bytes -> bytes, bytes -> bytes);
+        backing.saveCredentials(List.of(saved, other));
+        var resources = mock(TwitchClientFactory.Resources.class);
+        when(resources.client()).thenReturn(mock(TwitchClients.class));
+        try (var identities = mockConstruction(TwitchIdentityProvider.class, (identity, context) -> {
+            when(identity.getProviderName()).thenReturn("twitch");
+            when(identity.isCredentialValid(any())).thenReturn(Optional.of(true));
+            when(identity.getAdditionalCredentialInformation(any())).thenReturn(Optional.of(enriched));
+        }); var factories = mockStatic(TwitchClientFactory.class)) {
+            factories.when(() -> TwitchClientFactory.create(any(), any(), any())).thenReturn(resources);
+            try (var loader = new TwitchLoader(backing); var twitch = loader.load().orElseThrow()) {
+                assertThat(backing.loadCredentials()).containsExactly(enriched, other);
+            }
+        }
+    }
+
+    @Test
+    void loadingAValidSavedCredentialWithoutUserIdResolvesItsIdentityBeforeCreatingTheSession() {
+        var saved = new OAuth2Credential("twitch", "access", "refresh", null, null, 3600, List.of("chat:read"));
+        var enriched = new OAuth2Credential("twitch", "access", "refresh", "123", "User", 3600, List.of("chat:read"));
+        var backing = mock(CredentialStore.class);
+        when(backing.snapshot()).thenReturn(new CredentialStore.Snapshot("1", List.of(saved)));
+        when(backing.compareAndSet(any(), any(), any())).thenAnswer(call ->
+                Optional.of(new CredentialStore.Snapshot("2", call.getArgument(1))));
+        var resources = mock(TwitchClientFactory.Resources.class);
+        when(resources.client()).thenReturn(mock(TwitchClients.class));
+        try (var identities = mockConstruction(TwitchIdentityProvider.class, (identity, context) -> {
+            when(identity.getProviderName()).thenReturn("twitch");
+            when(identity.isCredentialValid(any())).thenReturn(Optional.of(true));
+            when(identity.getAdditionalCredentialInformation(any())).thenReturn(Optional.of(enriched));
+        }); var factories = mockStatic(TwitchClientFactory.class)) {
+            factories.when(() -> TwitchClientFactory.create(any(), any(), any())).thenReturn(resources);
+            try (var loader = new TwitchLoader(backing); var twitch = loader.load().orElseThrow()) {
+                assertThat(twitch.getUserId()).isEqualTo("123");
+            }
+        }
+    }
+
     @Test
     void aRealDeviceFlowEnrichesUserIdentityBeforeTheClientIsAdopted() throws Exception {
         var raw = new OAuth2Credential("twitch", "access", "refresh", null, null, 3600, List.of("chat:read"));

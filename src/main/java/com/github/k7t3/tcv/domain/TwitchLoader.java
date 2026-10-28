@@ -150,6 +150,7 @@ public class TwitchLoader implements AutoCloseable {
 
     private static Twitch createAppClient(SessionCredentialStore credentialStore, CredentialController controller,
                                          OAuth2Credential credential) {
+        credential = controller.resolveUserIdentity(credential);
         credentialStore.bind(credential);
         var credentialManager = controller.getCredentialManager();
         credentialManager.getCredentials().clear();

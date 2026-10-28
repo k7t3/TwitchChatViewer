@@ -117,12 +117,18 @@ public class CredentialController implements AutoCloseable {
         }
         // 保存の失敗は認証失効と区別して返す。元の保存値を削除させない。
         if (refreshed != null) {
-            credentialManager.getCredentials().clear();
+            var credentials = credentialManager.getCredentials();
+            var index = credentials.indexOf(credential);
+            if (index < 0) throw new IllegalStateException("credential is not managed by this authentication attempt");
             credentialManager.addCredential(identityProvider.getProviderName(), refreshed);
+            // SDK は追加時に別の補完済み資格情報を作ることがある。
+            var saved = (OAuth2Credential) credentials.removeLast();
+            credentials.set(index, saved);
             credentialManager.save();
-            this.credential = refreshed;
+            this.credential = saved;
+            return saved;
         }
-        return refreshed;
+        return null;
     }
 
     /** 保存先を読み直さず、呼び出し元のセッションが所有する資格情報だけを失効する。 */
@@ -134,6 +140,20 @@ public class CredentialController implements AutoCloseable {
 
     public OAuth2Credential getCredential() {
         return credential;
+    }
+
+    public OAuth2Credential resolveUserIdentity(OAuth2Credential current) {
+        if (current.getUserId() != null && !current.getUserId().isBlank()) return current;
+        var resolved = identityProvider.getAdditionalCredentialInformation(current)
+                .filter(value -> value.getUserId() != null && !value.getUserId().isBlank())
+                .orElseThrow(() -> new IllegalStateException("Unable to resolve Twitch user identity"));
+        var credentials = credentialManager.getCredentials();
+        var index = credentials.indexOf(current);
+        if (index < 0) throw new IllegalStateException("credential is not managed by this authentication attempt");
+        credentials.set(index, resolved);
+        credentialManager.save();
+        credential = resolved;
+        return resolved;
     }
 
     public CredentialManager getCredentialManager() {
