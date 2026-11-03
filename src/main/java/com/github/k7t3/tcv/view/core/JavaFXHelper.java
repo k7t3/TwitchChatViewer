@@ -35,19 +35,6 @@ public class JavaFXHelper {
 
     private static final String INNER_DIALOG_STYLE_CLASS = "inner-dialog-view";
 
-    public static void initAsInnerWindowFixed(Pane root, double width, double height) {
-        // 内部ダイアログのスタイルクラスを追加
-        root.getStyleClass().add(INNER_DIALOG_STYLE_CLASS);
-
-        if (0 <= width) {
-            root.setMaxWidth(width);
-        }
-
-        if (0 <= height) {
-            root.setMaxHeight(height);
-        }
-    }
-
     public static javafx.util.Subscription initAsInnerWindow(Pane root, double widthRate, double heightRate) {
         if ((widthRate < 0 || 1 < widthRate) && (heightRate < 0 || 1 < heightRate)) throw new IllegalArgumentException();
         root.getStyleClass().add(INNER_DIALOG_STYLE_CLASS);

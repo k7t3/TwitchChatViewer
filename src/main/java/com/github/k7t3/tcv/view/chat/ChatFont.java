@@ -62,13 +62,6 @@ public class ChatFont {
         return DEFAULT;
     }
 
-    public byte[] serialize() { return new FontSettings(getFamily(), getSize()).serialize(); }
-
-    public static ChatFont deserialize(byte[] bytes) {
-        var settings = FontSettings.deserialize(bytes);
-        return new ChatFont(settings.family(), settings.size());
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

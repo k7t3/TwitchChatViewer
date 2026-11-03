@@ -31,6 +31,7 @@ import java.nio.file.Files;
 import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class EmojiTest {
 
@@ -96,10 +97,16 @@ class EmojiTest {
     }
 
     @Test
-    void loadPropertiesAsync() throws IOException {
-        assertFalse(emoji.validateArchive());
+    void validationLoadsBundledMetadataWithoutExtractingTheArchive() throws IOException {
+        assertThat(emoji.validateArchive()).isFalse();
 
         var properties = emoji.getProperties();
-        assertNotNull(properties);
+
+        assertThat(properties.getName()).isEqualTo("OpenMoji");
+        assertThat(properties.getUrl()).isEqualTo("https://github.com/hfg-gmuend/openmoji");
+        assertThat(properties.getVersion()).isEqualTo("15.0");
+        assertThat(properties.getHash())
+                .isEqualTo("a3b9f03aa7413b2d2eff5c1854895de63c4b514c0244cc132b323d16ea81df22");
+        assertThat(emoji.getArchivePath()).doesNotExist();
     }
 }

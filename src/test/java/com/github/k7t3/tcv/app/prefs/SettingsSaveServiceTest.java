@@ -266,7 +266,8 @@ class SettingsSaveServiceTest {
             var saved = worker.submit(() -> new SettingsSaveService(prefs, new ChatFilterEntityStore(db)).save(draft.get()))
                     .get(5, java.util.concurrent.TimeUnit.SECONDS);
             var bytes = node.getByteArray("chat.font.family", null);
-            assertThat(com.github.k7t3.tcv.view.chat.ChatFont.deserialize(bytes).getSize()).isEqualTo(19);
+            assertThat(com.github.k7t3.tcv.prefs.FontSettings.deserialize(bytes))
+                    .isEqualTo(new com.github.k7t3.tcv.prefs.FontSettings("System", 19));
             clearInvocations(node);
             robot.interact(() -> {
                 prefs.applyCommittedValues(saved.draft().values());

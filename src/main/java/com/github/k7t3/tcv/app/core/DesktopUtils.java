@@ -23,11 +23,6 @@ import java.util.Map;
 
 public class DesktopUtils {
 
-    public static void clipText(String text) {
-        var cb = Clipboard.getSystemClipboard();
-        cb.setContent(Map.of(DataFormat.PLAIN_TEXT, text));
-    }
-
     public static void clipURL(String url) {
         var cb = Clipboard.getSystemClipboard();
         cb.setContent(Map.of(DataFormat.URL, url, DataFormat.PLAIN_TEXT, url));
