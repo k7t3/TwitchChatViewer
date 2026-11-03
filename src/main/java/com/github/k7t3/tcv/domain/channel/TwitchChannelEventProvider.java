@@ -89,6 +89,7 @@ class TwitchChannelEventProvider {
         if (channel == null) return;
 
         var stream = e.stream();
+        channel.setStream(stream);
         var onlineEvent = new ChannelOnlineEvent(channel, stream);
         eventPublishers.submit(onlineEvent);
     }
@@ -97,6 +98,7 @@ class TwitchChannelEventProvider {
         var channel = channelMap.get(e.userId());
         if (channel == null) return;
 
+        channel.setStream(null);
         var offlineEvent = new ChannelOfflineEvent(channel);
         eventPublishers.submit(offlineEvent);
     }
@@ -106,6 +108,7 @@ class TwitchChannelEventProvider {
         if (channel == null) return;
 
         var stream = e.stream();
+        channel.setStream(stream);
         var onlineEvent = new StreamStateUpdateEvent(channel, stream);
         eventPublishers.submit(onlineEvent);
     }
@@ -115,6 +118,7 @@ class TwitchChannelEventProvider {
         if (channel == null) return;
 
         var stream = e.stream();
+        channel.setStream(stream);
         var onlineEvent = new StreamStateUpdateEvent(channel, stream);
         eventPublishers.submit(onlineEvent);
     }
@@ -124,6 +128,7 @@ class TwitchChannelEventProvider {
         if (channel == null) return;
 
         var stream = e.stream();
+        channel.setStream(stream);
         var onlineEvent = new StreamStateUpdateEvent(channel, stream);
         eventPublishers.submit(onlineEvent);
     }
