@@ -9,6 +9,11 @@ import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.input.DataFormat;
+import javafx.scene.input.DragEvent;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.TransferMode;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import org.junit.jupiter.api.Test;
@@ -17,7 +22,12 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.testfx.api.FxRobot;
 import org.testfx.framework.junit5.ApplicationExtension;
+import org.testfx.util.WaitForAsyncUtils;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
@@ -60,6 +70,74 @@ class ChatContainerOwnershipTest {
                 f.view.close(); assertThat(released).hasValue(2); assertThat(loaded.getLast().getParent()).isNull();
             }
         });
+    }
+
+    @Test
+    void droppingAChatOnAnotherSwapsTheirPositionsWhenTheDragboardPayloadIsUnreadable(FxRobot robot) {
+        robot.interact(() -> {
+            var chats = new ArrayList<StackPane>();
+            try (var f = new Fixture((chat, floating) -> {
+                var node = new StackPane();
+                chats.add(node);
+                return new ChatContainerView.LoadedChat(node, () -> {}, null);
+            })) {
+                f.model.getChatRoomList().addAll(mock(ChatRoomViewModel.class), mock(ChatRoomViewModel.class));
+                var source = chats.getFirst();
+                var target = chats.getLast();
+                var dragboard = mock(Dragboard.class);
+                // JavaFX 27 はシリアライズされた Integer を復元せず、バイト列のまま返す。
+                var chatFormat = DataFormat.lookupMimeType("application/chat-view");
+                when(dragboard.hasContent(chatFormat)).thenReturn(true);
+                when(dragboard.getContent(chatFormat)).thenReturn(ByteBuffer.allocate(0));
+                when(dragboard.getTransferModes()).thenReturn(Set.of(TransferMode.MOVE));
+
+                var over = new DragEvent(DragEvent.DRAG_OVER, dragboard, 0, 0, 0, 0,
+                        TransferMode.MOVE, source, null, null);
+                target.fireEvent(over);
+                assertThat(over.getAcceptedTransferMode()).isEqualTo(TransferMode.MOVE);
+                var drop = new DragEvent(DragEvent.DRAG_DROPPED, dragboard, 0, 0, 0, 0,
+                        TransferMode.MOVE, source, target, null);
+                target.fireEvent(drop);
+
+                assertThat(drop.isDropCompleted()).isTrue();
+                assertThat(chats).extracting(GridPane::getColumnIndex).containsExactly(1, 0);
+            }
+        });
+    }
+
+    @Test
+    void droppingAChatRestoresTheHighlightedViewsOriginalOpacity(FxRobot robot) throws InterruptedException {
+        var sourceRoom = mock(ChatRoomViewModel.class);
+        var targetRoom = mock(ChatRoomViewModel.class);
+        var source = new StackPane();
+        var target = new StackPane();
+        var originalOpacity = 0.85;
+        var flashing = new CountDownLatch(1);
+        var dragboard = mock(Dragboard.class);
+        var f = WaitForAsyncUtils.waitForAsyncFx(5_000, () -> new Fixture((chat, floating) ->
+                new ChatContainerView.LoadedChat(chat == sourceRoom ? source : target, () -> {}, null)));
+        try {
+            robot.interact(() -> {
+                f.model.getChatRoomList().addAll(sourceRoom, targetRoom);
+                target.setOpacity(originalOpacity);
+                target.opacityProperty().addListener((_, _, opacity) -> {
+                    if (opacity.doubleValue() < 0.5) flashing.countDown();
+                });
+                when(dragboard.hasContent(DataFormat.lookupMimeType("application/chat-view"))).thenReturn(true);
+                target.fireEvent(new DragEvent(DragEvent.DRAG_ENTERED, dragboard, 0, 0, 0, 0,
+                        TransferMode.MOVE, source, null, null));
+            });
+            assertThat(flashing.await(5, TimeUnit.SECONDS)).as("the target flashed before the drop").isTrue();
+
+            robot.interact(() -> {
+                target.fireEvent(new DragEvent(DragEvent.DRAG_DROPPED, dragboard, 0, 0, 0, 0,
+                        TransferMode.MOVE, source, target, null));
+
+                assertThat(target.getOpacity()).isEqualTo(originalOpacity);
+            });
+        } finally {
+            robot.interact(f::close);
+        }
     }
 
     @Test

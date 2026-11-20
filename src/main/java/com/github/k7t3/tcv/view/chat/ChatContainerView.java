@@ -53,6 +53,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.input.DataFormat;
+import javafx.scene.input.DragEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.GridPane;
@@ -280,9 +281,7 @@ public class ChatContainerView implements FxmlView<ChatRoomContainerViewModel>, 
 
                 var dragBoard = node.startDragAndDrop(TransferMode.MOVE);
 
-                // 現在のカラム位置を埋め込む
-                var column = GridPane.getColumnIndex(node);
-                dragBoard.setContent(Map.of(MOVE_DATA, column));
+                dragBoard.setContent(Map.of(MOVE_DATA, "chat-view"));
 
                 var view = node.snapshot(null, null);
                 dragBoard.setDragView(view, e.getX(), e.getY());
@@ -297,70 +296,50 @@ public class ChatContainerView implements FxmlView<ChatRoomContainerViewModel>, 
                 dragOverAnimation.playFromStart();
             });
 
-            // ドラッグ領域から出た
-            node.setOnDragExited(e -> {
-                if (dragOverAnimation != null) dragOverAnimation.stop();
-                dragOverAnimation = null;
-            });
+            node.setOnDragExited(e -> stopDragOverAnimation());
 
-            // ドラッグの受け入れ
             node.setOnDragOver(e -> {
-
-                var dragBoard = e.getDragboard();
-
-                if (!dragBoard.hasContent(MOVE_DATA)) {
-                    return;
-                }
-
+                if (sourceFor(e, node) == null) return;
                 e.acceptTransferModes(TransferMode.MOVE);
-
                 e.consume();
-
             });
 
-            // ドロップ
             node.setOnDragDropped(e -> {
+                stopDragOverAnimation();
+                var source = sourceFor(e, node);
+                if (source == null) return;
 
-                var dragBoard = e.getDragboard();
-
-                // ドラッグ元のカラムを取得
-                var fromColumn = (int) dragBoard.getContent(MOVE_DATA);
-
-                // 現在のカラム位置
-                var column = GridPane.getColumnIndex(node);
-
-                // カラムを移動する
+                // JavaFX 27 はドラッグボード上の Integer を復元しないため、列番号はノードから直接取得する。
+                var fromColumn = GridPane.getColumnIndex(source);
+                GridPane.setColumnIndex(source, GridPane.getColumnIndex(node));
                 GridPane.setColumnIndex(node, fromColumn);
-
-                // ドラッグボードの値を更新
-                dragBoard.setContent(Map.of(MOVE_DATA, column));
-
                 e.setDropCompleted(true);
-
                 e.consume();
-
-            });
-
-            // ドロップが正常に終了した
-            node.setOnDragDone(e -> {
-
-                var dragBoard = e.getDragboard();
-
-                // ドロップ先のカラムを取得(DragBoardを更新してくれているはず)
-                var toColumn = (int) dragBoard.getContent(MOVE_DATA);
-
-                // ドラッグボードをクリア
-                dragBoard.clear();
-
-                GridPane.setColumnIndex(node, toColumn);
-
             });
         }
+
+        private static Node sourceFor(DragEvent event, Node target) {
+            if (event.getGestureSource() instanceof Node source && source != target
+                    && target.getParent() != null && source.getParent() == target.getParent()
+                    && event.getDragboard().hasContent(MOVE_DATA)) {
+                return source;
+            }
+            return null;
+        }
+
+        private void stopDragOverAnimation() {
+            if (dragOverAnimation == null) return;
+            dragOverAnimation.stop();
+            dragOverAnimation = null;
+            // 停止だけでは点滅途中の不透明度が残る。
+            Animations.reset(node);
+        }
+
         @Override public void close() {
-            if (dragOverAnimation != null) { dragOverAnimation.stop(); dragOverAnimation = null; }
+            stopDragOverAnimation();
             if (node == null) return;
             node.setOnDragDetected(null); node.setOnDragEntered(null); node.setOnDragExited(null);
-            node.setOnDragOver(null); node.setOnDragDropped(null); node.setOnDragDone(null); node = null;
+            node.setOnDragOver(null); node.setOnDragDropped(null); node = null;
         }
     }
 
