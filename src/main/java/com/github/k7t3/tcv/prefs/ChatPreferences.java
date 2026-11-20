@@ -16,6 +16,7 @@
 
 package com.github.k7t3.tcv.prefs;
 
+import com.github.k7t3.tcv.app.theme.JapaneseFonts;
 import javafx.scene.text.Font;
 import javafx.beans.property.*;
 
@@ -27,7 +28,7 @@ import java.util.prefs.Preferences;
 public class ChatPreferences extends PreferencesBase {
 
     private static final PreferenceKey<FontSettings> CHAT_FONT = new PreferenceKey<>("chat.font.family",
-            () -> new FontSettings(Font.getDefault().getFamily(), Font.getDefault().getSize()),
+            () -> new FontSettings(JapaneseFonts.defaultDisplayFamily(), Font.getDefault().getSize()),
             value -> FontSettings.deserialize(Base64.getDecoder().decode(value)),
             value -> Base64.getEncoder().encodeToString(value.serialize()));
     private static final PreferenceKey<Boolean> CHAT_SHOW_USERNAME = PreferenceKey.bool("chat.show.username", true);

@@ -69,7 +69,8 @@ public enum Theme {
         }
 
         var theme = themes.get(type);
-        Application.setUserAgentStylesheet(Objects.requireNonNull(theme.getUserAgentStylesheet()));
+        Application.setUserAgentStylesheet(JapaneseFonts.themeStylesheet(
+                Objects.requireNonNull(theme.getUserAgentStylesheet())));
         scene.getRoot().pseudoClassStateChanged(DARK, theme.isDarkMode());
     }
 

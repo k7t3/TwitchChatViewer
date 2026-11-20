@@ -1,6 +1,7 @@
 package com.github.k7t3.tcv.prefs;
 
 import com.github.k7t3.tcv.support.MemoryPreferences;
+import javafx.scene.text.Font;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.testfx.api.FxRobot;
@@ -14,6 +15,15 @@ import static org.mockito.Mockito.spy;
 
 @ExtendWith(ApplicationExtension.class)
 class AppPreferencesPersistenceTest {
+    @Test
+    void unsetChatFontDefaultsToInstalledHiragino(FxRobot robot) {
+        var expectedFamily = Font.getFamilies().contains("Hiragino Sans") ? "Hiragino Sans" : Font.getDefault().getFamily();
+        var preferences = new AppPreferences(new MemoryPreferences());
+
+        robot.interact(() -> assertThat(preferences.getChatPreferences().getFont())
+                .isEqualTo(new FontSettings(expectedFamily, Font.getDefault().getSize())));
+    }
+
     @Test
     void flushingPreferencesDoesNotRewriteTheImmutableFontConfiguration(FxRobot robot) throws Exception {
         var node = spy(new MemoryPreferences());

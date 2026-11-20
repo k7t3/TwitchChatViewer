@@ -16,6 +16,7 @@
 
 package com.github.k7t3.tcv.view.chat;
 
+import com.github.k7t3.tcv.app.theme.JapaneseFonts;
 import javafx.beans.property.*;
 import javafx.beans.value.ObservableDoubleValue;
 import javafx.scene.text.Font;
@@ -48,16 +49,9 @@ public class ChatFont {
         this.fontScale = this.size.divide(DEFAULT_FONT_SIZE);
     }
 
-    private ChatFont() {
-        this.font = new ReadOnlyObjectWrapper<>(Font.getDefault());
-        this.family = new ReadOnlyStringWrapper(Font.getDefault().getFamily());
-        this.size = new ReadOnlyDoubleWrapper(DEFAULT_FONT_SIZE);
-        this.fontScale = this.size.divide(DEFAULT_FONT_SIZE);
-    }
-
     public static synchronized ChatFont getDefault() {
         if (DEFAULT == null) {
-            DEFAULT = new ChatFont();
+            DEFAULT = new ChatFont(JapaneseFonts.defaultDisplayFamily(), DEFAULT_FONT_SIZE);
         }
         return DEFAULT;
     }
