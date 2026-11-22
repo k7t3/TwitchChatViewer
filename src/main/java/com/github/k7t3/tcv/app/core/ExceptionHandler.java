@@ -20,6 +20,8 @@ import com.github.k7t3.tcv.domain.exception.InvalidCredentialException;
 import javafx.scene.control.Alert;
 import javafx.scene.control.TextArea;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
+import javafx.event.EventHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,27 +36,26 @@ public class ExceptionHandler {
     private ExceptionHandler() {
     }
 
-    public static void handle(Throwable e) {
-        handle(null, e);
-    }
-
+    /**
+     * 指定された所有者へ表示する。認証失効では、所有関係の最上位Stageを終了する。
+     * 所有者がなければ、別アプリのウインドウを取得・終了しない。
+     */
     public static void handle(Stage parent, Throwable e) {
         LOGGER.error(e.getMessage(), e);
 
         // 資格情報が無効になったとき
         if (e instanceof InvalidCredentialException) {
 
-            var helper = AppHelper.getInstance();
-            var primaryStage = helper.getPrimaryStage();
-
+            var application = parent;
+            while (application != null && application.getOwner() instanceof Stage owner) application = owner;
             var alert = new Alert(Alert.AlertType.ERROR);
-            alert.initOwner(primaryStage);
+            if (application != null) alert.initOwner(application);
             alert.setTitle("Twitch API Error");
             alert.setHeaderText(Resources.getString("terminate.header"));
             alert.setContentText(Resources.getString("terminate.content"));
-            alert.showAndWait();
+            showOwned(application, alert);
 
-            primaryStage.close();
+            if (application != null) application.close();
 
             return;
 
@@ -80,7 +81,21 @@ public class ExceptionHandler {
         pane.setContent(stacktrace);
         pane.setExpanded(false);
 
-        alert.showAndWait();
+        showOwned(parent, alert);
+    }
+
+    private static void showOwned(Stage owner, Alert alert) {
+        if (owner == null) {
+            alert.showAndWait();
+            return;
+        }
+        EventHandler<WindowEvent> closed = event -> alert.close();
+        owner.addEventHandler(WindowEvent.WINDOW_HIDDEN, closed);
+        try {
+            alert.showAndWait();
+        } finally {
+            owner.removeEventHandler(WindowEvent.WINDOW_HIDDEN, closed);
+        }
     }
 
 }

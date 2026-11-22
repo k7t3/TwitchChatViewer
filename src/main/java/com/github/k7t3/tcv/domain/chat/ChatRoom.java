@@ -49,6 +49,11 @@ public class ChatRoom {
         return channel;
     }
 
+    /** 遅れて配送されたイベントを、所有するクライアントのセッションに限定する。 */
+    public boolean isOwnedBy(Twitch owner) {
+        return twitch == owner;
+    }
+
     public void leave() {
         LOGGER.info("{} leave chat", getBroadcaster().getUserLogin());
 

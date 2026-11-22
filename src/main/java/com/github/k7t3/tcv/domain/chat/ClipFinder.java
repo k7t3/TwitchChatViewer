@@ -22,18 +22,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Optional;
-import java.util.regex.Pattern;
 
 public class ClipFinder {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ClipFinder.class);
 
-    private static final Pattern CLIP_URL_PATTERN = Pattern.compile(
-            "https://((www\\.twitch\\.tv|m\\.twitch\\.tv)/[^/]+/clip|clips\\.twitch\\.tv)/[\\p{Alnum}.,%_=?&#\\-+()\\[\\]*$~@!:/{};']+"
-    );
+    private final ClipLinkParser parser = new ClipLinkParser();
 
     private final Twitch twitch;
 
@@ -42,38 +38,18 @@ public class ClipFinder {
     }
 
     URI parseClipURI(String chatMessage) {
-        var matcher = CLIP_URL_PATTERN.matcher(chatMessage);
-        if (!matcher.find()) {
-            return null;
-        }
-
-        try {
-            return new URI(matcher.group().trim());
-        } catch (URISyntaxException e) {
-            throw new RuntimeException(e);
-        }
+        return parser.parseClipURI(chatMessage);
     }
 
     /**
      * チャットに投稿されたクリップのURLをパースしてAPIに投げるメソッド
      */
     public Optional<ClipChatMessage> findClip(String message) {
-        var uri = parseClipURI(message);
-        if (uri == null) {
-            return Optional.empty();
-        }
-
-        // 0: empty
-        // 1: ユーザー名
-        // 2: clip
-        // 3: クリップのID
-        var paths = uri.getPath().split("/");
-        if (paths.length != 4 && paths.length != 2) {
-            LOGGER.error("unexpected clip url {}", message);
-            return Optional.empty();
-        }
-
-        var clipId = paths[paths.length - 1];
+        var parsed = parser.parse(message);
+        if (parsed.isEmpty()) return Optional.empty();
+        var link = parsed.orElseThrow();
+        var clipId = link.getId();
+        var uri = link.getEstimatedURL();
 
         var api = twitch.getTwitchAPI();
         var clips = api.getClips(List.of(clipId));

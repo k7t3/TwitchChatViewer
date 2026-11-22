@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.UUID;
 
@@ -55,18 +56,17 @@ public class ChannelGroupEntityService {
                   g.updated_at,
                   u.user_id
                 from
-                  group_users u
-                left join
                   groups g
+                left join
+                  group_users u
                 on
                   u.group_id = g.id
                 order by
                   g.updated_at desc;
                 """;
-        var list = new ArrayList<ChannelGroupEntity>();
-        connector.query(query, rs -> {
-
-            ChannelGroupEntity entity = null;
+        // 同じ更新日時の行は別グループの行と混在できる。隣接ではなく親IDで集約する。
+        var groups = new LinkedHashMap<UUID, ChannelGroupEntity>();
+        connector.readTransaction(() -> connector.query(query, rs -> {
             while (rs.next()) {
                 var id = rs.getString("id");
                 var name = rs.getString("name");
@@ -78,27 +78,29 @@ public class ChannelGroupEntityService {
 
                 var uuid = UUID.fromString(id);
 
-                if (entity == null || !entity.id().equals(uuid)) {
+                var entity = groups.get(uuid);
+                if (entity == null) {
                     var ids = new HashSet<String>();
-                    ids.add(userId);
                     entity = new ChannelGroupEntity(uuid, name, comment, pinned, createdAt, updatedAt, ids);
-                    list.add(entity);
-                } else {
-                    entity.channelIds().add(userId);
+                    groups.put(uuid, entity);
                 }
+                if (userId != null) entity.channelIds().add(userId);
             }
-        });
+        }));
 
-        LOGGER.info("{} groups retrieved", list.size());
+        LOGGER.info("{} groups retrieved", groups.size());
 
-        return list;
+        return new ArrayList<>(groups.values());
     }
 
     public void save(SaveType saveType, ChannelGroupEntity entity) {
-        switch (saveType) {
-            case INSERT -> insert(entity);
-            case UPDATE -> update(entity);
-        }
+        connector.transaction(() -> {
+            switch (saveType) {
+                case INSERT -> insert(entity);
+                case UPDATE -> update(entity);
+            }
+        });
+        LOGGER.info("{} {}", entity, saveType == SaveType.INSERT ? "inserted" : "updated");
     }
 
     private void insert(ChannelGroupEntity entity) {
@@ -126,9 +128,6 @@ public class ChannelGroupEntityService {
             }
         });
 
-        connector.commit();
-
-        LOGGER.info("{} inserted", entity);
     }
 
     private void update(ChannelGroupEntity entity) {
@@ -171,13 +170,11 @@ public class ChannelGroupEntityService {
             }
         });
 
-        connector.commit();
-
-        LOGGER.info("{} updated", entity);
     }
 
     public void remove(ChannelGroupEntity entity) {
-        delete(entity);
+        connector.transaction(() -> delete(entity));
+        LOGGER.info("{} removed", entity);
     }
 
     private void delete(ChannelGroupEntity entity) {
@@ -188,9 +185,6 @@ public class ChannelGroupEntityService {
             stmt.executeUpdate();
         });
 
-        connector.commit();
-
-        LOGGER.info("{} removed", entity);
     }
 
 }

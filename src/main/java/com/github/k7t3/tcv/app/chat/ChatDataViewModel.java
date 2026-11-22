@@ -21,14 +21,11 @@ import com.github.k7t3.tcv.app.chat.filter.ChatFilters;
 import com.github.k7t3.tcv.app.chat.filter.KeywordFilterEntry;
 import com.github.k7t3.tcv.app.chat.filter.UserFilterEntry;
 import com.github.k7t3.tcv.app.emoji.ChatEmojiStore;
-import com.github.k7t3.tcv.app.event.KeywordFilteringEvent;
-import com.github.k7t3.tcv.app.event.UserFilteringEvent;
 import com.github.k7t3.tcv.app.image.LazyImage;
 import com.github.k7t3.tcv.domain.chat.ChatData;
 import com.github.k7t3.tcv.domain.chat.ChatMessage;
 import com.github.k7t3.tcv.domain.chat.ChatMessageFragment;
 import com.github.k7t3.tcv.view.chat.ChatFont;
-import de.saxsys.mvvmfx.MvvmFX;
 import de.saxsys.mvvmfx.ViewModel;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
@@ -188,8 +185,6 @@ public class ChatDataViewModel {
         var filter = KeywordFilterEntry.exactMatch(message);
         chatFilters.saveKeywordFilter(filter);
 
-        var event = new KeywordFilteringEvent(filter);
-        MvvmFX.getNotificationCenter().publish(event.getClass().getName(), event);
     }
 
     public void userFilter(String comment) {
@@ -197,8 +192,6 @@ public class ChatDataViewModel {
         var filter = new UserFilterEntry(chat.userId(), chat.userName(), comment);
         chatFilters.saveUserFilter(filter);
 
-        var event = new UserFilteringEvent(filter);
-        MvvmFX.getNotificationCenter().publish(event.getClass().getName(), event);
     }
 
     // ********** PROPERTIES **********

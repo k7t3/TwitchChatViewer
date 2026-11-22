@@ -14,7 +14,7 @@
 <?import javafx.scene.layout.StackPane?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
-<BorderPane stylesheets="@FloatableMergedChatRoomView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.chat.FloatableMergedChatRoomView">
+<BorderPane stylesheets="@FloatableMergedChatRoomView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
    <center>
       <StackPane fx:id="chatDataContainer">
          <children>
@@ -30,7 +30,7 @@
                </padding>
             </ToolBar>
             <Pane HBox.hgrow="ALWAYS" />
-            <MenuButton fx:id="menuButton" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" text="MenuButton" focusTraversable="false">
+            <MenuButton fx:id="menuButton" accessibleText="%chat.menu.actions" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" text="MenuButton" focusTraversable="false">
               <items>
                   <CustomMenuItem mnemonicParsing="false" text="透過度">
                      <content>

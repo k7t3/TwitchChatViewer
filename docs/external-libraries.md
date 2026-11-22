@@ -15,18 +15,6 @@ License: CC BY-SA 4.0
 ## License
 
 ```yaml
-Name:    Apollo GraphQL Java libraries
-URL:     https://github.com/apollographql/apollo-kotlin
-License: MIT
-```
-
-```yaml
-Name:    UUID (com.benasher44)
-URL:     https://github.com/benasher44/uuid
-License: MIT
-```
-
-```yaml
 Name:    JCommander
 URL:     https://github.com/cbeust/jcommander
 License: Apache-2.0
@@ -93,18 +81,6 @@ License: Apache-2.0
 ```
 
 ```yaml
-Name:    Netflix Archaius
-URL:     https://github.com/Netflix/archaius
-License: Apache-2.0
-```
-
-```yaml
-Name:    Hystrix
-URL:     https://github.com/Netflix/Hystrix
-License: Apache-2.0
-```
-
-```yaml
 Name:    OkHttp
 URL:     https://github.com/square/okhttp
 License: Apache-2.0
@@ -117,20 +93,8 @@ License: Apache-2.0
 ```
 
 ```yaml
-Name:    Apache Commons Configuration
-URL:     https://commons.apache.org/proper/commons-configuration/
-License: Apache-2.0
-```
-
-```yaml
 Name:    Apache Commons IO
 URL:     https://commons.apache.org/proper/commons-io/
-License: Apache-2.0
-```
-
-```yaml
-Name:    Apache Commons Lang
-URL:     https://commons.apache.org/proper/commons-lang/
 License: Apache-2.0
 ```
 
@@ -159,18 +123,6 @@ License: Apache-2.0
 ```
 
 ```yaml
-Name:    RxJava
-URL:     https://github.com/ReactiveX/RxJava
-License: Apache-2.0
-```
-
-```yaml
-Name:    Byte Buddy
-URL:     https://github.com/raphw/byte-buddy
-License: Apache-2.0
-```
-
-```yaml
 Name:    TypeTools
 URL:     https://github.com/jhalterman/typetools
 License: Apache-2.0
@@ -183,21 +135,9 @@ License: Apache-2.0
 ```
 
 ```yaml
-Name:    Checker Framework
-URL:     https://github.com/typetools/checker-framework
-License: MIT
-```
-
-```yaml
 Name:    Flowless
 URL:     https://github.com/FXMisc/Flowless
 License: BSD-2-Clause
-```
-
-```yaml
-Name:    HdrHistogram
-URL:     https://github.com/HdrHistogram/HdrHistogram
-License: BSD-2-Clause or Public Domain
 ```
 
 ```yaml
@@ -238,3 +178,26 @@ License: Apache-2.0
 
 
 [Format Reference](https://github.com/JabRef/jabref)
+```yaml
+Name:    JAI Image I/O Core
+URL:     https://github.com/jai-imageio/jai-imageio-core
+License: BSD 3-clause License w/nuclear disclaimer
+```
+
+```yaml
+Name:    Doc Annotations
+URL:     https://github.com/lestard/doc-annotations
+License: MIT
+```
+
+```yaml
+Name:    JSpecify
+URL:     https://jspecify.dev/
+License: Apache-2.0
+```
+
+```yaml
+Name:    ReactFX
+URL:     https://github.com/FXMisc/ReactFX
+License: BSD-2-Clause
+```

@@ -42,36 +42,37 @@ public class WindowBoundsEntityService {
         }
 
         var sql = "insert or replace into windows values(?, ?, ?, ?, ?, ?);";
-        connector.prepared(sql, stmt -> {
-            var i = 0;
-            stmt.setString(++i, entity.identity());
-            stmt.setDouble(++i, Double.isNaN(entity.x()) ? NaN : entity.x());
-            stmt.setDouble(++i, Double.isNaN(entity.y()) ? NaN : entity.y());
-            stmt.setDouble(++i, entity.width());
-            stmt.setDouble(++i, entity.height());
-            stmt.setBoolean(++i, entity.maximized());
-            stmt.executeUpdate();
+        connector.transaction(() -> {
+            connector.prepared(sql, stmt -> {
+                var i = 0;
+                stmt.setString(++i, entity.identity());
+                stmt.setDouble(++i, Double.isNaN(entity.x()) ? NaN : entity.x());
+                stmt.setDouble(++i, Double.isNaN(entity.y()) ? NaN : entity.y());
+                stmt.setDouble(++i, entity.width());
+                stmt.setDouble(++i, entity.height());
+                stmt.setBoolean(++i, entity.maximized());
+                stmt.executeUpdate();
+            });
         });
-        connector.commit();
     }
 
     public void delete(String identity) {
         LOGGER.info("delete window bounds {}", identity);
 
         var sql = "delete from windows where id = ?";
-        connector.prepared(sql, stmt -> {
-            stmt.setString(1, identity);
-            stmt.executeUpdate();
+        connector.transaction(() -> {
+            connector.prepared(sql, stmt -> {
+                stmt.setString(1, identity);
+                stmt.executeUpdate();
+            });
         });
-        connector.commit();
     }
 
     public void clear() {
         LOGGER.info("clear window bounds");
 
         var sql = "delete from windows;";
-        connector.execute(sql);
-        connector.commit();
+        connector.transaction(() -> connector.execute(sql));
     }
 
     public WindowBoundsEntity get(String identity) {
@@ -82,7 +83,7 @@ public class WindowBoundsEntityService {
         WindowBoundsEntity[] entities = new WindowBoundsEntity[1];
 
         var query = "select id, x, y, width, height, maximized from windows where id = ?;";
-        connector.prepared(query, stmt -> {
+        connector.readTransaction(() -> connector.prepared(query, stmt -> {
             stmt.setString(1, identity);
             try (var rs = stmt.executeQuery()) {
                 if (!rs.next()) {
@@ -100,7 +101,7 @@ public class WindowBoundsEntityService {
                 if (Double.isNaN(y)) y = Double.NaN;
                 entities[0] = new WindowBoundsEntity(id, x, y, width, height, maximized);
             }
-        });
+        }));
 
         LOGGER.info("get window bounds {}({})", entities[0], identity);
 

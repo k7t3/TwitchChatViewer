@@ -23,13 +23,14 @@ import com.github.k7t3.tcv.app.image.LazyImage;
 import com.github.k7t3.tcv.view.image.LazyImageView;
 import com.github.k7t3.tcv.domain.chat.ChatMessageFragment;
 import com.github.k7t3.tcv.view.core.JavaFXHelper;
-import javafx.beans.binding.Bindings;
+import javafx.beans.value.ChangeListener;
+import com.github.k7t3.tcv.lifecycle.CloseActions;
+import com.github.k7t3.tcv.view.core.ViewResources;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.ContentDisplay;
-import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.Pane;
@@ -39,6 +40,7 @@ import org.fxmisc.flowless.Cell;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, TextFlow> {
 
@@ -71,10 +73,13 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
 
     private final ChatDataViewModel viewModel;
 
-    private ContextMenu contextMenu;
+    private final ViewResources owned = new ViewResources();
+    private ViewResources messageResources = new ViewResources();
+    private final Function<ChatDataViewModel, ChatDataContextMenu> menus;
+    private ChatDataContextMenu contextMenu;
 
     /** メッセージを構成する、非表示、削除した際に取り除くノード*/
-    private List<Node> deletableNodes;
+    private final List<Node> deletableNodes = new ArrayList<>();
 
     public static ChatDataCell of(ChatDataViewModel viewModel) {
         return new ChatDataCell(viewModel, false);
@@ -84,7 +89,10 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
         return new ChatDataCell(viewModel, true);
     }
 
-    private ChatDataCell(ChatDataViewModel viewModel, boolean mergedChat) {
+    private ChatDataCell(ChatDataViewModel viewModel, boolean mergedChat) { this(viewModel, mergedChat, ChatDataContextMenu::new); }
+
+    ChatDataCell(ChatDataViewModel viewModel, boolean mergedChat, Function<ChatDataViewModel, ChatDataContextMenu> menus) {
+        this.menus = menus;
         this.viewModel = viewModel;
         this.visibleBadges = viewModel.visibleBadgeProperty();
         this.visibleName = viewModel.visibleNameProperty();
@@ -107,7 +115,37 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
             JavaFXHelper.updatePseudoClass(this, PSEUDO_CHEER, true);
         }
 
-        initialize();
+        owned.add(() -> { setOnContextMenuRequested(null); getChildren().clear(); deletableNodes.clear(); });
+        owned.add(this::releaseMenu);
+        owned.add(() -> messageResources.close());
+        try { initialize(); }
+        catch (RuntimeException | Error failure) {
+            CloseActions.runAll(() -> { if (failure instanceof RuntimeException exception) throw exception; throw (Error) failure; }, this::dispose);
+        }
+    }
+
+    @Override public void dispose() { owned.close(); }
+
+    private void releaseMenu() {
+        var menu = contextMenu; contextMenu = null;
+        if (menu == null) return;
+        menu.close();
+    }
+
+    private <T extends Node> T ownNode(T node, ViewResources resources) {
+        resources.add(() -> {
+            node.visibleProperty().unbind(); node.managedProperty().unbind();
+            if (node instanceof Text text) { text.fontProperty().unbind(); text.fillProperty().unbind(); }
+            if (node instanceof LazyImageView image) {
+                image.fitWidthProperty().unbind(); image.fitHeightProperty().unbind(); image.lazyImageProperty().unbind(); image.setLazyImage(null);
+            }
+            if (node instanceof Label label) {
+                label.fontProperty().unbind(); label.textProperty().unbind();
+                if (label.getTooltip() != null) { label.getTooltip().hide(); label.getTooltip().textProperty().unbind(); label.setTooltip(null); }
+                label.setGraphic(null);
+            }
+        });
+        return node;
     }
 
     @Override
@@ -144,7 +182,7 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
                 message += "\n";
             }
 
-            var subsText = new Text(message);
+            var subsText = ownNode(new Text(message), owned);
             subsText.fontProperty().bind(font.map(ChatFont::getBoldFont));
             subsText.getStyleClass().add(CHAT_STYLE_SUBS_CLASS);
             getChildren().add(subsText);
@@ -166,7 +204,7 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
                 message += "\n";
             }
 
-            var subsText = new Text(message);
+            var subsText = ownNode(new Text(message), owned);
             subsText.fontProperty().bind(font.map(ChatFont::getBoldFont));
             subsText.getStyleClass().add(CHAT_STYLE_SUBS_CLASS);
             getChildren().add(subsText);
@@ -180,14 +218,14 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
 
         viewModel.getBadges().stream().map(this::createBadgeNode).forEach(getChildren()::add);
 
-        var userNameText = new Text();
+        var userNameText = ownNode(new Text(), owned);
         userNameText.getStyleClass().addAll(NAME_STYLE_CLASS, Styles.TEXT_BOLDER);
         userNameText.visibleProperty().bind(visibleName);
         userNameText.managedProperty().bind(visibleName);
         userNameText.fillProperty().bind(viewModel.colorProperty());
         userNameText.fontProperty().bind(font.map(ChatFont::getFont));
 
-        var colon = new Text(": ");
+        var colon = ownNode(new Text(": "), owned);
         colon.getStyleClass().add(NAME_STYLE_CLASS);
         colon.visibleProperty().bind(visibleName);
         colon.managedProperty().bind(visibleName);
@@ -217,9 +255,11 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
 
         // コンテキストメニュー
         setOnContextMenuRequested(e -> {
+            if (owned.isClosed()) return;
             if (contextMenu == null) {
-                contextMenu = new ChatDataContextMenu(viewModel);
+                contextMenu = menus.apply(viewModel);
             }
+            if (owned.isClosed() || deleted.get() || hidden.get()) { releaseMenu(); return; }
 
             if (contextMenu.isShowing())
                 contextMenu.hide();
@@ -230,24 +270,20 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
 
         // 削除フラグが有効なときメッセージ要素を
         // すべてクリアして代替メッセージを表示する
-        deleted.addListener((ob, o, n) -> {
-            if (n) {
-                disabledMessage(Resources.getString("chat.message.deleted"));
-                deletableNodes.clear();
-            }
-        });
-        hidden.addListener((ob, o, n) -> {
-            if (n) {
-                disabledMessage(Resources.getString("chat.message.hidden"));
-                deletableNodes.clear();
-            }
-        });
+        ChangeListener<Boolean> deletion = (ob, oldValue, deleted) -> {
+            if (deleted && !owned.isClosed()) disabledMessage(Resources.getString("chat.message.deleted"));
+        };
+        ChangeListener<Boolean> filtering = (ob, oldValue, hidden) -> {
+            if (hidden && !owned.isClosed()) disabledMessage(Resources.getString("chat.message.hidden"));
+        };
+        this.deleted.addListener(deletion); owned.add(() -> this.deleted.removeListener(deletion));
+        this.hidden.addListener(filtering); owned.add(() -> this.hidden.removeListener(filtering));
 
         buildMessageNodes();
     }
 
     private void buildMessageNodes() {
-        deletableNodes = new ArrayList<>();
+        deletableNodes.clear();
 
         for (var fragment : viewModel.getMessage()) {
             switch (fragment.type()) {
@@ -281,20 +317,27 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
     }
 
     private void disabledMessage(String message) {
-        if (deletableNodes != null && !deletableNodes.isEmpty()) {
-            // メッセージを構成するノードを除去
-            getChildren().removeAll(deletableNodes);
-        }
+        if (owned.isClosed()) return;
+        setOnContextMenuRequested(null);
+        CloseActions.runAll(this::releaseMenu, () -> replaceMessage(message));
+    }
 
-        // 代替メッセージ
-        var text = new Text(message);
-        text.getStyleClass().addAll(CHAT_STYLE_CLASS, Styles.TEXT_MUTED);
-        text.fontProperty().bind(font.map(ChatFont::getFont));
-        getChildren().add(text);
+    private void replaceMessage(String message) {
+        if (owned.isClosed()) return;
+        getChildren().removeAll(deletableNodes); deletableNodes.clear();
+        var previous = messageResources;
+        messageResources = new ViewResources();
+        CloseActions.runAll(previous::close, () -> {
+            if (owned.isClosed()) return;
+            var text = ownNode(new Text(deleted.get() ? Resources.getString("chat.message.deleted") : message), messageResources);
+            text.getStyleClass().addAll(CHAT_STYLE_CLASS, Styles.TEXT_MUTED);
+            text.fontProperty().bind(font.map(ChatFont::getFont));
+            deletableNodes.add(text); getChildren().add(text);
+        });
     }
 
     private Node createTextNode(ChatMessageFragment fragment) {
-        var text = new Text(fragment.text());
+        var text = ownNode(new Text(fragment.text()), messageResources);
         text.getStyleClass().add(CHAT_STYLE_CLASS);
         text.fontProperty().bind(font.map(f ->
                 viewModel.isSystem() ? f.getBoldFont() : f.getFont())
@@ -302,77 +345,34 @@ public class ChatDataCell extends TextFlow implements Cell<ChatDataViewModel, Te
         return text;
     }
 
-    private Node createBadgeNode(LazyImage image) {
-        var imageView = new LazyImageView(image);
+    private Label createImageNode(LazyImage image, double width, double height, ViewResources resources) {
+        var imageView = ownNode(new LazyImageView(image), resources);
         imageView.getStyleClass().add(IMAGE_STYLE_VIEW);
         imageView.setPreserveRatio(true);
-
-        var imageWidth = Bindings.multiply(
-                Bindings.selectDouble(font.map(ChatFont::getFontScale)),
-                BADGE_IMAGE_WIDTH
-        );
-        var imageHeight = Bindings.multiply(
-                Bindings.selectDouble(font.map(ChatFont::getFontScale)),
-                BADGE_IMAGE_HEIGHT
-        );
-        imageView.fitWidthProperty().bind(imageWidth);
-        imageView.fitHeightProperty().bind(imageHeight);
-
-        var node = new Label(null, imageView);
-        node.setPadding(new Insets(0, 1, 0, 1));
+        imageView.fitWidthProperty().bind(font.map(current -> current.getFontScale() * width));
+        imageView.fitHeightProperty().bind(font.map(current -> current.getFontScale() * height));
+        var node = ownNode(new Label(null, imageView), resources);
         node.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+        return node;
+    }
+
+    private Node createBadgeNode(LazyImage image) {
+        var node = createImageNode(image, BADGE_IMAGE_WIDTH, BADGE_IMAGE_HEIGHT, owned);
+        node.setPadding(new Insets(0, 1, 0, 1));
         node.visibleProperty().bind(visibleBadges);
         node.managedProperty().bind(visibleBadges);
         return node;
     }
 
     private Node createEmoteNode(ChatMessageFragment fragment) {
-        var imageView = new LazyImageView(viewModel.getEmoteStore().get(fragment.text()));
-        imageView.getStyleClass().add(IMAGE_STYLE_VIEW);
-        imageView.setPreserveRatio(true);
-
-        var imageWidth = Bindings.multiply(
-                Bindings.selectDouble(font.map(ChatFont::getFontScale)),
-                EMOTE_IMAGE_WIDTH
-        );
-        var imageHeight = Bindings.multiply(
-                Bindings.selectDouble(font.map(ChatFont::getFontScale)),
-                EMOTE_IMAGE_HEIGHT
-        );
-        imageView.fitWidthProperty().bind(imageWidth);
-        imageView.fitHeightProperty().bind(imageHeight);
-
-        var node = new Label(null, imageView);
-        node.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+        var node = createImageNode(viewModel.getEmoteStore().get(fragment.text()), EMOTE_IMAGE_WIDTH, EMOTE_IMAGE_HEIGHT, messageResources);
         node.setTooltip(new Tooltip(fragment.additional()));
         return node;
     }
 
     private Node createEmojiNode(ChatMessageFragment fragment) {
         var image = viewModel.getEmojiImage(fragment);
-        // 非対応の絵文字のときはテキストとしてそのまま使う
-        if (image == null) {
-            return createTextNode(fragment);
-        }
-
-        var imageView = new LazyImageView(image);
-        imageView.getStyleClass().add(IMAGE_STYLE_VIEW);
-        imageView.setPreserveRatio(true);
-
-        var imageWidth = Bindings.multiply(
-                Bindings.selectDouble(font.map(ChatFont::getFontScale)),
-                EMOJI_IMAGE_WIDTH
-        );
-        var imageHeight = Bindings.multiply(
-                Bindings.selectDouble(font.map(ChatFont::getFontScale)),
-                EMOJI_IMAGE_HEIGHT
-        );
-        imageView.fitWidthProperty().bind(imageWidth);
-        imageView.fitHeightProperty().bind(imageHeight);
-
-        var node = new Label(null, imageView);
-        node.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
-        return node;
+        return image == null ? createTextNode(fragment) : createImageNode(image, EMOJI_IMAGE_WIDTH, EMOJI_IMAGE_HEIGHT, messageResources);
     }
 
     @Override

@@ -19,36 +19,49 @@ package com.github.k7t3.tcv.view.chat;
 import atlantafx.base.theme.Styles;
 import atlantafx.base.theme.Tweaks;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
-import com.github.k7t3.tcv.app.chat.ChatDataViewModel;
 import com.github.k7t3.tcv.app.chat.MergedChatRoomViewModel;
 import com.github.k7t3.tcv.app.chat.SingleChatRoomViewModel;
-import com.github.k7t3.tcv.app.core.AppHelper;
-import com.github.k7t3.tcv.view.image.LazyImageView;
-import com.github.k7t3.tcv.prefs.AppPreferences;
+import com.github.k7t3.tcv.app.group.ChannelGroupRepository;
+import com.github.k7t3.tcv.app.service.WindowBoundsService;
+import com.github.k7t3.tcv.lifecycle.CloseActions;
+import com.github.k7t3.tcv.prefs.ChatPreferences;
 import com.github.k7t3.tcv.view.core.FloatableStage;
+import com.github.k7t3.tcv.view.core.ViewResources;
 import com.github.k7t3.tcv.view.group.menu.ChannelGroupMenu;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
-import javafx.collections.FXCollections;
-import javafx.collections.MapChangeListener;
-import javafx.fxml.FXML;
-import javafx.fxml.Initializable;
-import javafx.scene.Node;
-import javafx.scene.control.*;
-import javafx.scene.effect.SepiaTone;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.StackPane;
-import javafx.scene.shape.Rectangle;
-import org.fxmisc.flowless.VirtualFlow;
-import org.fxmisc.flowless.VirtualizedScrollPane;
-
 import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
+import javafx.beans.value.ChangeListener;
+import javafx.collections.MapChangeListener;
+import javafx.event.EventHandler;
+import javafx.fxml.FXML;
+import javafx.fxml.Initializable;
+import javafx.scene.Node;
+import javafx.scene.control.*;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
+import javafx.stage.WindowEvent;
 
-public class FloatableMergedChatRoomView implements FxmlView<MergedChatRoomViewModel>, Initializable {
+
+public class FloatableMergedChatRoomView implements FxmlView<MergedChatRoomViewModel>, Initializable, AutoCloseable {
+    private final ChannelGroupRepository groups;
+    private final ChatPreferences preferences;
+    private final WindowBoundsService boundsService;
+    private final ViewResources owned = new ViewResources();
+
+    /** 共有サービスを借用し、窓と画面自身の監視だけを所有する。 */
+    public FloatableMergedChatRoomView(ChannelGroupRepository groups, ChatPreferences preferences,
+                                      WindowBoundsService boundsService) {
+        this.groups = java.util.Objects.requireNonNull(groups);
+        this.preferences = java.util.Objects.requireNonNull(preferences);
+        this.boundsService = java.util.Objects.requireNonNull(boundsService);
+    }
+    @Override public void close() { owned.close(); }
+
 
     private static final double PROFILE_IMAGE_SIZE = 48;
 
@@ -82,28 +95,50 @@ public class FloatableMergedChatRoomView implements FxmlView<MergedChatRoomViewM
     @InjectViewModel
     private MergedChatRoomViewModel viewModel;
 
-    private VirtualFlow<ChatDataViewModel, ChatDataCell> virtualFlow;
 
     private FloatableStage floatableStage;
 
     private Map<TwitchChannelViewModel, Node> profileImageNodes;
+    private final Map<TwitchChannelViewModel, ViewResources> profiles = new HashMap<>();
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
+        if (owned.isClosed()) return;
 
         floatableStage = new FloatableStage();
-        ChatRoomViewUtils.initializeFloatableStage(floatableStage, viewModel);
+        owned.add(() -> floatableStage.setScene(null));
+        owned.add(() -> floatableStage.setContent(null));
+        owned.add(floatableStage::close);
+        floatableStage.onClose(this::close);
+        EventHandler<WindowEvent> hidden = event -> close();
+        floatableStage.addEventHandler(WindowEvent.WINDOW_HIDDEN, hidden);
+        owned.add(() -> floatableStage.removeEventHandler(WindowEvent.WINDOW_HIDDEN, hidden));
+        floatableStage.setOnCloseRequest(event -> {
+            event.consume();
+            if (owned.isClosed()) return;
+            floatableStage.close(); viewModel.leaveChatAsync();
+        });
+        owned.add(() -> floatableStage.setOnCloseRequest(null));
+        var bounds = ChatRoomViewUtils.initializeFloatableStage(floatableStage, viewModel, boundsService); owned.add(bounds::close);
+        if (owned.isClosed()) return;
 
-        var prefs = AppPreferences.getInstance().getChatPreferences();
+        var prefs = preferences;
+        owned.add(() -> {
+            autoScrollMenuItem.selectedProperty().unbindBidirectional(viewModel.autoScrollProperty());
+            floatableStage.backgroundOpacityProperty().unbindBidirectional(prefs.floatingChatOpacityProperty());
+            opacitySlider.valueProperty().unbindBidirectional(floatableStage.backgroundOpacityProperty());
+            alwaysOnTopMenuItem.selectedProperty().unbindBidirectional(prefs.floatingChatAlwaysTopProperty());
+            closeMenuItem.setOnAction(null); restoreMenuItem.setOnAction(null); menuButton.hide();
+        });
 
         menuButton.getStyleClass().addAll(Tweaks.NO_ARROW, Styles.BUTTON_ICON);
 
         // チャンネルグループに関するメニュー
-        var repository = AppHelper.getInstance().getChannelGroupRepository();
-        menuButton.getItems().addAll(0, List.of(
-                new ChannelGroupMenu(repository, FXCollections.observableArrayList(viewModel.getChannels().keySet())),
-                new SeparatorMenuItem()
-        ));
+        if (owned.isClosed()) return;
+        var groupMenu = new ChannelGroupMenu(groups, viewModel.getChannels());
+        owned.add(groupMenu::close);
+        if (owned.isClosed()) return;
+        menuButton.getItems().addAll(0, List.of(groupMenu, new SeparatorMenuItem()));
 
         // 閉じるボタン
         closeMenuItem.setOnAction(e -> {
@@ -118,11 +153,9 @@ public class FloatableMergedChatRoomView implements FxmlView<MergedChatRoomViewM
         });
 
         // チャット
-        virtualFlow = VirtualFlow.createVertical(viewModel.getChatDataList(), ChatDataCell::merged);
-        chatDataContainer.getChildren().add(new VirtualizedScrollPane<>(virtualFlow));
-
-        // 自動スクロールと仮想フローにおける動作を初期化
-        ChatRoomViewUtils.initializeVirtualFlowScrollActions(virtualFlow, viewModel.getChatDataList(), viewModel.autoScrollProperty());
+        var messages = ChatRoomViewUtils.installMessages(chatDataContainer, viewModel, true);
+        owned.add(messages::unsubscribe);
+        if (owned.isClosed()) return;
 
         autoScrollMenuItem.selectedProperty().bindBidirectional(viewModel.autoScrollProperty());
 
@@ -132,16 +165,25 @@ public class FloatableMergedChatRoomView implements FxmlView<MergedChatRoomViewM
 
         // 常に最前面に表示
         alwaysOnTopMenuItem.selectedProperty().bindBidirectional(prefs.floatingChatAlwaysTopProperty());
-        alwaysOnTopMenuItem.selectedProperty().addListener((ob, o, n) -> floatableStage.setAlwaysOnTop(n));
+        ChangeListener<Boolean> onTop = (ob, oldValue, value) -> { if (!owned.isClosed()) floatableStage.setAlwaysOnTop(value); };
+        alwaysOnTopMenuItem.selectedProperty().addListener(onTop); owned.add(() -> alwaysOnTopMenuItem.selectedProperty().removeListener(onTop));
         floatableStage.setAlwaysOnTop(alwaysOnTopMenuItem.isSelected());
 
         profileImageNodes = new HashMap<>();
-        for (var channel : viewModel.getChannels().keySet()) {
+        owned.add(() -> {
+            var snapshot = List.copyOf(profiles.values()); profiles.clear(); profileImageNodes.clear(); profileImageContainer.getItems().clear();
+            CloseActions.runAll(snapshot.stream().map(profile -> (Runnable) profile::close).toArray(Runnable[]::new));
+        });
+
+        for (var channel : List.copyOf(viewModel.getChannels().keySet())) {
+            if (owned.isClosed()) return;
             var node = createProfileImageView(channel);
             profileImageNodes.put(channel, node);
             profileImageContainer.getItems().add(node);
         }
-        viewModel.getChannels().addListener(this::channelChanged);
+        MapChangeListener<TwitchChannelViewModel, SingleChatRoomViewModel> changed = this::channelChanged;
+        viewModel.getChannels().addListener(changed);
+        owned.add(() -> viewModel.getChannels().removeListener(changed));
     }
 
     public FloatableStage getFloatableStage() {
@@ -152,33 +194,11 @@ public class FloatableMergedChatRoomView implements FxmlView<MergedChatRoomViewM
      * ブロードキャスターのプロファイルイメージNode
      */
     private Node createProfileImageView(TwitchChannelViewModel channel) {
-        var imageView = new LazyImageView(channel.getProfileImage());
-        imageView.setPreserveRatio(true);
-        imageView.setSmooth(true);
-        imageView.setFitWidth(PROFILE_IMAGE_SIZE);
-        imageView.setFitHeight(PROFILE_IMAGE_SIZE);
-        var clip = new Rectangle();
-        clip.widthProperty().bind(imageView.fitWidthProperty());
-        clip.heightProperty().bind(imageView.fitHeightProperty());
-        clip.arcWidthProperty().bind(imageView.fitWidthProperty());
-        clip.arcHeightProperty().bind(imageView.fitHeightProperty());
-        imageView.setClip(clip);
-
-        ChatRoomViewUtils.installStreamInfoPopOver(channel, imageView);
-
-        if (channel.isLive()) {
-            imageView.setEffect(null);
-        } else {
-            imageView.setEffect(new SepiaTone());
-        }
-
-        channel.liveProperty().addListener((ob, o, n) -> {
-            if (n) {
-                imageView.setEffect(null);
-            } else {
-                imageView.setEffect(new SepiaTone());
-            }
-        });
+        var profile = new ViewResources();
+        var previous = profiles.put(channel, profile);
+        if (previous != null) previous.close();
+        var imageView = new ChannelProfileView(channel, PROFILE_IMAGE_SIZE);
+        profile.add(imageView::close);
 
         return imageView;
     }
@@ -187,18 +207,16 @@ public class FloatableMergedChatRoomView implements FxmlView<MergedChatRoomViewM
      * 監視するチャンネルの一覧が更新されたときにViewに反映するメソッド
      */
     private void channelChanged(MapChangeListener.Change<? extends TwitchChannelViewModel, ? extends SingleChatRoomViewModel> change) {
+        if (owned.isClosed()) return;
+        if (change.wasRemoved()) {
+            var node = profileImageNodes.remove(change.getKey());
+            if (node != null) profileImageContainer.getItems().remove(node);
+            var profile = profiles.remove(change.getKey()); if (profile != null) profile.close();
+        }
         if (change.wasAdded()) {
             var channel = change.getKey();
             var node = createProfileImageView(channel);
-            profileImageNodes.put(channel, node);
-            profileImageContainer.getItems().add(node);
-        }
-        if (change.wasRemoved()) {
-            var channel = change.getKey();
-            var node = profileImageNodes.get(channel);
-            if (node == null) return;
-            profileImageNodes.remove(channel);
-            profileImageContainer.getItems().remove(node);
+            profileImageNodes.put(channel, node); profileImageContainer.getItems().add(node);
         }
     }
 

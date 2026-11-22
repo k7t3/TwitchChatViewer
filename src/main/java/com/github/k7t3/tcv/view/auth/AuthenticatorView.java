@@ -19,7 +19,7 @@ package com.github.k7t3.tcv.view.auth;
 import atlantafx.base.controls.CustomTextField;
 import atlantafx.base.layout.InputGroup;
 import com.github.k7t3.tcv.app.auth.AuthenticatorViewModel;
-import com.github.k7t3.tcv.app.event.LoginEvent;
+import com.github.k7t3.tcv.view.core.ViewResources;
 import de.saxsys.mvvmfx.FxmlView;
 import de.saxsys.mvvmfx.InjectViewModel;
 import javafx.application.Platform;
@@ -35,7 +35,21 @@ import javafx.scene.layout.Pane;
 import java.net.URL;
 import java.util.ResourceBundle;
 
-public class AuthenticatorView implements FxmlView<AuthenticatorViewModel>, Initializable {
+public class AuthenticatorView implements FxmlView<AuthenticatorViewModel>, Initializable, AutoCloseable {
+    private final ViewResources owned = new ViewResources();
+    private final Runnable endModel;
+
+    public AuthenticatorView() { this(null); }
+
+    /** 外側の所有者がある場合は、その一回限りの解放を取り外し時にも要求する。 */
+    public AuthenticatorView(Runnable endModel) { this.endModel = endModel; }
+
+    private void releaseModel() {
+        if (endModel != null) endModel.run();
+        else if (viewModel != null) viewModel.close();
+    }
+
+    @Override public void close() { owned.close(); }
 
     @FXML
     private Pane root;
@@ -64,32 +78,69 @@ public class AuthenticatorView implements FxmlView<AuthenticatorViewModel>, Init
     @FXML
     private ProgressBar progressBar;
 
+    @FXML
+    private Label errorLabel;
+
+    @FXML
+    private Button retryButton;
+
     @InjectViewModel
     private AuthenticatorViewModel viewModel;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
+        if (owned.isClosed()) { releaseModel(); return; }
+        owned.add(this::releaseModel);
+        owned.add(this::detachControls);
+        javafx.beans.value.ChangeListener<javafx.scene.Parent> parentChanged = (observable, oldParent, newParent) -> {
+            if (oldParent != null && newParent == null) close();
+        };
+        root.parentProperty().addListener(parentChanged);
+        owned.add(() -> root.parentProperty().removeListener(parentChanged));
         authUriLink.disableProperty().bind(viewModel.initializedProperty().not());
         authUriLink.textProperty().bind(viewModel.authUriProperty());
-        authUriLink.setOnAction(e -> viewModel.openAuthUri());
+        authUriLink.setOnAction(e -> { if (!owned.isClosed()) viewModel.openAuthUri(); });
 
         userCodeGroup.visibleProperty().bind(viewModel.initializedProperty());
         userCodeField.textProperty().bind(viewModel.userCodeProperty());
-        userCodeField.focusedProperty().addListener((ob, o, n) -> {
-            if (n) {
-                Platform.runLater(() -> userCodeField.selectAll());
+        javafx.beans.value.ChangeListener<Boolean> focused = (ob, o, n) -> {
+            if (n && !owned.isClosed()) {
+                Platform.runLater(() -> { if (!owned.isClosed() && userCodeField.isFocused()) userCodeField.selectAll(); });
             }
-        });
+        };
+        userCodeField.focusedProperty().addListener(focused);
+        owned.add(() -> userCodeField.focusedProperty().removeListener(focused));
 
         openLinkButton.visibleProperty().bind(viewModel.initializedProperty());
-        openLinkButton.setOnAction(e -> viewModel.openAuthUri());
+        openLinkButton.setOnAction(e -> { if (!owned.isClosed()) viewModel.openAuthUri(); });
 
         clipAuthUriButton.visibleProperty().bind(viewModel.initializedProperty());
-        clipAuthUriButton.setOnAction(e -> viewModel.clipAuthUri());
+        clipAuthUriButton.setOnAction(e -> { if (!owned.isClosed()) viewModel.clipAuthUri(); });
 
         qrcodeImageView.imageProperty().bind(viewModel.qrcodeProperty());
 
-        viewModel.subscribe(LoginEvent.class, e -> progressBar.setProgress(1d));
+        progressBar.progressProperty().bind(viewModel.busyProperty().map(busy -> busy ? -1d : 0d));
+        errorLabel.textProperty().bind(viewModel.errorProperty());
+        errorLabel.visibleProperty().bind(viewModel.errorProperty().isNotEmpty());
+        errorLabel.managedProperty().bind(errorLabel.visibleProperty());
+        retryButton.visibleProperty().bind(errorLabel.visibleProperty());
+        retryButton.managedProperty().bind(retryButton.visibleProperty());
+        retryButton.setOnAction(event -> { if (!owned.isClosed()) viewModel.beginAuthentication(); });
     }
 
+    private void detachControls() {
+        if (authUriLink != null) {
+            authUriLink.disableProperty().unbind(); authUriLink.textProperty().unbind(); authUriLink.setOnAction(null);
+        }
+        if (userCodeGroup != null) userCodeGroup.visibleProperty().unbind();
+        if (userCodeField != null) userCodeField.textProperty().unbind();
+        for (var button : new Button[] {openLinkButton, clipAuthUriButton, retryButton}) {
+            if (button != null) { button.visibleProperty().unbind(); button.managedProperty().unbind(); button.setOnAction(null); }
+        }
+        if (qrcodeImageView != null) { qrcodeImageView.imageProperty().unbind(); qrcodeImageView.setImage(null); }
+        if (progressBar != null) { progressBar.progressProperty().unbind(); progressBar.setProgress(0); }
+        if (errorLabel != null) {
+            errorLabel.textProperty().unbind(); errorLabel.visibleProperty().unbind(); errorLabel.managedProperty().unbind();
+        }
+    }
 }

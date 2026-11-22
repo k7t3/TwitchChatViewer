@@ -16,91 +16,173 @@
 
 package com.github.k7t3.tcv.app.core;
 
+import com.github.k7t3.tcv.lifecycle.CloseActions;
+import com.github.k7t3.tcv.app.event.SessionInvalidatedEvent;
+import de.saxsys.mvvmfx.MvvmFX;
+import javafx.application.Platform;
+
 import com.github.k7t3.tcv.app.chat.filter.ChatFilters;
 import com.github.k7t3.tcv.app.group.ChannelGroupRepository;
+import com.github.k7t3.tcv.app.image.ImageLoader;
 import com.github.k7t3.tcv.app.keyboard.KeyBindingCombinations;
-import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.app.service.TaskWorker;
 import com.github.k7t3.tcv.app.service.WindowBoundsService;
 import com.github.k7t3.tcv.app.user.UserDataFile;
+import com.github.k7t3.tcv.app.prefs.SettingsSaveService;
+import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.domain.Twitch;
+import com.github.k7t3.tcv.domain.channel.ChannelRepository;
 import com.github.k7t3.tcv.domain.event.EventPublishers;
 import com.github.k7t3.tcv.domain.event.EventSubscribers;
 import com.github.k7t3.tcv.entity.service.ChannelGroupEntityService;
-import com.github.k7t3.tcv.entity.service.ChatKeywordFilterEntityService;
-import com.github.k7t3.tcv.entity.service.ChatUserFilterEntityService;
+import com.github.k7t3.tcv.entity.service.ChatFilterEntityStore;
+
 import com.github.k7t3.tcv.entity.service.WindowBoundsEntityService;
 import javafx.beans.property.*;
 import javafx.stage.Stage;
 
 import java.io.Closeable;
 import java.util.Objects;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Executor;
+import java.util.function.Function;
+import java.util.function.Consumer;
 
 public class AppHelper implements Closeable {
-
-    private final ReadOnlyStringWrapper userId = new ReadOnlyStringWrapper();
-    private final ReadOnlyStringWrapper userName = new ReadOnlyStringWrapper();
-    private final ReadOnlyBooleanWrapper authorized = new ReadOnlyBooleanWrapper();
-    private final ObjectProperty<Twitch> twitch = new SimpleObjectProperty<>();
-
     private ObjectProperty<Stage> primaryStage;
 
-    private final EventPublishers publishers = new EventPublishers();
-    private final EventSubscribers subscribers = new EventSubscribers(publishers);
+    private final EventPublishers publishers;
+    private final EventSubscribers subscribers;
+    private final TaskWorker worker;
+    private final Consumer<Throwable> failureHandler;
 
     private UserDataFile userDataFile;
     private ChannelGroupRepository channelGroupRepository;
     private WindowBoundsService windowBoundsService;
     private KeyBindingCombinations keyBindingCombinations;
+    private ChatFilterEntityStore chatFilterStore;
     private ChatFilters chatFilters;
+    private final List<CompletionStage<Void>> lifetimeReleases = new ArrayList<>();
+    private final List<Throwable> lifetimeReleaseFailures = new ArrayList<>();
+    private final Object lifecycleLock = new Object();
+    private ImageLoader imageLoader;
+    private boolean closed;
+    private boolean preparingShutdown;
+    private boolean uiModelsReleased;
+    private final ClientSessions sessions;
+    private final CompletableFuture<Void> applicationClosed = new CompletableFuture<>();
+    private Thread closingThread;
 
-    private AppHelper() {
-        userId.bind(twitch.map(Twitch::getUserId));
-        userName.bind(twitch.map(Twitch::getUserName));
-        authorized.bind(twitch.isNotNull());
+    /** このアプリ専用のワーカーと発行元を新しく所有する。 */
+    public AppHelper(Consumer<Throwable> failureHandler) {
+        this(new TaskWorker(), new EventPublishers(), failureHandler);
+    }
+
+    /** 注入したワーカーと発行元を、このアプリケーションが終了まで所有する。 */
+    public AppHelper(TaskWorker worker, EventPublishers publishers, Consumer<Throwable> failureHandler) {
+        this(worker, publishers, client -> new ChannelRepository(client, publishers), failureHandler);
+    }
+
+    AppHelper(TaskWorker worker, EventPublishers publishers, Function<Twitch, ChannelRepository> channelFactory,
+              Consumer<Throwable> failureHandler) {
+        this.worker = Objects.requireNonNull(worker);
+        this.publishers = Objects.requireNonNull(publishers);
+        this.failureHandler = Objects.requireNonNull(failureHandler);
+        this.subscribers = new EventSubscribers(publishers);
+        this.sessions = new ClientSessions(command -> worker.getExecutor().execute(command), Platform::runLater,
+                channelFactory, this::publishSessionInvalidated);
+    }
+
+    private void publishSessionInvalidated() {
+        var event = new SessionInvalidatedEvent(sessions);
+        MvvmFX.getNotificationCenter().publish(SessionInvalidatedEvent.class.getName(), event);
+    }
+
+    /** 現在セッションの操作・状態を借用する。終了はアプリ全体の所有者が行う。 */
+    public ClientSessions getClientSessions() {
+        synchronized (lifecycleLock) { checkOpen(); return sessions; }
     }
 
     public void setUserDataFile(UserDataFile userDataFile) {
-        this.userDataFile = userDataFile;
+        synchronized (lifecycleLock) {
+            checkOpen();
+            Objects.requireNonNull(userDataFile);
+            if (this.userDataFile != null && this.userDataFile != userDataFile) {
+                throw new IllegalStateException("application already owns a user database");
+            }
+            this.userDataFile = userDataFile;
+        }
     }
 
     public UserDataFile getUserDataFile() {
-        return userDataFile;
+        synchronized (lifecycleLock) { return userDataFile; }
     }
 
     public ChannelGroupRepository getChannelGroupRepository() {
-        if (channelGroupRepository == null) {
-            var userDataFile = getUserDataFile();
-            var groupService = new ChannelGroupEntityService(userDataFile.getConnector());
-            channelGroupRepository = new ChannelGroupRepository(groupService);
+        synchronized (lifecycleLock) {
+            checkOpen();
+            if (channelGroupRepository == null) {
+                var userDataFile = Objects.requireNonNull(getUserDataFile());
+                var groupService = new ChannelGroupEntityService(userDataFile.getConnector());
+                channelGroupRepository = new ChannelGroupRepository(groupService, worker.getExecutor(), this::awaitOnShutdown,
+                        this::reportFailure);
+                channelGroupRepository.setEventSubscribers(subscribers);
+            }
+            return channelGroupRepository;
         }
-        return channelGroupRepository;
     }
 
     public WindowBoundsService getWindowBoundsService() {
-        if (windowBoundsService == null) {
-            var userDataFile = Objects.requireNonNull(getUserDataFile());
-            var entityService = new WindowBoundsEntityService(userDataFile.getConnector());
-            windowBoundsService = new WindowBoundsService(entityService);
+        synchronized (lifecycleLock) {
+            checkOpen();
+            if (windowBoundsService == null) {
+                var userDataFile = Objects.requireNonNull(getUserDataFile());
+                var entityService = new WindowBoundsEntityService(userDataFile.getConnector());
+                windowBoundsService = new WindowBoundsService(entityService, worker.getExecutor(), this::awaitOnShutdown);
+            }
+            return windowBoundsService;
         }
-        return windowBoundsService;
     }
 
     public KeyBindingCombinations getKeyBindingCombinations() {
-        if (keyBindingCombinations == null) {
-            keyBindingCombinations = new KeyBindingCombinations();
+        synchronized (lifecycleLock) {
+            checkOpen();
+            if (keyBindingCombinations == null) keyBindingCombinations = new KeyBindingCombinations();
+            return keyBindingCombinations;
         }
-        return keyBindingCombinations;
+    }
+
+    public ChatFilterEntityStore getChatFilterStore() {
+        synchronized (lifecycleLock) {
+            checkOpen();
+            if (chatFilterStore == null) chatFilterStore = new ChatFilterEntityStore(Objects.requireNonNull(getUserDataFile()).getConnector());
+            return chatFilterStore;
+        }
+    }
+
+    /** 設定キャッシュを構築する前に、接続済みDBの未完了投影を背景で復旧する。 */
+    public void recoverSettings(AppPreferences preferences) {
+        new SettingsSaveService(preferences, getChatFilterStore()).recover();
     }
 
     public ChatFilters getChatFilters() {
-        if (chatFilters == null) {
-            var userDataFile = Objects.requireNonNull(getUserDataFile());
-            var a = new ChatKeywordFilterEntityService(userDataFile.getConnector());
-            var b = new ChatUserFilterEntityService(userDataFile.getConnector());
-            chatFilters = new ChatFilters(a, b);
+        synchronized (lifecycleLock) {
+            checkOpen();
+            if (chatFilters == null) {
+                chatFilters = new ChatFilters(getChatFilterStore(), worker.getExecutor(), this::awaitOnShutdown,
+                        this::reportFailure);
+                chatFilters.setEventSubscribers(subscribers);
+            }
+            return chatFilters;
         }
-        return chatFilters;
+    }
+
+    private void reportFailure(Throwable failure) {
+        failureHandler.accept(failure);
     }
 
     public EventPublishers getPublishers() {
@@ -111,58 +193,157 @@ public class AppHelper implements Closeable {
         return subscribers;
     }
 
-    public FXTask<Void> logoutAsync() {
-        if (!isAuthorized()) return FXTask.empty();
+    /**
+     * アプリが所有する共有画像サービスを借用する。終了は AppHelper が行う。
+     * @return 共有画像サービス
+     * @throws IllegalStateException アプリが終了している場合
+     */
+    public ImageLoader getImageLoader() {
+        synchronized (lifecycleLock) {
+            checkOpen();
+            if (imageLoader == null) imageLoader = new ImageLoader(worker.getExecutor());
+            return imageLoader;
+        }
+    }
 
-        final var twitch = getTwitch();
-        setTwitch(null);
+    public ChannelRepository getChannelRepository() {
+        synchronized (lifecycleLock) {
+            checkOpen();
+            return sessions.getChannelRepository();
+        }
+    }
 
-        var task = FXTask.task(twitch::logout);
-        task.runAsync();
-        return task;
+    public Executor getExecutor() {
+        synchronized (lifecycleLock) {
+            checkOpen();
+            return worker.getExecutor();
+        }
+    }
+
+    /** UI が開始前から所有する非同期解放を登録し、アプリ終了時に完了と失敗を回収する。 */
+    public void awaitOnShutdown(CompletionStage<Void> release) {
+        Objects.requireNonNull(release);
+        synchronized (lifecycleLock) {
+            checkOpen();
+            if (lifetimeReleases.contains(release)) return;
+            lifetimeReleases.add(release);
+            release.whenComplete((ignored, failure) -> {
+                synchronized (lifecycleLock) {
+                    lifetimeReleases.remove(release);
+                    if (failure != null) lifetimeReleaseFailures.add(unwrap(failure));
+                }
+            });
+        }
+    }
+
+    public CompletionStage<Void> logoutAsync() {
+        return logoutAsync(() -> {});
+    }
+
+    /** FX 側を切り離してから、捕捉した同じセッションを背景で終了する。観測の取消は解放に作用しない。 */
+    public CompletionStage<Void> logoutAsync(Runnable detachViews) {
+        synchronized (lifecycleLock) { checkOpen(); }
+        return sessions.logoutAsync(detachViews);
+    }
+
+    /** FX 側の参照・購読を閉じ、新しいサービス取得を止める。UI 所有者が close の前に呼ぶ。 */
+    public void prepareShutdown() {
+        final ChannelGroupRepository groups;
+        final ChatFilters filters;
+        final WindowBoundsService bounds;
+        synchronized (lifecycleLock) {
+            preparingShutdown = true;
+            if (uiModelsReleased) return;
+            uiModelsReleased = true;
+            sessions.stopAccepting();
+            groups = channelGroupRepository;
+            filters = chatFilters;
+            bounds = windowBoundsService;
+        }
+        CloseActions.runAll(sessions::freezeCredentials, sessions::detachViews, () -> { if (groups != null) groups.close(); },
+                () -> { if (filters != null) filters.close(); }, () -> { if (bounds != null) bounds.close(); });
     }
 
     @Override
     public void close() {
-        if (userDataFile != null) {
-            userDataFile.closeDatabase();
+        final ImageLoader images;
+        final List<CompletionStage<Void>> releases;
+        final List<Throwable> releaseFailures;
+        final boolean owner;
+        synchronized (lifecycleLock) {
+            if (closingThread == Thread.currentThread()) return;
+            owner = !closed;
+            if (owner) {
+                closed = true;
+                closingThread = Thread.currentThread();
+                sessions.stopAccepting();
+            }
+            images = imageLoader;
+            releases = List.copyOf(lifetimeReleases);
+            releaseFailures = List.copyOf(lifetimeReleaseFailures);
         }
-
-        var twitch = getTwitch();
-        if (twitch != null) {
-            twitch.close();
+        if (!owner) {
+            try { applicationClosed.join(); }
+            catch (CompletionException failure) { rethrow(unwrap(failure)); }
+            return;
         }
-
-        var publishers = getPublishers();
-        publishers.close();
-
-        var worker = TaskWorker.getInstance();
-        worker.close();
+        try {
+            CloseActions.runAll(
+                    this::prepareShutdown,
+                    () -> { if (images != null) images.close(); },
+                    worker::close,
+                    () -> CloseActions.runAll(releases.stream().map(release -> (Runnable) () -> {
+                        try { release.toCompletableFuture().join(); }
+                        catch (CompletionException failure) { rethrow(unwrap(failure)); }
+                    }).toArray(Runnable[]::new)),
+                    () -> CloseActions.runAll(releaseFailures.stream().map(failure -> (Runnable) () -> rethrow(failure)).toArray(Runnable[]::new)),
+                    sessions::close,
+                    publishers::close,
+                    () -> { if (userDataFile != null) userDataFile.closeDatabase(); }
+            );
+            applicationClosed.complete(null);
+        } catch (RuntimeException | Error failure) {
+            applicationClosed.completeExceptionally(failure);
+            throw failure;
+        } finally {
+            synchronized (lifecycleLock) { closingThread = null; }
+        }
     }
 
-    public static AppHelper getInstance() {
-        return Holder.INSTANCE;
-    }
-
-    private static class Holder {
-        private static final AppHelper INSTANCE = new AppHelper();
-    }
 
     // ########################################
     // PROPERTIES
 
-    public ReadOnlyStringProperty userIdProperty() { return userId.getReadOnlyProperty(); }
-    public String getUserId() { return userId.get(); }
+    public ReadOnlyStringProperty userIdProperty() { return sessions.userIdProperty(); }
+    public String getUserId() { return sessions.getUserId(); }
 
-    public ReadOnlyStringProperty userNameProperty() { return userName.getReadOnlyProperty(); }
-    public String getUserName() { return userName.get(); }
+    public ReadOnlyStringProperty userNameProperty() { return sessions.userNameProperty(); }
+    public String getUserName() { return sessions.getUserName(); }
 
-    public ReadOnlyBooleanProperty authorizedProperty() { return authorized.getReadOnlyProperty(); }
-    public boolean isAuthorized() { return authorized.get(); }
+    public ReadOnlyBooleanProperty authorizedProperty() { return sessions.authorizedProperty(); }
+    public boolean isAuthorized() { return sessions.isAuthorized(); }
 
-    public ObjectProperty<Twitch> twitchProperty() { return twitch; }
-    public Twitch getTwitch() { return twitch.get(); }
-    public void setTwitch(Twitch twitch) { this.twitch.set(twitch); }
+    public ReadOnlyObjectProperty<Twitch> twitchProperty() { return sessions.twitchProperty(); }
+    public Twitch getTwitch() { return sessions.getTwitch(); }
+    public void setTwitch(Twitch client) {
+        synchronized (lifecycleLock) { checkOpen(); }
+        sessions.adopt(client);
+    }
+
+    private void checkOpen() {
+        if (closed || preparingShutdown) throw new IllegalStateException("application is closed");
+    }
+
+    private static Throwable unwrap(Throwable failure) {
+        while (failure instanceof CompletionException && failure.getCause() != null) failure = failure.getCause();
+        return failure;
+    }
+
+    private static void rethrow(Throwable failure) {
+        if (failure instanceof RuntimeException exception) throw exception;
+        if (failure instanceof Error error) throw error;
+        throw new IllegalStateException(failure);
+    }
 
     public ObjectProperty<Stage> primaryStageProperty() {
         if (primaryStage == null) primaryStage = new SimpleObjectProperty<>();

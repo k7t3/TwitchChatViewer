@@ -17,119 +17,85 @@
 package com.github.k7t3.tcv.view.main;
 
 import atlantafx.base.controls.ModalPane;
-import com.github.k7t3.tcv.app.auth.AuthenticatorViewModel;
-import com.github.k7t3.tcv.app.core.ExceptionHandler;
 import com.github.k7t3.tcv.app.core.Resources;
+import com.github.k7t3.tcv.app.event.LoginEvent;
 import com.github.k7t3.tcv.app.main.MainViewModel;
-import com.github.k7t3.tcv.app.service.FXTask;
+import com.github.k7t3.tcv.app.model.TypeSafeNotificationObserver;
 import com.github.k7t3.tcv.domain.auth.CredentialStore;
-import com.github.k7t3.tcv.view.auth.AuthenticatorView;
-import com.github.k7t3.tcv.view.core.JavaFXHelper;
-import de.saxsys.mvvmfx.FluentViewLoader;
+import com.github.k7t3.tcv.lifecycle.CloseActions;
+import com.github.k7t3.tcv.view.command.LoadCredentialCommand;
+import com.github.k7t3.tcv.view.core.OwnedDialog;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.value.ObservableValue;
-import javafx.concurrent.WorkerStateEvent;
-import javafx.css.PseudoClass;
-import javafx.geometry.Side;
+import javafx.beans.value.ChangeListener;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.MenuItem;
 import javafx.scene.layout.Pane;
 import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.javafx.FontIcon;
+import java.util.function.Supplier;
 
-public class AuthenticationMenuItem extends MenuItem {
-
-    private static final String STYLE_CLASS = "auth-menu-item";
-
-    private final ModalPane modalPane;
-    private final CredentialStore credentialStore;
+/** 認証メニューが、ログイン画面とログアウト確認を所有する。Main のモデルは借用する。 */
+public class AuthenticationMenuItem extends MenuItem implements AutoCloseable {
+    private final LoadCredentialCommand loginCommand;
+    private final OwnedDialog<ButtonType> confirmations;
     private final Pane rootPane;
     private final MainViewModel viewModel;
     private final BooleanProperty authorized = new SimpleBooleanProperty();
+    private final ChangeListener<Boolean> authorizationChanged;
+    private final TypeSafeNotificationObserver<LoginEvent> loginChanged;
+    private boolean closed;
 
-    public AuthenticationMenuItem(
-            ModalPane modalPane,
-            CredentialStore credentialStore,
-            Pane rootPane,
-            MainViewModel mainViewModel
-    ) {
-        this.modalPane = modalPane;
-        this.credentialStore = credentialStore;
-        this.rootPane = rootPane;
-        this.viewModel = mainViewModel;
-        getStyleClass().add(STYLE_CLASS);
-
-        // アイコン
-        var loginIcon = new FontIcon(Feather.LOG_IN);
-        var logoutIcon = new FontIcon(Feather.LOG_OUT);
-        graphicProperty().bind(authorized.map(b -> b ? logoutIcon : loginIcon));
-
-        // テキスト
-        var loginMsg = Resources.getString("main.menu.login");
-        var logoutMsg = Resources.getString("main.menu.logout");
-        textProperty().bind(authorized.map(b -> b ? logoutMsg : loginMsg));
-
-        setOnAction(e -> {
-            if (isAuthorized())
-                logout();
-            else
-                login();
-        });
+    public AuthenticationMenuItem(ModalPane pane, CredentialStore store, Pane root, MainViewModel model) {
+        this(pane, store, root, model, () -> new Alert(Alert.AlertType.CONFIRMATION));
     }
 
-    private void login() {
-        var authenticator = new AuthenticatorViewModel(credentialStore);
-        var tuple = FluentViewLoader.fxmlView(AuthenticatorView.class)
-                .viewModel(authenticator)
-                .resourceBundle(Resources.getResourceBundle())
-                .load();
-
-        var view = tuple.getView();
-
-        // 読み込み画面を表示
-        modalPane.usePredefinedTransitionFactories(Side.TOP);
-        modalPane.setPersistent(true);
-        modalPane.show(view);
-
-        // 既存の資格情報を読み込む
-        var loadAsync = authenticator.loadClientAsync();
-        loadAsync.onDone(() -> {
-            // 資格情報の取得に成功
-            if (loadAsync.getValue().isPresent()) {
-                return;
-            }
-
-            // 認証が確認できなかったときは認証フローを開始する。
-            // デバイス認証フローのリンクURLが表示され、そのリンクから
-            // 認証が許可されるまでポーリングし続ける。
-
-            // 認証フローの開始
-            var flowAsync = authenticator.startAuthenticateAsync();
-            flowAsync.addEventHandler(WorkerStateEvent.WORKER_STATE_FAILED, e2 -> {
-                var exception = flowAsync.getException();
-                ExceptionHandler.handle(exception);
+    AuthenticationMenuItem(ModalPane pane, CredentialStore store, Pane root, MainViewModel model, Supplier<Alert> dialogs) {
+        rootPane = root; viewModel = model;
+        confirmations = new OwnedDialog<>(dialogs);
+        loginCommand = new LoadCredentialCommand(pane, authorized.not(), () -> model.createAuthenticator(store));
+        authorizationChanged = (observable, previous, current) -> { if (!closed) confirmations.cancel(); };
+        loginChanged = event -> { if (!closed) confirmations.cancel(); };
+        try {
+            getStyleClass().add("auth-menu-item");
+            var loginIcon = new FontIcon(Feather.LOG_IN); var logoutIcon = new FontIcon(Feather.LOG_OUT);
+            graphicProperty().bind(authorized.map(value -> value ? logoutIcon : loginIcon));
+            var loginText = Resources.getString("main.menu.login"); var logoutText = Resources.getString("main.menu.logout");
+            textProperty().bind(authorized.map(value -> value ? logoutText : loginText));
+            authorized.addListener(authorizationChanged);
+            model.subscribe(LoginEvent.class, loginChanged);
+            setOnAction(event -> {
+                if (closed) return;
+                if (isAuthorized()) logout(); else loginCommand.execute();
             });
-        });
+        } catch (RuntimeException | Error failure) {
+            CloseActions.runAll(() -> { if (failure instanceof RuntimeException exception) throw exception; throw (Error) failure; }, this::close);
+            throw failure;
+        }
     }
 
     private void logout() {
-        var parent = rootPane.getScene().getWindow();
+        confirmations.show(dialog -> {
+            var scene = rootPane.getScene();
+            dialog.initOwner(scene == null ? null : scene.getWindow());
+            dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
+            dialog.setTitle(Resources.getString("alert.title.confirmation"));
+            dialog.setHeaderText(Resources.getString("logout.confirm.header"));
+            dialog.setContentText(Resources.getString("logout.confirm.content"));
+        }).filter(result -> result == ButtonType.OK).ifPresent(result -> {
+            if (!closed && isAuthorized()) viewModel.logout();
+        });
+    }
 
-        var confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.initOwner(parent);
-        confirm.getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
-        confirm.setTitle(Resources.getString("alert.title.confirmation"));
-        confirm.setHeaderText(Resources.getString("logout.confirm.header"));
-        confirm.setContentText(Resources.getString("logout.confirm.content"));
-
-        var result = confirm.showAndWait();
-        if (result.isEmpty() || result.get() != ButtonType.OK) {
-            return;
-        }
-
-        viewModel.logout();
+    @Override public void close() {
+        if (closed) return;
+        closed = true;
+        CloseActions.runAll(() -> viewModel.unsubscribe(LoginEvent.class, loginChanged),
+                confirmations::close, loginCommand::close, () -> {
+                    authorized.removeListener(authorizationChanged); authorized.unbind();
+                    textProperty().unbind(); graphicProperty().unbind(); setGraphic(null); setOnAction(null);
+                });
     }
 
     public BooleanProperty authorizedProperty() { return authorized; }

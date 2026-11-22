@@ -18,14 +18,11 @@ package com.github.k7t3.tcv.domain.channel;
 
 import com.github.k7t3.tcv.domain.Twitch;
 import com.github.k7t3.tcv.domain.event.EventPublishers;
+import com.github.k7t3.tcv.domain.event.EventSubscriptionScope;
 import com.github.k7t3.tcv.domain.event.channel.ChannelOfflineEvent;
 import com.github.k7t3.tcv.domain.event.channel.ChannelOnlineEvent;
 import com.github.k7t3.tcv.domain.event.channel.StreamStateUpdateEvent;
-import com.github.philippheuer.events4j.api.domain.IDisposable;
-import com.github.twitch4j.events.*;
-
-import java.util.ArrayList;
-import java.util.List;
+import com.github.k7t3.tcv.domain.event.stream.StreamStateEvent;
 import java.util.concurrent.ConcurrentHashMap;
 
 class TwitchChannelEventProvider {
@@ -35,7 +32,8 @@ class TwitchChannelEventProvider {
     private final Twitch twitch;
     private final EventPublishers eventPublishers;
 
-    private List<IDisposable> subscriptions;
+    private final Object lifecycleLock = new Object();
+    private EventSubscriptionScope subscriptions;
 
     public TwitchChannelEventProvider(Twitch twitch, EventPublishers publishers) {
         this.twitch = twitch;
@@ -49,70 +47,88 @@ class TwitchChannelEventProvider {
 
     public void remove(TwitchChannel channel) {
         var channelId = channel.getBroadcaster().getUserId();
-        channelMap.remove(channelId);
+        channelMap.computeIfPresent(channelId, (id, current) -> current == channel ? null : current);
     }
 
     public void listen() {
-        if (subscriptions != null) throw new IllegalStateException();
-
-        var client = twitch.getClient();
-        var eventManager = client.getEventManager();
-
-        subscriptions = new ArrayList<>();
-        subscriptions.add(eventManager.onEvent(ChannelGoLiveEvent.class, this::onChannelGoLiveEvent));
-        subscriptions.add(eventManager.onEvent(ChannelGoOfflineEvent.class, this::onChannelGoOfflineEvent));
-        subscriptions.add(eventManager.onEvent(ChannelViewerCountUpdateEvent.class, this::onChannelViewerCountUpdateEvent));
-        subscriptions.add(eventManager.onEvent(ChannelChangeTitleEvent.class, this::onChannelChangeTitleEvent));
-        subscriptions.add(eventManager.onEvent(ChannelChangeGameEvent.class, this::onChannelChangeGameEvent));
+        final EventSubscriptionScope opening;
+        synchronized (lifecycleLock) {
+            if (subscriptions != null) throw new IllegalStateException("channel events are already registered");
+            opening = new EventSubscriptionScope();
+            subscriptions = opening;
+        }
+        try {
+            opening.register(scope -> {
+                var eventManager = twitch.getClient().getEventManager();
+                scope.subscribe(eventManager, StreamStateEvent.Online.class, this::onChannelGoLiveEvent);
+                scope.subscribe(eventManager, StreamStateEvent.Offline.class, this::onChannelGoOfflineEvent);
+                scope.subscribe(eventManager, StreamStateEvent.Viewers.class, this::onChannelViewerCountUpdateEvent);
+                scope.subscribe(eventManager, StreamStateEvent.Title.class, this::onChannelChangeTitleEvent);
+                scope.subscribe(eventManager, StreamStateEvent.Game.class, this::onChannelChangeGameEvent);
+            });
+        } catch (RuntimeException | Error failure) {
+            synchronized (lifecycleLock) {
+                if (subscriptions == opening) subscriptions = null;
+            }
+            throw failure;
+        }
     }
 
     public void clean() {
-        if (subscriptions == null || subscriptions.isEmpty()) return;
-        for (var sub : subscriptions)
-            sub.dispose();
-        subscriptions.clear();
+        final EventSubscriptionScope owned;
+        synchronized (lifecycleLock) {
+            owned = subscriptions;
+            subscriptions = null;
+            channelMap.clear();
+        }
+        if (owned != null) owned.close();
     }
 
-    private void onChannelGoLiveEvent(ChannelGoLiveEvent e) {
-        var channel = channelMap.get(e.getChannel().getId());
+    private void onChannelGoLiveEvent(StreamStateEvent.Online e) {
+        var channel = channelMap.get(e.userId());
         if (channel == null) return;
 
-        var stream = StreamInfo.of(e.getStream());
+        var stream = e.stream();
+        channel.setStream(stream);
         var onlineEvent = new ChannelOnlineEvent(channel, stream);
         eventPublishers.submit(onlineEvent);
     }
 
-    private void onChannelGoOfflineEvent(ChannelGoOfflineEvent e) {
-        var channel = channelMap.get(e.getChannel().getId());
+    private void onChannelGoOfflineEvent(StreamStateEvent.Offline e) {
+        var channel = channelMap.get(e.userId());
         if (channel == null) return;
 
+        channel.setStream(null);
         var offlineEvent = new ChannelOfflineEvent(channel);
         eventPublishers.submit(offlineEvent);
     }
 
-    private void onChannelViewerCountUpdateEvent(ChannelViewerCountUpdateEvent e) {
-        var channel = channelMap.get(e.getChannel().getId());
+    private void onChannelViewerCountUpdateEvent(StreamStateEvent.Viewers e) {
+        var channel = channelMap.get(e.userId());
         if (channel == null) return;
 
-        var stream = StreamInfo.of(e.getStream());
+        var stream = e.stream();
+        channel.setStream(stream);
         var onlineEvent = new StreamStateUpdateEvent(channel, stream);
         eventPublishers.submit(onlineEvent);
     }
 
-    private void onChannelChangeTitleEvent(ChannelChangeTitleEvent e) {
-        var channel = channelMap.get(e.getChannel().getId());
+    private void onChannelChangeTitleEvent(StreamStateEvent.Title e) {
+        var channel = channelMap.get(e.userId());
         if (channel == null) return;
 
-        var stream = StreamInfo.of(e.getStream());
+        var stream = e.stream();
+        channel.setStream(stream);
         var onlineEvent = new StreamStateUpdateEvent(channel, stream);
         eventPublishers.submit(onlineEvent);
     }
 
-    private void onChannelChangeGameEvent(ChannelChangeGameEvent e) {
-        var channel = channelMap.get(e.getChannel().getId());
+    private void onChannelChangeGameEvent(StreamStateEvent.Game e) {
+        var channel = channelMap.get(e.userId());
         if (channel == null) return;
 
-        var stream = StreamInfo.of(e.getStream());
+        var stream = e.stream();
+        channel.setStream(stream);
         var onlineEvent = new StreamStateUpdateEvent(channel, stream);
         eventPublishers.submit(onlineEvent);
     }

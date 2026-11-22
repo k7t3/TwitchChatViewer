@@ -19,7 +19,6 @@ package com.github.k7t3.tcv.app.event;
 import com.github.k7t3.tcv.app.channel.MultipleChatOpenType;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -40,7 +39,7 @@ public class ChatOpeningEvent implements AppEvent {
             List<TwitchChannelViewModel> channels
     ) {
         this.chatOpenType = chatOpenType;
-        this.channels = Collections.unmodifiableList(channels);
+        this.channels = List.copyOf(channels);
     }
 
     /**

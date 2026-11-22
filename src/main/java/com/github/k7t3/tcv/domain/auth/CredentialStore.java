@@ -17,12 +17,29 @@
 package com.github.k7t3.tcv.domain.auth;
 
 import com.github.philippheuer.credentialmanager.api.IStorageBackend;
+import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
+import com.github.philippheuer.credentialmanager.domain.Credential;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.BooleanSupplier;
 
 public interface CredentialStore extends IStorageBackend {
+
+    record Snapshot(String revision, List<Credential> credentials) {
+        public Snapshot { credentials = List.copyOf(credentials); }
+    }
+
+    Snapshot snapshot();
+
+    /** 比較と許可判定と保存を同じ排他区間で行い、変更した版を返す。 */
+    Optional<Snapshot> compareAndSet(Snapshot expected, List<Credential> replacement, BooleanSupplier permitted);
 
     /**
      * 保存されている資格情報をクリアする
      */
     void clearCredentials();
+
+    /** 現在の保存値に同じ provider / access token がある場合だけ、その資格情報を削除する。 */
+    boolean removeCredential(OAuth2Credential expected);
 
 }

@@ -19,27 +19,34 @@ package com.github.k7t3.tcv.app.secure;
 import com.github.k7t3.tcv.app.core.OS;
 
 import java.nio.file.Path;
+import java.util.function.Supplier;
+import java.util.Arrays;
+import java.time.Duration;
 
+/** OS保護または明示パスワードの鍵管理を、暗号化サービスの所有範囲へ遅延構築する。 */
 public class KeyManagerFactory {
 
     static final String DEFAULT_PATH = System.getProperty(
             "key.manager.path",
             OS.current().getApplicationDirectory().resolve("keymanager.ks").toString()
     );
-    static final String DEFAULT_PASSWORD = System.getProperty("key.manager.password", "changeit");
 
     private KeyManagerFactory() {
     }
 
-    public static KeyManager getInstance() {
-        return Holder.KEY_MANAGER;
+    /** OS保護を既定とし、key.manager.passwordの明示指定だけ従来方式を使用する。 */
+    public static CredentialCipherService create() {
+        return create(Path.of(DEFAULT_PATH), System.getProperty("key.manager.password"),
+                () -> new ProcessOsSecretStore(SecretStoreCommand::current, Duration.ofSeconds(30)));
     }
 
-    private static final class Holder {
-        private static final KeyManager KEY_MANAGER;
-        static {
-            KEY_MANAGER = new KeyManagerImpl(Path.of(DEFAULT_PATH), DEFAULT_PASSWORD.toCharArray());
-        }
+    static CredentialCipherService create(Path path, String explicitPassword, Supplier<OsSecretStore> osStore) {
+        return new CredentialCipherService(() -> {
+            if (explicitPassword == null) return new KeyManagerImpl(path, osStore.get());
+            var password = explicitPassword.toCharArray();
+            try { return new KeyManagerImpl(path, password); }
+            finally { Arrays.fill(password, '\0'); }
+        });
     }
 
 }

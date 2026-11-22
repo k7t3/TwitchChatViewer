@@ -20,61 +20,71 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Objects;
 
 public abstract class AbstractDBConnector implements DBConnector {
 
     private Connection connection = null;
+    private boolean transactionActive;
+    private boolean manualWork;
+    private boolean invalid;
 
     @Override
-    public void connect() {
+    public synchronized void connect() {
         if (connection != null) throw new IllegalStateException();
         this.connection = connectImpl();
+        invalid = false;
     }
 
     protected abstract Connection connectImpl();
 
     @Override
-    public boolean isConnected() {
-        return connection != null;
+    public synchronized boolean isConnected() {
+        return connection != null && !invalid;
     }
 
     private void validConnection() {
         if (connection == null) throw new IllegalStateException("connection is null");
+        if (invalid) throw new IllegalStateException("connection is invalid");
     }
 
     @Override
-    public void setAutoCommit(boolean autoCommit) {
+    public synchronized void setAutoCommit(boolean autoCommit) {
         validConnection();
         try {
             connection.setAutoCommit(autoCommit);
+            if (autoCommit) manualWork = false;
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
     @Override
-    public void commit() {
+    public synchronized void commit() {
         validConnection();
         try {
             connection.commit();
+            manualWork = false;
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
     @Override
-    public void rollback() {
+    public synchronized void rollback() {
         validConnection();
         try {
             connection.rollback();
+            manualWork = false;
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
     @Override
-    public void execute(String sql) {
+    public synchronized void execute(String sql) {
         validConnection();
+        markManualWork();
         try (var stmt = connection.createStatement()) {
             stmt.execute(sql);
         } catch (SQLException e) {
@@ -83,8 +93,9 @@ public abstract class AbstractDBConnector implements DBConnector {
     }
 
     @Override
-    public void query(String query, SQLFunction<ResultSet> function) {
+    public synchronized void query(String query, SQLFunction<ResultSet> function) {
         validConnection();
+        markManualWork();
         try (var stmt = connection.createStatement();
              var rs = stmt.executeQuery(query)) {
             function.invoke(rs);
@@ -94,8 +105,9 @@ public abstract class AbstractDBConnector implements DBConnector {
     }
 
     @Override
-    public void prepared(String prepared, SQLFunction<PreparedStatement> function) {
+    public synchronized void prepared(String prepared, SQLFunction<PreparedStatement> function) {
         validConnection();
+        markManualWork();
         try (var stmt = connection.prepareStatement(prepared)) {
             function.invoke(stmt);
         } catch (SQLException e) {
@@ -104,11 +116,88 @@ public abstract class AbstractDBConnector implements DBConnector {
     }
 
     @Override
-    public void close() {
+    public synchronized void readTransaction(Runnable action) {
+        validConnection();
+        Objects.requireNonNull(action);
+        if (transactionActive || manualWork) {
+            action.run();
+            return;
+        }
+        final boolean autoCommit;
+        try {
+            autoCommit = connection.getAutoCommit();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        if (autoCommit) setAutoCommit(false);
+        Throwable failure = null;
+        try {
+            transaction(action);
+        } catch (RuntimeException | Error e) {
+            failure = e;
+            throw e;
+        } finally {
+            if (autoCommit) {
+                try {
+                    setAutoCommit(true);
+                } catch (RuntimeException | Error restoreFailure) {
+                    if (failure == null) throw restoreFailure;
+                    failure.addSuppressed(restoreFailure);
+                }
+            }
+        }
+    }
+
+    private void markManualWork() {
+        try {
+            // 生のSQL APIが開始した範囲は、呼出元のcommit/rollbackまで借用する。
+            if (!transactionActive && !connection.getAutoCommit()) manualWork = true;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public synchronized void transaction(Runnable action) {
+        validConnection();
+        Objects.requireNonNull(action);
+        if (transactionActive) throw new IllegalStateException("nested transaction");
+        try {
+            if (connection.getAutoCommit()) throw new IllegalStateException("auto-commit must be disabled");
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        transactionActive = true;
+        try {
+            action.run();
+            commit();
+        } catch (RuntimeException | Error failure) {
+            try {
+                rollback();
+            } catch (RuntimeException | Error rollbackFailure) {
+                invalid = true;
+                if (rollbackFailure != failure) failure.addSuppressed(rollbackFailure);
+                // 結果が不明な接続を再利用すると、後続の読取が未確定更新をcommitできてしまう。
+                try {
+                    close();
+                } catch (RuntimeException | Error closeFailure) {
+                    if (closeFailure != failure) failure.addSuppressed(closeFailure);
+                }
+            }
+            throw failure;
+        } finally {
+            transactionActive = false;
+        }
+    }
+
+    @Override
+    public synchronized void close() {
         if (connection == null) return;
         try {
             connection.close();
             connection = null;
+            manualWork = false;
+            invalid = false;
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }

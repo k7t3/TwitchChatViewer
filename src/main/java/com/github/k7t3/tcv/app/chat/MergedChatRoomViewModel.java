@@ -20,6 +20,7 @@ import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.filter.ChatFilters;
 import com.github.k7t3.tcv.app.emoji.ChatEmojiStore;
 import com.github.k7t3.tcv.app.service.FXTask;
+import com.github.k7t3.tcv.app.service.FXTaskGroup;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
 import com.github.k7t3.tcv.domain.event.chat.ChatRoomStateUpdatedEvent;
 import de.saxsys.mvvmfx.ViewModel;
@@ -28,10 +29,6 @@ import javafx.collections.ObservableMap;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewModel {
@@ -49,8 +46,22 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
             ChatRoomContainerViewModel containerViewModel,
             ChatFilters chatFilters
     ) {
+        this(globalChatBadgeStore, emoteStore, definedChatColors, chatRooms, emojiCache, containerViewModel,
+                chatFilters, DEFAULT_ITEM_COUNT_LIMIT);
+    }
+
+    MergedChatRoomViewModel(
+            GlobalChatBadgeStore globalChatBadgeStore,
+            ChatEmoteStore emoteStore,
+            DefinedChatColors definedChatColors,
+            List<SingleChatRoomViewModel> chatRooms,
+            ChatEmojiStore emojiCache,
+            ChatRoomContainerViewModel containerViewModel,
+            ChatFilters chatFilters,
+            int initialLimit
+    ) {
         super(globalChatBadgeStore, emoteStore, definedChatColors, emojiCache, containerViewModel, chatFilters);
-        setChatCacheSize(DEFAULT_ITEM_COUNT_LIMIT);
+        setChatCacheSize(initialLimit);
 
         initChatRooms(chatRooms);
     }
@@ -72,23 +83,7 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
 
     public void addChatRoom(SingleChatRoomViewModel chatRoom) {
         var channel = chatRoom.getChannel();
-
-        //
-        // 追加するチャットルームが現在持っているチャットの情報をマージする
-        // とりあえずすべてマージして最後に制限の個数で切り捨てる
-        //
-        var mergedChats = new ArrayList<>(getChatDataList());
-        mergedChats.addAll(chatRoom.getChatDataList());
-        mergedChats.sort(Comparator.comparing(o -> o.getChatData().firedAt()));
-
-        var limit = getChatCacheSize();
-        if (mergedChats.size() <= limit) {
-            getChatDataList().setAll(mergedChats);
-        } else {
-            var subList = mergedChats.subList(mergedChats.size() - limit, mergedChats.size());
-            getChatDataList().setAll(subList);
-        }
-
+        mergeHistory(chatRoom.getChatDataList());
         channels.put(channel, chatRoom);
     }
 
@@ -125,7 +120,7 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
                 .toList();
 
         // 分離したチャンネルにチャット情報を渡す
-        chatRoom.getChatDataList().setAll(chatList);
+        chatRoom.replaceChatHistory(chatList);
 
         // 現在のチャットから削除
         getChatDataList().removeAll(chatList);
@@ -142,38 +137,30 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
 
         channels.remove(channel);
 
+        chatRoom.leaveChatAsync();
         onChannelRemoved();
     }
 
     public void aggregate(MergedChatRoomViewModel mergedChatRoom) {
         if (this == mergedChatRoom) return;
-
+        var incoming = new HashMap<TwitchChannelViewModel, SingleChatRoomViewModel>();
         for (var entry : mergedChatRoom.channels.entrySet()) {
-            var channel = entry.getKey();
-            var chatRoom = entry.getValue();
-
-            if (channels.containsValue(chatRoom)) continue;
-
-            //
-            // 追加するチャットルームが現在持っているチャットの情報をマージする
-            // とりあえずすべてマージして、最後に制限の個数で切り捨てる
-            //
-            var mergedChats = new ArrayList<>(getChatDataList());
-            mergedChats.addAll(chatRoom.getChatDataList());
-            mergedChats.sort(Comparator.comparing(o -> o.getChatData().firedAt()));
-
-            var limit = getChatCacheSize();
-            if (mergedChats.size() <= limit) {
-                chatRoom.getChatDataList().setAll(mergedChats);
-            } else {
-                var subList = mergedChats.subList(mergedChats.size() - limit, mergedChats.size());
-                chatRoom.getChatDataList().setAll(subList);
-            }
-
-            channels.put(channel, chatRoom);
-            containerViewModel.getChatRoomList().remove(mergedChatRoom);
+            if (!channels.containsKey(entry.getKey())) incoming.put(entry.getKey(), entry.getValue());
         }
+        var incomingHistory = mergedChatRoom.getChatDataList().stream()
+                .filter(chat -> incoming.containsKey(chat.getChannel()))
+                .toList();
+        mergeHistory(incomingHistory);
+        channels.putAll(incoming);
+        containerViewModel.getChatRoomList().remove(mergedChatRoom);
+    }
 
+    private void mergeHistory(List<ChatDataViewModel> incoming) {
+        var mergedChats = new ArrayList<>(getChatDataList());
+        mergedChats.addAll(incoming);
+        mergedChats.sort(Comparator.comparing(chat -> chat.getChatData().firedAt()));
+        var begin = Math.max(0, mergedChats.size() - getChatCacheSize());
+        replaceChatHistory(mergedChats.subList(begin, mergedChats.size()));
     }
 
     public ObservableMap<TwitchChannelViewModel, SingleChatRoomViewModel> getChannels() {
@@ -193,11 +180,10 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
     public void onStateUpdated(ChatRoomStateUpdatedEvent e) {
         var chatRoom = e.getChatRoom();
 
-        // ConcurrentModificationExceptionが内部で起こり得る？
         channels.entrySet()
                 .stream()
-                .filter(entry -> entry.getKey().getChannel().isChatJoined())
-                .filter(entry -> entry.getKey().getChannel().getOrJoinChatRoom().equals(chatRoom))
+                .filter(entry -> entry.getKey().getChannel().getJoinedChatRoom()
+                        .filter(current -> current == chatRoom).isPresent())
                 .findFirst()
                 .map(Map.Entry::getValue)
                 .ifPresent(chatRoomViewModel -> chatRoomViewModel.onStateUpdated(e));
@@ -221,28 +207,12 @@ public class MergedChatRoomViewModel extends ChatRoomViewModel implements ViewMo
     @Override
     public FXTask<?> leaveChatAsync() {
 
+        List.copyOf(channels.values()).forEach(SingleChatRoomViewModel::stopReceivingState);
         containerViewModel.onLeft(this);
 
-        // FIXME JavaFXのTaskをマージするには？
-        var latch = new CountDownLatch(channels.size());
-
-        channels.keySet().parallelStream().map(TwitchChannelViewModel::leaveChatAsync).forEach(task -> {
-            try {
-                task.get(30, TimeUnit.SECONDS);
-            } catch (InterruptedException | ExecutionException | TimeoutException ignored) {
-                // no-op
-            } finally {
-                latch.countDown();
-            }
-        });
-
-        return FXTask.task(() -> {
-            try {
-                latch.await();
-            } catch (InterruptedException ignored) {
-                // no-op
-            }
-        });
+        var exits = FXTaskGroup.startAll(channels.keySet(), TwitchChannelViewModel::leaveChatAsync);
+        containerViewModel.trackExit(exits);
+        return exits.task();
     }
 
 }

@@ -20,6 +20,7 @@ import atlantafx.base.controls.ToggleSwitch;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.app.prefs.ChatPreferencesViewModel;
 import com.github.k7t3.tcv.app.prefs.FontFamily;
+import javafx.beans.value.ChangeListener;
 import com.github.k7t3.tcv.view.prefs.font.FontComboBoxCell;
 import com.github.k7t3.tcv.view.prefs.font.FontStringConverter;
 import de.saxsys.mvvmfx.InjectViewModel;
@@ -36,6 +37,8 @@ import java.util.Locale;
 import java.util.ResourceBundle;
 
 public class ChatPreferencesView implements PreferencesPage<ChatPreferencesViewModel> {
+    private boolean closed;
+    private ChangeListener<Boolean> fontsReady;
 
     @FXML
     private ComboBox<FontFamily> fontComboBox;
@@ -83,30 +86,46 @@ public class ChatPreferencesView implements PreferencesPage<ChatPreferencesViewM
     }
 
     private void loadPreviewFont() {
+        if (closed) return;
         var family = fontComboBox.getValue();
         var size = fontSizeComboBox.getValue();
+        if (family == null || size == null) return;
         var font = Font.font(family.getFamily(), size);
         previewLabel.setFont(font);
         defaultPreviewLabel.setFont(font);
     }
 
     private void initFontComboBox() {
-        fontComboBox.setDisable(true);
-        defaultPreviewLabel.setDisable(true);
-        previewLabel.setDisable(true);
+        fontComboBox.disableProperty().bind(viewModel.fontsReadyProperty().not());
+        defaultPreviewLabel.disableProperty().bind(viewModel.fontsReadyProperty().not());
+        previewLabel.disableProperty().bind(viewModel.fontsReadyProperty().not());
 
         fontComboBox.setItems(viewModel.getFontFamilies());
         fontComboBox.setConverter(new FontStringConverter(fontComboBox.getItems()));
         fontComboBox.setCellFactory(param -> new FontComboBoxCell());
 
-        viewModel.loadFontsAsync().onDone(() -> {
-            fontComboBox.setDisable(false);
-            defaultPreviewLabel.setDisable(false);
-            previewLabel.setDisable(false);
-
+        fontsReady = (observable, previous, ready) -> {
+            if (!ready || closed || viewModel.isClosed()) return;
             fontComboBox.getSelectionModel().select(viewModel.getFont());
             viewModel.fontProperty().bind(fontComboBox.valueProperty());
-        });
+        };
+        viewModel.fontsReadyProperty().addListener(fontsReady);
+        viewModel.loadFontsAsync();
+    }
+
+    @Override public void close() {
+        if (closed) return;
+        closed = true;
+        if (viewModel == null) return;
+        if (fontsReady != null) viewModel.fontsReadyProperty().removeListener(fontsReady);
+        viewModel.fontProperty().unbind();
+        viewModel.fontSizeProperty().unbind();
+        viewModel.chatCacheSizeProperty().unbind();
+        if (showNameSwitch != null) showNameSwitch.selectedProperty().unbindBidirectional(viewModel.showUserNameProperty());
+        if (showBadgeSwitch != null) showBadgeSwitch.selectedProperty().unbindBidirectional(viewModel.showBadgesProperty());
+        if (fontComboBox != null) { fontComboBox.disableProperty().unbind(); fontComboBox.setItems(null); }
+        if (defaultPreviewLabel != null) defaultPreviewLabel.disableProperty().unbind();
+        if (previewLabel != null) previewLabel.disableProperty().unbind();
     }
 
     private void initFontSizeComboBox() {

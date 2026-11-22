@@ -16,13 +16,14 @@
 
 package com.github.k7t3.tcv.database;
 
+import com.github.k7t3.tcv.database.table.TableCreatorFactory;
 import org.sqlite.SQLiteConfig;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Optional;
 
 public class SQLiteDBConnector extends AbstractDBConnector {
 
@@ -43,6 +44,11 @@ public class SQLiteDBConnector extends AbstractDBConnector {
 
     private final TableCreator tableCreator;
 
+    @Override
+    public synchronized Optional<Path> storagePath() {
+        return Optional.ofNullable(filePath).map(path -> path.toAbsolutePath().normalize());
+    }
+
     /**
      * テスト用のインメモリモードコンストラクタ
      */
@@ -57,7 +63,8 @@ public class SQLiteDBConnector extends AbstractDBConnector {
 
     public SQLiteDBConnector(Path filePath, TableCreator creator) {
         this.filePath = filePath;
-        this.tableCreator = creator;
+        this.tableCreator = creator != null ? creator
+                : TableCreatorFactory.create(DatabaseVersion.EMPTY, DatabaseVersion.latest());
     }
 
     @Override
@@ -65,8 +72,9 @@ public class SQLiteDBConnector extends AbstractDBConnector {
         try {
             var config = new SQLiteConfig();
             config.enforceForeignKeys(true);
-            config.setJournalMode(SQLiteConfig.JournalMode.MEMORY);
-            config.setSynchronous(SQLiteConfig.SynchronousMode.OFF);
+            // ファイル DB はクラッシュ後に復旧できるジャーナルと同期を維持する。
+            config.setJournalMode(filePath == null ? SQLiteConfig.JournalMode.MEMORY : SQLiteConfig.JournalMode.DELETE);
+            config.setSynchronous(filePath == null ? SQLiteConfig.SynchronousMode.OFF : SQLiteConfig.SynchronousMode.FULL);
             config.setDatePrecision(SQLiteConfig.DatePrecision.MILLISECONDS.getValue());
 
             return DriverManager.getConnection(connectionURL, config.toProperties());
@@ -87,23 +95,33 @@ public class SQLiteDBConnector extends AbstractDBConnector {
         this.tableCreator.create(this);
     }
 
-    @Override
-    public void connect() {
-        // メモリモードのときか、対象のファイルが存在しないとき
-        boolean empty = (filePath == null || !Files.exists(filePath));
+    private boolean hasTables() {
+        var exists = new boolean[1];
+        query("select 1 from sqlite_master where type = 'table' and name not like 'sqlite_%' limit 1;",
+                rows -> exists[0] = rows.next());
+        return exists[0];
+    }
 
+    @Override
+    public synchronized void connect() {
         constructPath();
         super.connect();
 
-        if (empty) {
-            createTable();
+        try {
+            // スキーマ作成も更新と同じ境界で確定し、途中の DDL を残さない。
+            setAutoCommit(false);
+            transaction(() -> { if (!hasTables()) createTable(); });
+        } catch (RuntimeException | Error failure) {
+            try {
+                close();
+            } catch (RuntimeException closeFailure) {
+                failure.addSuppressed(closeFailure);
+            }
+            throw failure;
         }
-
-        // デフォルトでAutoCommitはFalse
-        setAutoCommit(false);
     }
 
-    public void reconnect(Path filePath) {
+    public synchronized void reconnect(Path filePath) {
         if (isConnected()) throw new IllegalStateException("connected");
         this.filePath = filePath;
         connect();

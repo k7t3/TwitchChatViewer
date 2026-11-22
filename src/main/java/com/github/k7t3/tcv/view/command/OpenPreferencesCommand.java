@@ -16,45 +16,122 @@
 
 package com.github.k7t3.tcv.view.command;
 
+import java.util.function.Function;
+
 import com.github.k7t3.tcv.app.service.BasicCommand;
-import com.github.k7t3.tcv.app.core.AppHelper;
 import com.github.k7t3.tcv.app.core.Resources;
 import com.github.k7t3.tcv.view.prefs.PreferencesView;
+import com.github.k7t3.tcv.app.prefs.PreferencesViewModel;
+import com.github.k7t3.tcv.lifecycle.CloseActions;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import java.util.function.Supplier;
+import javafx.beans.value.ChangeListener;
+import java.util.HashSet;
+import java.util.Set;
 
-public class OpenPreferencesCommand extends BasicCommand {
+public class OpenPreferencesCommand extends BasicCommand implements AutoCloseable {
+    private final Supplier<Stage> owner;
+    private final Function<Stage, PreferencesViewModel> modelFactory;
+    private final Function<Stage, PreferencesView> viewFactory;
+    private final Supplier<Stage> stageFactory;
+    private Editor active;
+    private final Set<Editor> pending = new HashSet<>();
+    private boolean closed;
 
-    public OpenPreferencesCommand() {
+    public OpenPreferencesCommand(Supplier<Stage> owner, Function<Stage, PreferencesViewModel> models,
+                                  Function<Stage, PreferencesView> views, Supplier<Stage> stages) {
+        this.owner = java.util.Objects.requireNonNull(owner);
+        this.modelFactory = java.util.Objects.requireNonNull(models);
+        this.viewFactory = java.util.Objects.requireNonNull(views);
+        this.stageFactory = java.util.Objects.requireNonNull(stages);
     }
 
     @Override
     public void execute() {
-        if (isNotExecutable()) return;
+        if (closed) throw new IllegalStateException("preferences command is closed");
+        if (isNotExecutable() || active != null) return;
+        var opening = new Editor();
+        active = opening;
+        try {
+            executable.set(false);
+            if (releaseIfRetired(opening)) return;
+            opening.stage = stageFactory.get();
+            if (releaseIfRetired(opening)) return;
+            opening.stage.initOwner(owner.get());
+            opening.stage.initModality(Modality.WINDOW_MODAL);
+            opening.stage.getIcons().addAll(Resources.getIcons());
+            opening.stage.setTitle(Resources.getString("prefs.window.title"));
+            if (releaseIfRetired(opening)) return;
+            opening.model = modelFactory.apply(opening.stage);
+            if (releaseIfRetired(opening)) return;
+            opening.controller = viewFactory.apply(opening.stage);
+            if (releaseIfRetired(opening)) return;
+            var tuple = FluentViewLoader.fxmlView(PreferencesView.class).codeBehind(opening.controller)
+                    .viewModel(opening.model).resourceBundle(Resources.getResourceBundle()).load();
+            if (releaseIfRetired(opening)) return;
+            opening.controller.setPreferencesStage(opening.stage);
+            if (releaseIfRetired(opening)) return;
+            opening.stage.setOnHidden(event -> release(opening));
+            opening.stage.setScene(new Scene(tuple.getView()));
+            if (releaseIfRetired(opening)) return;
+            opening.stage.show();
+            releaseIfRetired(opening);
+        } catch (RuntimeException | Error failure) {
+            CloseActions.runAll(() -> {
+                if (failure instanceof RuntimeException exception) throw exception;
+                throw (Error) failure;
+            }, () -> release(opening));
+        }
+    }
 
-        var helper = AppHelper.getInstance();
-        var stage = new Stage();
-        stage.initOwner(helper.getPrimaryStage());
-        stage.initModality(Modality.WINDOW_MODAL);
-        stage.getIcons().addAll(Resources.getIcons());
-        stage.setTitle(Resources.getString("prefs.window.title"));
+    private boolean releaseIfRetired(Editor opening) {
+        if (!closed && active == opening) return false;
+        release(opening);
+        return true;
+    }
 
-        // 多重起動できないように閉じるまで実行不可とする
+    private void release(Editor owned) {
+        if (active == owned) active = null;
+        CloseActions.runAll(() -> { if (owned.controller != null) owned.controller.close(); },
+                () -> { if (owned.model != null) owned.model.close(); },
+                () -> {
+                    if (owned.stage == null) return;
+                    owned.stage.setOnHidden(null);
+                    owned.stage.hide();
+                    owned.stage.setScene(null);
+                }, () -> {
+                    if (!closed && owned.model != null && owned.model.isSavePending()) {
+                        pending.add(owned);
+                        owned.pendingChanged = (observable, old, value) -> { if (!value) releasePending(owned); };
+                        owned.model.savePendingProperty().addListener(owned.pendingChanged);
+                    }
+                    executable.set(!closed && active == null && pending.isEmpty());
+                });
+    }
+
+    private void releasePending(Editor owned) {
+        if (owned.pendingChanged != null) owned.model.savePendingProperty().removeListener(owned.pendingChanged);
+        owned.pendingChanged = null;
+        pending.remove(owned);
+        executable.set(!closed && active == null && pending.isEmpty());
+    }
+
+    @Override public void close() {
+        if (closed) return;
+        closed = true;
         executable.set(false);
-        stage.setOnHidden(e -> executable.set(true));
+        var owned = active;
+        if (owned != null) release(owned);
+        for (var editor : Set.copyOf(pending)) releasePending(editor);
+    }
 
-        var tuple = FluentViewLoader.fxmlView(PreferencesView.class)
-                .resourceBundle(Resources.getResourceBundle())
-                .load();
-
-        var codeBehind = tuple.getCodeBehind();
-        codeBehind.setPreferencesStage(stage);
-
-        var view = tuple.getView();
-        var scene = new Scene(view);
-        stage.setScene(scene);
-        stage.showAndWait();
+    private static final class Editor {
+        Stage stage;
+        PreferencesView controller;
+        PreferencesViewModel model;
+        ChangeListener<Boolean> pendingChanged;
     }
 }

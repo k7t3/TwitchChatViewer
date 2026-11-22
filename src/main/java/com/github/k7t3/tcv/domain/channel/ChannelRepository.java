@@ -17,8 +17,10 @@
 package com.github.k7t3.tcv.domain.channel;
 
 import com.github.k7t3.tcv.domain.Twitch;
+import com.github.k7t3.tcv.domain.TwitchAPI;
 import com.github.k7t3.tcv.domain.chat.ChatRoomEventProvider;
 import com.github.k7t3.tcv.domain.event.EventPublishers;
+import com.github.k7t3.tcv.lifecycle.CloseActions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,7 +62,7 @@ public class ChannelRepository {
     public Collection<TwitchChannel> getOrLoadChannels() {
         channelLock.lock();
         try {
-            return Collections.unmodifiableCollection(channels.values());
+            return List.copyOf(channels.values());
         } finally {
             channelLock.unlock();
         }
@@ -71,12 +73,9 @@ public class ChannelRepository {
      */
     public void loadAllRelatedChannels() {
         LOGGER.info("load all follows");
-        if (loaded) return;
-
-        loaded = true;
-
         channelLock.lock();
         try {
+            if (loaded) return;
             channelEventProvider.listen();
             chatEventProvider.listen();
 
@@ -93,19 +92,16 @@ public class ChannelRepository {
                         .findFirst()
                         .orElse(null);
 
-                var channel = new TwitchChannel(twitch, broadcaster, stream, chatEventProvider, this);
-                channel.setFollowing(true);
-                channel.setPersistent(true);
-                channels.put(broadcaster.getUserId(), channel);
-                channelEventProvider.add(channel);
+                registerChannel(api, broadcaster, stream, true);
             }
-
-            // Stream GoLive/GoOffline/GameChange/TitleChange
-            channels.values()
-                    .stream()
-                    .map(TwitchChannel::getBroadcaster)
-                    .forEach(api::enableStreamEventListener); // TODO 一括
-
+            loaded = true;
+        } catch (RuntimeException | Error failure) {
+            try {
+                clear();
+            } catch (RuntimeException | Error cleanup) {
+                if (cleanup != failure) failure.addSuppressed(cleanup);
+            }
+            throw failure;
         } finally {
             channelLock.unlock();
         }
@@ -113,16 +109,13 @@ public class ChannelRepository {
 
     public List<TwitchChannel> getOrLoadChannels(Collection<String> userIds) {
         LOGGER.info("load channels ({})", userIds);
-        if (!loaded) throw new IllegalStateException("not loaded yet");
-        if (userIds.isEmpty()) {
-            return List.of();
-        }
-
         var list = new ArrayList<TwitchChannel>();
         var loadIds = new ArrayList<String>();
 
         channelLock.lock();
         try {
+            if (!loaded) throw new IllegalStateException("not loaded yet");
+            if (userIds.isEmpty()) return List.of();
             for (var userId : userIds) {
                 var channel = channels.get(userId);
 
@@ -133,6 +126,7 @@ public class ChannelRepository {
                 }
                 loadIds.add(userId);
             }
+            if (loadIds.isEmpty()) return list;
 
             var api = twitch.getTwitchAPI();
             var broadcasters = api.getBroadcasters(loadIds);
@@ -144,15 +138,7 @@ public class ChannelRepository {
                         .findFirst()
                         .orElse(null);
 
-                var channel = new TwitchChannel(twitch, broadcaster, stream, chatEventProvider, this);
-                channels.put(broadcaster.getUserId(), channel);
-
-                // Stream 監視イベントを有効化
-                api.enableStreamEventListener(channel.getBroadcaster());
-
-                channelEventProvider.add(channel);
-
-                list.add(channel);
+                list.add(registerChannel(api, broadcaster, stream, false));
             }
         } finally {
             channelLock.unlock();
@@ -171,10 +157,9 @@ public class ChannelRepository {
      */
     public TwitchChannel getOrLoadChannel(Broadcaster broadcaster) {
         LOGGER.info("load channel ({})", broadcaster);
-        if (!loaded) throw new IllegalStateException("not loaded yet");
-
         channelLock.lock();
         try {
+            if (!loaded) throw new IllegalStateException("not loaded yet");
 
             var channel = channels.get(broadcaster.getUserId());
             if (channel != null) {
@@ -185,18 +170,31 @@ public class ChannelRepository {
             var api = twitch.getTwitchAPI();
             var stream = api.getStream(broadcaster.getUserId()).orElse(null);
 
-            channel = new TwitchChannel(twitch, broadcaster, stream, chatEventProvider, this);
-            channels.put(broadcaster.getUserId(), channel);
-
-            // Stream 監視イベントを有効化
-            api.enableStreamEventListener(channel.getBroadcaster());
-
-            channelEventProvider.add(channel);
-
-            return channel;
+            return registerChannel(api, broadcaster, stream, false);
 
         } finally {
             channelLock.unlock();
+        }
+    }
+
+    /** channelLock 内で監視登録まで成功したモデルだけを公開する。 */
+    private TwitchChannel registerChannel(TwitchAPI api, Broadcaster broadcaster, StreamInfo stream, boolean following) {
+        var channel = new TwitchChannel(twitch, broadcaster, stream, chatEventProvider, this);
+        channel.setFollowing(following);
+        channel.setPersistent(following);
+        try {
+            api.enableStreamEventListener(broadcaster);
+            channelEventProvider.add(channel);
+            channels.put(broadcaster.getUserId(), channel);
+            return channel;
+        } catch (RuntimeException | Error failure) {
+            try {
+                CloseActions.runAll(() -> api.disableStreamEventListener(broadcaster),
+                        () -> channelEventProvider.remove(channel));
+            } catch (RuntimeException | Error cleanup) {
+                if (cleanup != failure) failure.addSuppressed(cleanup);
+            }
+            throw failure;
         }
     }
 
@@ -210,23 +208,16 @@ public class ChannelRepository {
      */
     public void releaseChannel(TwitchChannel channel) {
         LOGGER.info("release channel ({})", channel);
-        if (!loaded) return;
-
-        // 永続化しているチャンネルは開放しない
-        if (channel.isPersistent()) return;
-
-        var api = twitch.getTwitchAPI();
-
         channelLock.lock();
         try {
-            channels.remove(channel.getBroadcaster().getUserId());
-
-            // Stream 監視イベントを無効化
-            api.disableStreamEventListener(channel.getBroadcaster());
-
-            // チャンネルに関するイベントの発行を停止
-            channelEventProvider.remove(channel);
-
+            if (!loaded || channel.isPersistent()) return;
+            var id = channel.getBroadcaster().getUserId();
+            if (channels.get(id) != channel) return;
+            channels.remove(id);
+            CloseActions.runAll(
+                    channel::dispose,
+                    () -> twitch.getTwitchAPI().disableStreamEventListener(channel.getBroadcaster()),
+                    () -> channelEventProvider.remove(channel));
         } finally {
             channelLock.unlock();
         }
@@ -236,21 +227,17 @@ public class ChannelRepository {
      * ロードしているチャンネルをすべてクリアする
      */
     public void clear() {
-        var api = twitch.getTwitchAPI();
-
         channelLock.lock();
         try {
-            for (var channel : channels.values()) {
-                channel.leaveChat();
-                api.disableStreamEventListener(channel.getBroadcaster());
-
-                // チャンネルに関するイベントの発行を停止
-                channelEventProvider.remove(channel);
-            }
-
+            var owned = List.copyOf(channels.values());
             channels.clear();
-            channelEventProvider.clean();
-            chatEventProvider.clean();
+            loaded = false;
+            var releases = owned.stream().map(channel -> (Runnable) () -> CloseActions.runAll(
+                    channel::dispose,
+                    () -> twitch.getTwitchAPI().disableStreamEventListener(channel.getBroadcaster())
+            )).toArray(Runnable[]::new);
+            CloseActions.runAll(channelEventProvider::clean, chatEventProvider::clean,
+                    () -> CloseActions.runAll(releases));
         } finally {
             channelLock.unlock();
         }

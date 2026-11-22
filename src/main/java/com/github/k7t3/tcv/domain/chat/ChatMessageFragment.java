@@ -19,9 +19,9 @@ package com.github.k7t3.tcv.domain.chat;
 /**
  * チャットメッセージを構成する部品。
  * @param type 部品が表す種類
- * @param text メッセージのテキスト
- * @param additional 部品に付属する追加情報。
- *                   エモートの場合は識別子を表し、絵文字のときはHexコードを表す。
+ * @param text テキスト・絵文字の表示文字列。エモートでは画像取得に使う識別子
+ * @param additional エモートの表示名、または絵文字のコードポイントをハイフンで連結した16進表記。
+ *                   テキストではnull
  */
 public record ChatMessageFragment(
         Type type,

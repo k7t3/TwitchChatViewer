@@ -16,17 +16,19 @@
 
 package com.github.k7t3.tcv.app.channel;
 
+import com.github.k7t3.tcv.app.service.BrowserActions;
 import com.github.k7t3.tcv.app.model.AbstractViewModel;
 import com.github.k7t3.tcv.app.event.ChatOpeningEvent;
+import com.github.k7t3.tcv.app.image.ImageLoader;
+import com.github.k7t3.tcv.app.image.LazyImage;
 import com.github.k7t3.tcv.app.service.FXTask;
 import com.github.k7t3.tcv.domain.channel.Broadcaster;
 import com.github.k7t3.tcv.domain.channel.FoundChannel;
-import com.github.k7t3.tcv.domain.event.EventSubscribers;
+import com.github.k7t3.tcv.lifecycle.CloseActions;
 import javafx.beans.property.*;
 import javafx.scene.image.Image;
-
-import java.awt.*;
-import java.net.URI;
+import java.util.concurrent.CancellationException;
+import java.util.function.Consumer;
 
 public class FoundChannelViewModel extends AbstractViewModel {
 
@@ -40,71 +42,116 @@ public class FoundChannelViewModel extends AbstractViewModel {
     private final ReadOnlyBooleanWrapper live;
     private final ReadOnlyStringWrapper gameName;
     private final ChannelViewModelRepository channelRepository;
+    private final ImageLoader images;
+    private LazyImage profileLoad;
+    private final Consumer<Throwable> failures;
+    private final BrowserActions browsers;
+    private Opening opening;
+    private long revision;
+    private boolean loggedOut;
 
-    public FoundChannelViewModel(
-            ChannelViewModelRepository channelRepository,
-            FoundChannel channel
-    ) {
+    FoundChannelViewModel(ChannelViewModelRepository channelRepository, FoundChannel channel, ImageLoader images,
+                          Consumer<Throwable> failures, BrowserActions browsers) {
+        this.failures = failures;
+        this.browsers = browsers;
         broadcaster = new ReadOnlyObjectWrapper<>();
         profileImage = new ReadOnlyObjectWrapper<>();
         live = new ReadOnlyBooleanWrapper();
         gameName = new ReadOnlyStringWrapper();
         this.channelRepository = channelRepository;
-        update(channel);
+        this.images = images;
+        try { update(channel); }
+        catch (RuntimeException | Error failure) {
+            CloseActions.runAll(() -> {
+                if (failure instanceof RuntimeException exception) throw exception;
+                throw (Error) failure;
+            }, this::close);
+        }
     }
 
     public void update(FoundChannel channel) {
+        checkActive();
+        var token = ++revision;
+        cancelOpening();
+        releaseProfileImage();
+        if (!isCurrent(token)) return;
+        var loaded = images.load(channel.getBroadcaster().getProfileImageUrl(), PROFILE_IMAGE_WIDTH, PROFILE_IMAGE_HEIGHT);
+        if (!isCurrent(token)) { loaded.close(); return; }
+        profileLoad = loaded;
         setBroadcaster(channel.getBroadcaster());
-        setProfileImage(new Image(channel.getBroadcaster().getProfileImageUrl(), PROFILE_IMAGE_WIDTH, PROFILE_IMAGE_HEIGHT, true, true, true));
+        if (!isCurrent(token)) return;
+        profileImage.bind(loaded.valueProperty());
+        if (!isCurrent(token)) return;
         setGameName(channel.getGameName());
-        setLive(channel.isLive());
+        if (isCurrent(token)) setLive(channel.isLive());
     }
+
+    private void releaseProfileImage() {
+        var owned = profileLoad;
+        profileLoad = null;
+        CloseActions.runAll(() -> { profileImage.unbind(); profileImage.set(null); },
+                () -> { if (owned != null) owned.close(); });
+    }
+
+    private boolean isCurrent(long token) { return !isClosed() && !loggedOut && revision == token; }
+
+    private void checkActive() {
+        if (isClosed() || loggedOut) throw new IllegalStateException("search result is no longer active");
+    }
+
+    private void cancelOpening() {
+        var owned = opening;
+        opening = null;
+        if (owned != null) owned.result.cancel(true);
+    }
+
+    private void endScope() {
+        loggedOut = true;
+        revision++;
+        CloseActions.runAll(this::cancelOpening, this::releaseProfileImage, browsers::cancelAll,
+                () -> { if (isClosed()) browsers.close(); });
+    }
+
+    @Override protected void onLoggedOut() { endScope(); }
+    @Override protected void onClose() { endScope(); }
 
     public FXTask<Boolean> openChannelPageOnBrowser() {
-        var login = getBroadcaster().getUserLogin();
+        checkActive();
+        return browsers.open(CHANNEL_URL_FORMAT.formatted(getBroadcaster().getUserLogin()));
+    }
 
-        var task = FXTask.task(() -> {
-            var desktop = Desktop.getDesktop();
-            if (!desktop.isSupported(Desktop.Action.BROWSE)) {
-                return false;
-            }
+    /** 共有取得の観測だけを所有する。他の検索結果・画面の取得は取り消さない。 */
+    public FXTask<TwitchChannelViewModel> joinChatAsync() {
+        checkActive();
+        if (opening != null && !opening.result.isDone()) return opening.result;
+        var request = new Opening();
+        opening = request;
+        request.result.onFailure(failure -> { if (request.isCurrent()) failures.accept(failure); });
+        request.result.setFinally(() -> { if (opening == request) opening = null; });
+        try {
+            var source = channelRepository.getChannelAsync(getBroadcaster());
+            request.result.cancelWhenCancelled(source);
+            source.onDone(value -> { request.value = value; request.result.run(); });
+            source.onFailure(failure -> { request.failure = failure; request.result.run(); });
+        } catch (RuntimeException | Error failure) {
+            request.failure = failure;
+            request.result.run();
+        }
+        return request.result;
+    }
 
-            desktop.browse(new URI(CHANNEL_URL_FORMAT.formatted(login)));
-            return true;
+    private final class Opening {
+        final long token = revision;
+        TwitchChannelViewModel value;
+        Throwable failure;
+        final FXTask<TwitchChannelViewModel> result = FXTask.observation(() -> {
+            if (!isCurrent()) throw new CancellationException("search result opening was retired");
+            if (failure instanceof Error error) throw error;
+            if (failure instanceof Exception exception) throw exception;
+            publish(new ChatOpeningEvent(value));
+            return value;
         });
-
-        task.runAsync();
-
-        return task;
-    }
-
-    public FXTask<?> joinChatAsync() {
-        var broadcaster = getBroadcaster();
-        var t = channelRepository.getChannelAsync(broadcaster);
-        t.onDone(() -> {
-            var channel = t.getValue();
-
-            // チャットを開くイベントを発行
-            var opening = new ChatOpeningEvent(channel);
-            publish(opening);
-        });
-        t.runAsync();
-        return t;
-    }
-
-    @Override
-    public void subscribeEvents(EventSubscribers eventSubscribers) {
-        // no-op
-    }
-
-    @Override
-    public void onLogout() {
-        // no-op
-    }
-
-    @Override
-    public void close() {
-        // no-op
+        boolean isCurrent() { return FoundChannelViewModel.this.isCurrent(token) && opening == this && !result.isCancelled(); }
     }
 
     // ******************** PROPERTIES ********************
@@ -117,7 +164,6 @@ public class FoundChannelViewModel extends AbstractViewModel {
     private ReadOnlyObjectWrapper<Image> profileImageWrapper() { return profileImage; }
     public ReadOnlyObjectProperty<Image> profileImageProperty() { return profileImage.getReadOnlyProperty(); }
     public Image getProfileImage() { return profileImage.get(); }
-    private void setProfileImage(Image profileImage) { this.profileImage.set(profileImage); }
 
     private ReadOnlyBooleanWrapper liveWrapper() { return live; }
     public ReadOnlyBooleanProperty liveProperty() { return live.getReadOnlyProperty(); }

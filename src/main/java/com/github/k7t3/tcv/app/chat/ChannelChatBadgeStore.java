@@ -17,6 +17,7 @@
 package com.github.k7t3.tcv.app.chat;
 
 import com.github.k7t3.tcv.app.image.LazyImage;
+import com.github.k7t3.tcv.app.image.ImageLoader;
 import com.github.k7t3.tcv.app.service.CachedImageStore;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
 import com.github.k7t3.tcv.domain.chat.ChatBadge;
@@ -27,16 +28,18 @@ import java.time.Duration;
 public class ChannelChatBadgeStore extends CachedImageStore<ChatBadge> {
 
     private final TwitchChannel channel;
+    private final ImageLoader images;
 
-    public ChannelChatBadgeStore(TwitchChannel channel) {
+    public ChannelChatBadgeStore(TwitchChannel channel, ImageLoader images) {
         super(8, Duration.ofMinutes(5));
         this.channel = channel;
+        this.images = images;
     }
 
     @Override
     protected @Nullable LazyImage loadImage(ChatBadge key) {
         var url = channel.getBadgeUrl(key).orElse(null);
         if (url == null) return null;
-        return new LazyImage(url, 24, 24);
+        return images.load(url, 24, 24);
     }
 }

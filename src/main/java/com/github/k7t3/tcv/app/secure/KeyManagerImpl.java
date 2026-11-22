@@ -16,118 +16,122 @@
 
 package com.github.k7t3.tcv.app.secure;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.github.k7t3.tcv.io.InterruptibleFileLocks;
 
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
 import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.UnrecoverableEntryException;
-import java.security.cert.CertificateException;
+import java.security.GeneralSecurityException;
+import java.util.Arrays;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Supplier;
+import java.util.concurrent.locks.ReentrantLock;
 
+/** キャッシュした古い KeyStore を書き戻さず、ファイルの読取・変更・置換を一組で行う。 */
 class KeyManagerImpl implements KeyManager {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(KeyManagerImpl.class);
-
+    // FileLock は同じ JVM 内の重複取得を待機しないため、まず JVM 内を直列化する。
+    private static final ReentrantLock FILE_LOCK = new ReentrantLock();
+    private final ReentrantLock lifecycleLock = new ReentrantLock();
     private final Path storePath;
+    private final char[] password;
+    private final OsSecretStore secrets;
+    private final AtomicKeyStoreFile files;
+    private boolean closed;
 
-    private final KeyStore store;
-    private final KeyStore.PasswordProtection protection;
+    public KeyManagerImpl(Path path, char[] password) { this(path, password, new AtomicKeyStoreFile()); }
 
-    private boolean dirty = false; // 永続化されていない鍵情報があるか
-    private boolean closed = false; // インスタンスが閉じられているか
-
-    public KeyManagerImpl(Path storePath, char[] password) {
-        this.storePath = storePath;
-        this.store = loadKeyStore(storePath, password);
-        this.protection = new KeyStore.PasswordProtection(password);
+    KeyManagerImpl(Path path, OsSecretStore secrets) {
+        this(path, null, Objects.requireNonNull(secrets), new AtomicKeyStoreFile());
     }
 
-    private static KeyStore loadKeyStore(Path storePath, char[] password) {
-        if (Files.exists(storePath)) {
-            try {
-                LOGGER.info("load key store {}", storePath);
-                return KeyStore.getInstance(storePath.toFile(), password);
-            } catch (KeyStoreException | IOException | CertificateException | NoSuchAlgorithmException e) {
-                throw new KeyManagerException(e);
-            }
-        }
-
-        try {
-            var keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
-            keyStore.load(null, password);
-            return keyStore;
-        } catch (KeyStoreException | NoSuchAlgorithmException | IOException | CertificateException e) {
-            throw new KeyManagerException(e);
-        }
+    KeyManagerImpl(Path path, char[] password, AtomicKeyStoreFile files) {
+        this(path, Objects.requireNonNull(password), null, files);
     }
 
-    private void checkClosed() {
-        if (closed) {
-            throw new IllegalStateException("already closed");
+    private KeyManagerImpl(Path path, char[] password, OsSecretStore secrets, AtomicKeyStoreFile files) {
+        this.storePath = Objects.requireNonNull(path).toAbsolutePath().normalize();
+        this.password = password == null ? null : password.clone();
+        this.secrets = secrets;
+        this.files = Objects.requireNonNull(files);
+        try { withStore(store -> null); }
+        catch (RuntimeException | Error failure) {
+            if (this.password != null) Arrays.fill(this.password, '\0');
+            throw failure;
         }
     }
 
     @Override
-    public void flush() {
-        LOGGER.info("flushing key store");
-        checkClosed();
-        try (var output = Files.newOutputStream(storePath,
-                StandardOpenOption.CREATE,
-                StandardOpenOption.WRITE,
-                StandardOpenOption.TRUNCATE_EXISTING)) {
-            store.store(output, protection.getPassword());
-            dirty = false;
-        } catch (IOException | NoSuchAlgorithmException | KeyStoreException | CertificateException e) {
-            throw new KeyManagerException(e);
-        }
+    public SecretKey getOrCreateSecret(String alias, Supplier<SecretKey> generator) {
+        Objects.requireNonNull(generator);
+        return withStore(store -> {
+            var existing = store.getSecret(Objects.requireNonNull(alias));
+            if (existing != null) return existing;
+            var created = Objects.requireNonNull(generator.get());
+            store.put(alias, created);
+            store.persist(storePath, files);
+            return created;
+        });
     }
 
     @Override
     public void store(String alias, SecretKey key) {
-        LOGGER.info("store {} secret", alias);
-        checkClosed();
-        var entry = new KeyStore.SecretKeyEntry(key);
-        try {
-            store.setEntry(alias, entry, protection);
-            dirty = true;
-        } catch (KeyStoreException e) {
-            throw new KeyManagerException(e);
-        }
+        withStore(store -> {
+            store.put(Objects.requireNonNull(alias), Objects.requireNonNull(key));
+            store.persist(storePath, files);
+            return null;
+        });
     }
 
     @Override
-    public SecretKey getSecret(String alias) {
-        LOGGER.info("get {} secret", alias);
-        checkClosed();
+    public SecretKey getSecret(String alias) { return withStore(store -> store.getSecret(Objects.requireNonNull(alias))); }
+
+    @FunctionalInterface
+    private interface Operation<T> { T apply(KeyStoreSession store) throws IOException, GeneralSecurityException, DestroyFailedException; }
+
+    private <T> T withStore(Operation<T> operation) {
         try {
-            var entry = store.getEntry(alias, protection);
-            if (entry == null)
-                return null;
-            return ((KeyStore.SecretKeyEntry) entry).getSecretKey();
-        } catch (NoSuchAlgorithmException | UnrecoverableEntryException | KeyStoreException e) {
-            throw new KeyManagerException(e);
+            lifecycleLock.lockInterruptibly();
+            try {
+                if (closed) throw new IllegalStateException("key manager is closed");
+                FILE_LOCK.lockInterruptibly();
+                try {
+                    var parent = storePath.getParent();
+                    Files.createDirectories(parent, AtomicKeyStoreFile.permissions(parent, "rwx------"));
+                    var lockPath = storePath.resolveSibling(storePath.getFileName() + ".lock");
+                    try (var channel = FileChannel.open(lockPath,
+                            Set.of(StandardOpenOption.CREATE, StandardOpenOption.WRITE),
+                            AtomicKeyStoreFile.permissions(lockPath, "rw-------")); var ignored = InterruptibleFileLocks.acquire(channel)) {
+                        try (var store = secrets == null ? KeyStoreSession.passwordProtected(storePath, password)
+                                : KeyStoreSession.osProtected(storePath, secrets, files)) {
+                            return operation.apply(store);
+                        }
+                    }
+                } finally { FILE_LOCK.unlock(); }
+            } finally { lifecycleLock.unlock(); }
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            var failure = new InterruptedIOException("interrupted while waiting for key storage");
+            failure.initCause(interrupted);
+            throw new KeyManagerException("failed to access key store", failure);
+        } catch (IOException | GeneralSecurityException | DestroyFailedException failure) {
+            throw new KeyManagerException("failed to access key store", failure);
         }
     }
 
     @Override
     public void close() {
-        if (closed) return;
-        LOGGER.info("closing key store");
-        // 永続化されていない鍵情報がある場合は閉じる前に書き込む
-        if (dirty) {
-            flush();
-        }
+        // closeは受理済みの保存を中断せず、その実完了と秘密消去を待つ。
+        lifecycleLock.lock();
         try {
-            protection.destroy();
-        } catch (DestroyFailedException ignore) {
-        }
-        closed = true;
+            if (closed) return;
+            closed = true;
+            if (password != null) Arrays.fill(password, '\0');
+        } finally { lifecycleLock.unlock(); }
     }
 }

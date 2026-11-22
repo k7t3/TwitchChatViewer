@@ -21,7 +21,9 @@ import de.saxsys.mvvmfx.ViewModel;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
 
-public interface PreferencesPage<T extends ViewModel> extends FxmlView<T>, Initializable {
+public interface PreferencesPage<T extends ViewModel> extends FxmlView<T>, Initializable, AutoCloseable {
+
+    @Override default void close() {}
 
     String getName();
 

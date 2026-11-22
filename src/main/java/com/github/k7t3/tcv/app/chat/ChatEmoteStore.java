@@ -17,6 +17,7 @@
 package com.github.k7t3.tcv.app.chat;
 
 import com.github.k7t3.tcv.app.image.LazyImage;
+import com.github.k7t3.tcv.app.image.ImageLoader;
 import com.github.k7t3.tcv.app.service.CachedImageStore;
 
 import java.time.Duration;
@@ -27,15 +28,17 @@ import java.time.Duration;
 public class ChatEmoteStore extends CachedImageStore<String> {
 
     private static final String CDN_FORMAT = "https://static-cdn.jtvnw.net/emoticons/v2/%s/default/light/1.0";
+    private final ImageLoader images;
 
-    public ChatEmoteStore() {
+    public ChatEmoteStore(ImageLoader images) {
         super(100, Duration.ofMinutes(5));
+        this.images = images;
     }
 
     @Override
     protected LazyImage loadImage(String key) {
         var uri = CDN_FORMAT.formatted(key);
-        return new LazyImage(uri, 0, 0);
+        return images.load(uri, 0, 0);
     }
 
 }

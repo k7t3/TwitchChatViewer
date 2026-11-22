@@ -19,26 +19,24 @@ package com.github.k7t3.tcv.view.channel;
 import atlantafx.base.theme.Styles;
 import atlantafx.base.theme.Tweaks;
 import com.github.k7t3.tcv.app.core.Resources;
-import com.github.k7t3.tcv.app.event.ChatOpeningEvent;
 import com.github.k7t3.tcv.app.service.LiveStateNotificator;
 import com.github.k7t3.tcv.view.core.ToStringConverter;
-import de.saxsys.mvvmfx.InjectViewModel;
-import de.saxsys.mvvmfx.JavaView;
-import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ListView;
 import javafx.scene.control.cell.TextFieldListCell;
 import javafx.util.StringConverter;
 
-import java.net.URL;
 import java.time.format.DateTimeFormatter;
-import java.util.ResourceBundle;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import javafx.collections.FXCollections;
 
-public class LiveStateNotificatorView extends ListView<LiveStateNotificator.LiveStateRecord> implements JavaView<LiveStateNotificator>, Initializable {
-
-    @InjectViewModel
-    private LiveStateNotificator notificator;
+public class LiveStateNotificatorView extends ListView<LiveStateNotificator.LiveStateRecord> implements AutoCloseable {
+    private final LiveStateNotificator notificator;
+    private final List<Cell> cells = new ArrayList<>();
+    private boolean closed;
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
 
@@ -52,13 +50,20 @@ public class LiveStateNotificatorView extends ListView<LiveStateNotificator.Live
         }
     });
 
-    public LiveStateNotificatorView() {
-        setCellFactory(p -> new Cell(converter));
+    public LiveStateNotificatorView(LiveStateNotificator notificator) {
+        this.notificator = Objects.requireNonNull(notificator);
+        setItems(notificator.getRecords());
+        setCellFactory(p -> { var cell = new Cell(converter); cells.add(cell); return cell; });
         getStyleClass().addAll(Styles.DENSE, Tweaks.EDGE_TO_EDGE);
     }
 
-    @Override
-    public void initialize(URL url, ResourceBundle resourceBundle) {
+    @Override public void close() {
+        if (closed) return;
+        closed = true;
+        cells.forEach(Cell::close);
+        cells.clear();
+        setItems(FXCollections.emptyObservableList());
+        setCellFactory(null);
     }
 
     public StringConverter<LiveStateNotificator.LiveStateRecord> getConverter() {
@@ -80,10 +85,7 @@ public class LiveStateNotificatorView extends ListView<LiveStateNotificator.Live
                 b.getStyleClass().addAll(Styles.SMALL, Styles.ROUNDED);
                 b.setOnAction(e -> {
                     var item = getItem();
-                    if (item == null) return;
-
-                    var channel = item.channel();
-                    notificator.publish(new ChatOpeningEvent(channel));
+                    if (!closed && notificator.canOpen(item)) notificator.openChannelAsync(item);
                 });
                 openButton = b;
             }
@@ -93,12 +95,23 @@ public class LiveStateNotificatorView extends ListView<LiveStateNotificator.Live
 
         @Override
         public void updateItem(LiveStateNotificator.LiveStateRecord record, boolean b) {
+            if (openButton != null) openButton.disableProperty().unbind();
             super.updateItem(record, b);
-            if (record != null && record.live()) {
+            if (!closed && !b && record != null && record.live()) {
                 setGraphic(getOpenButton());
             } else {
                 setGraphic(null);
             }
+        }
+
+        void close() {
+            if (openButton != null) {
+                openButton.disableProperty().unbind();
+                openButton.setOnAction(null);
+            }
+            setGraphic(null);
+            setText(null);
+            super.updateItem(null, true);
         }
     }
 }

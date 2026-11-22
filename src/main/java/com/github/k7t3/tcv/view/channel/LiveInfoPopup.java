@@ -20,12 +20,24 @@ import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.view.core.BasicPopup;
 import javafx.stage.WindowEvent;
 
-public class LiveInfoPopup extends BasicPopup {
+public class LiveInfoPopup extends BasicPopup implements AutoCloseable {
+    private final LiveInfoView view;
+    private final javafx.event.EventHandler<WindowEvent> showing;
+    private boolean closed;
 
     public LiveInfoPopup(TwitchChannelViewModel channel) {
-        var view = new LiveInfoView(channel);
+        view = new LiveInfoView(channel);
         setContent(view);
         setTransparency(0.9);
-        addEventHandler(WindowEvent.WINDOW_SHOWING, e -> view.computeUptimeLabel());
+        showing = event -> { if (!closed) view.computeUptimeLabel(); };
+        addEventHandler(WindowEvent.WINDOW_SHOWING, showing);
     }
+    @Override public void close() {
+        if (closed) return;
+        closed = true;
+        com.github.k7t3.tcv.lifecycle.CloseActions.runAll(
+                () -> removeEventHandler(WindowEvent.WINDOW_SHOWING, showing), this::hide,
+                () -> view.setChannel(null), () -> setSkin(null), () -> setContent(null));
+    }
+
 }

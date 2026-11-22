@@ -17,20 +17,18 @@
 package com.github.k7t3.tcv.app.secure;
 
 import javax.crypto.SecretKey;
+import java.util.function.Supplier;
 
 /**
  * 鍵を安全に永続化するためのクラス
  */
 public interface KeyManager extends AutoCloseable {
 
-    /**
-     * バッファリングされる鍵情報を永続化する
-     * @throws KeyManagerException キーストアに関するエラー
-     */
-    void flush() throws KeyManagerException;
+    /** 存在する鍵を返す。新規の場合は永続化に成功してから返す。生成と保存は排他的に行う。 */
+    SecretKey getOrCreateSecret(String alias, Supplier<SecretKey> generator) throws KeyManagerException;
 
     /**
-     * 任意のエイリアスに紐づく鍵を保存する
+     * 任意のエイリアスに紐づく鍵を永続化し、完了後に戻る。
      * @param alias 任意のエイリアス
      * @param key 保存する鍵
      * @throws KeyManagerException キーストアに関するエラー

@@ -1,13 +1,15 @@
 # Twitch Chat Viewer
 
-[![Java CI](https://github.com/k7t3/TwitchChatViewer/actions/workflows/test.yaml/badge.svg)](https://github.com/k7t3/TwitchChatViewer/actions/workflows/test.yaml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 このアプリケーションはライブストリーミングサービス[Twitch](https://www.twitch.tv/)の非公式チャットビューアです。
 
 <img src="docs/images/04アプリケーション画面.png" width="1024" alt="アプリケーション画面">
 
-[使用方法](docs/usage.md)
+## ダウンロードと使い方
+
+[リリースページ](https://github.com/k7t3/TwitchChatViewer/releases)から、お使いの OS に合ったインストーラーをダウンロードしてください。
+初回起動時の Twitch 認証やチャットの開き方は、[使用方法](docs/usage.md)をご覧ください。
 
 ## 主な機能
 
@@ -41,6 +43,8 @@
 ### チャットメッセージのフィルタリング
 * 特定のユーザーのメッセージを非表示にしたり、正規表現を使用してフィルタリングできます。
 
-## License
+## プライバシーとライセンス
 
-詳細は [LICENSE](LICENSE.md) を参照してください。
+- [プライバシーポリシー](docs/license.md#privacy-policy)
+- [アプリケーションのライセンス](LICENSE.md)
+- [使用ライブラリとライセンス](docs/external-libraries.md)

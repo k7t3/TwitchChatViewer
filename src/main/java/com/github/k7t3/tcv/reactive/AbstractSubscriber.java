@@ -17,6 +17,7 @@
 package com.github.k7t3.tcv.reactive;
 
 import java.util.concurrent.Flow;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -30,11 +31,21 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public abstract class AbstractSubscriber<T> implements FlowableSubscriber<T> {
 
-    protected final AtomicReference<BackPressurePolicy> backPressurePolicy = new AtomicReference<>(BackPressurePolicy.FULL);
-    protected final AtomicReference<BackPressurePolicy> requestedPolicy = new AtomicReference<>(BackPressurePolicy.FULL);
-    protected final AtomicLong segmentCounter = new AtomicLong(0);
+    private static final Flow.Subscription CANCELLED = new Flow.Subscription() {
+        @Override
+        public void request(long n) {
+        }
 
-    private Flow.Subscription subscription;
+        @Override
+        public void cancel() {
+        }
+    };
+
+    private final AtomicReference<BackPressurePolicy> backPressurePolicy = new AtomicReference<>(BackPressurePolicy.FULL);
+    private final AtomicReference<BackPressurePolicy> requestedPolicy = new AtomicReference<>(BackPressurePolicy.FULL);
+    private final AtomicLong segmentCounter = new AtomicLong(0);
+
+    private final AtomicReference<Flow.Subscription> subscription = new AtomicReference<>();
 
     /**
      * 流量制限を指定する。
@@ -46,7 +57,11 @@ public abstract class AbstractSubscriber<T> implements FlowableSubscriber<T> {
 
     @Override
     public void onSubscribe(Flow.Subscription subscription) {
-        this.subscription = subscription;
+        Objects.requireNonNull(subscription);
+        if (!this.subscription.compareAndSet(null, subscription)) {
+            subscription.cancel();
+            return;
+        }
 
         var policy = backPressurePolicy.get();
         requestedPolicy.set(policy);
@@ -55,13 +70,15 @@ public abstract class AbstractSubscriber<T> implements FlowableSubscriber<T> {
 
     protected abstract void handle(T item);
 
-    protected void request(long requestSize) {
+    private void request(long requestSize) {
         segmentCounter.set(0);
-        subscription.request(requestSize);
+        var current = subscription.get();
+        if (current != null) current.request(requestSize);
     }
 
     @Override
     public void onNext(T item) {
+        if (isCancelled()) return;
         handle(item);
 
         // 現在設定されているポリシーとリクエスト時点のポリシーを取得
@@ -82,11 +99,14 @@ public abstract class AbstractSubscriber<T> implements FlowableSubscriber<T> {
         }
     }
 
+    /** 解除後にキューから届いた通知を破棄するための状態。 */
+    protected final boolean isCancelled() {
+        return subscription.get() == CANCELLED;
+    }
+
     @Override
     public void cancel() {
-        if (subscription != null) {
-            subscription.cancel();
-            subscription = null;
-        }
+        var current = subscription.getAndSet(CANCELLED);
+        if (current != null) current.cancel();
     }
 }

@@ -16,20 +16,20 @@
 
 package com.github.k7t3.tcv.view.chat;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import javafx.scene.text.Font;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class ChatFontTest {
 
     @Test
-    void defaultFontTest() {
-        var chatFont = ChatFont.getDefault();
-        assertEquals("System", chatFont.getFamily());
+    void defaultFontUsesHiraginoWhenInstalled() {
+        var expectedFamily = Font.getFamilies().contains("Hiragino Sans") ? "Hiragino Sans" : Font.getDefault().getFamily();
 
-        var chatFont2 = new ChatFont(chatFont.getFamily(), chatFont.getSize());
-        assertEquals(chatFont, chatFont2);
+        var chatFont = ChatFont.getDefault();
+
+        assertThat(chatFont.getFont()).isEqualTo(Font.font(expectedFamily, Font.getDefault().getSize()));
+        assertThat(chatFont).isEqualTo(new ChatFont(expectedFamily, Font.getDefault().getSize()));
     }
 }

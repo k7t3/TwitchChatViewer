@@ -17,7 +17,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
-<BorderPane fx:id="root" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" styleClass="auth-root" stylesheets="@AuthenticatorView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.auth.AuthenticatorView">
+<BorderPane fx:id="root" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" styleClass="auth-root" stylesheets="@AuthenticatorView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
    <center>
       <VBox alignment="TOP_CENTER" spacing="10.0" BorderPane.alignment="CENTER">
          <children>
@@ -35,6 +35,7 @@
             <VBox alignment="CENTER" spacing="4.0">
                <children>
                   <ProgressBar fx:id="progressBar" maxWidth="1.7976931348623157E308" styleClass="medium" />
+                  <Label fx:id="errorLabel" wrapText="true" />
                   <Hyperlink fx:id="authUriLink" text="Hyperlink">
                      <tooltip>
                         <Tooltip text="%auth.tooltip.open" />
@@ -57,6 +58,7 @@
    <bottom>
       <ButtonBar BorderPane.alignment="CENTER">
          <buttons>
+            <Button fx:id="retryButton" mnemonicParsing="false" text="%auth.retry" />
             <Button fx:id="openLinkButton" mnemonicParsing="false" text="%auth.open.browser" />
             <Button fx:id="clipAuthUriButton" mnemonicParsing="false" text="%auth.copy.link" />
          </buttons>

@@ -39,7 +39,7 @@ public class ChatKeywordFilterEntityService {
         var list = new ArrayList<ChatKeywordFilterEntity>();
 
         var query = "select id, type, keyword from chat_keyword_filter;";
-        connector.query(query, rs -> {
+        connector.readTransaction(() -> connector.query(query, rs -> {
             while (rs.next()) {
                 var i = 0;
 
@@ -50,12 +50,18 @@ public class ChatKeywordFilterEntityService {
                 var entity = new ChatKeywordFilterEntity(id, type, keyword);
                 list.add(entity);
             }
-        });
+        }));
 
         return list;
     }
 
     public int insert(ChatKeywordFilterEntity entity) {
+        int[] key = new int[1];
+        connector.transaction(() -> key[0] = insertInTransaction(entity));
+        return key[0];
+    }
+
+    int insertInTransaction(ChatKeywordFilterEntity entity) {
         LOGGER.info("insert entity {}", entity);
         var sql = "insert into chat_keyword_filter(type, keyword) values(?, ?);";
 
@@ -70,26 +76,34 @@ public class ChatKeywordFilterEntityService {
                 key[0] = rs.getInt(1);
             }
         });
-        connector.commit();
 
         return key[0];
     }
 
     public void update(ChatKeywordFilterEntity entity) {
+        connector.transaction(() -> updateInTransaction(entity));
+    }
+
+    int updateInTransaction(ChatKeywordFilterEntity entity) {
         LOGGER.info("update entity {}", entity);
         var sql = "update chat_keyword_filter set type = ?, keyword = ? where id = ?;";
 
+        int[] count = new int[1];
         connector.prepared(sql, stmt -> {
             var i = 0;
             stmt.setInt(++i, entity.type());
             stmt.setString(++i, entity.keyword());
             stmt.setInt(++i, entity.id());
-            stmt.executeUpdate();
+            count[0] = stmt.executeUpdate();
         });
-        connector.commit();
+        return count[0];
     }
 
     public void delete(ChatKeywordFilterEntity entity) {
+        connector.transaction(() -> deleteInTransaction(entity));
+    }
+
+    void deleteInTransaction(ChatKeywordFilterEntity entity) {
         LOGGER.info("delete entity {}", entity);
         var sql = "delete from chat_keyword_filter where id = ?;";
 
@@ -97,7 +111,6 @@ public class ChatKeywordFilterEntityService {
             stmt.setInt(1, entity.id());
             stmt.executeUpdate();
         });
-        connector.commit();
     }
 
 }

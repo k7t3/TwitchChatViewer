@@ -18,6 +18,7 @@ package com.github.k7t3.tcv.view.channel;
 
 import atlantafx.base.theme.Styles;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
+import com.github.k7t3.tcv.domain.channel.StreamInfo;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.geometry.Pos;
@@ -57,14 +58,15 @@ public class LiveInfoView extends BorderPane {
         BorderPane.setAlignment(userNameLabel, Pos.CENTER);
         userNameLabel.textProperty().bind(channelProperty().map(TwitchChannelViewModel::getUserName));
 
-        gameNameLabel.textProperty().bind(channelProperty().map(TwitchChannelViewModel::getGameName));
+        var streamInfo = channelProperty().flatMap(TwitchChannelViewModel::streamInfoProperty);
+        gameNameLabel.textProperty().bind(streamInfo.map(StreamInfo::gameName));
 
         streamTitleLabel.setWrapText(true);
         streamTitleLabel.getStyleClass().addAll(Styles.TEXT_SMALL);
-        streamTitleLabel.textProperty().bind(channelProperty().map(TwitchChannelViewModel::getStreamTitle));
+        streamTitleLabel.textProperty().bind(streamInfo.map(StreamInfo::title));
 
         viewerCountLabel.getStyleClass().addAll(Styles.DANGER, Styles.TEXT_SMALL);
-        viewerCountLabel.textProperty().bind(channelProperty().map(c -> Integer.toString(c.getStreamInfo().viewerCount())));
+        viewerCountLabel.textProperty().bind(streamInfo.map(info -> Integer.toString(info.viewerCount())));
 
         uptimeLabel.getStyleClass().addAll(Styles.TEXT_SMALL);
 

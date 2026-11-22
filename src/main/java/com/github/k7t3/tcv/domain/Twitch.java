@@ -18,38 +18,54 @@ package com.github.k7t3.tcv.domain;
 
 import com.github.k7t3.tcv.domain.auth.CredentialController;
 import com.github.k7t3.tcv.domain.auth.CredentialStore;
+import com.github.k7t3.tcv.domain.auth.SessionCredentialStore;
 import com.github.philippheuer.credentialmanager.domain.OAuth2Credential;
-import com.github.twitch4j.TwitchClient;
 import com.github.twitch4j.chat.TwitchChat;
+import com.github.k7t3.tcv.lifecycle.CloseActions;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Twitch implements Closeable {
 
-    private final OAuth2Credential credential;
-    private final TwitchClient client;
-    private final CredentialStore credentialStore;
+    private final TwitchClients client;
+    private final Runnable releaseClient;
+    private final SessionCredentialStore credentialStore;
 
     private TwitchAPI twitchAPI;
+    private final Object lifecycleLock = new Object();
+    private boolean closed;
+    private final AtomicBoolean logoutStarted = new AtomicBoolean();
+    private final AtomicBoolean invalidationDelivered = new AtomicBoolean();
+    private volatile Runnable invalidated;
 
     Twitch(
             OAuth2Credential credential,
             CredentialStore credentialStore,
-            TwitchClient client
+            TwitchClients client
     ) {
-        this.credentialStore = credentialStore;
-        this.credential = credential;
+        this(credential, credentialStore, client, client::close);
+    }
+
+    Twitch(OAuth2Credential credential, CredentialStore credentialStore, TwitchClients client, Runnable releaseClient) {
+        this.credentialStore = credentialStore instanceof SessionCredentialStore scope ? scope
+                : new SessionCredentialStore(credentialStore, credential);
         this.client = client;
+        this.releaseClient = Objects.requireNonNull(releaseClient);
+        this.credentialStore.onUpdated(credential::updateCredential);
+        this.credentialStore.onInvalidated(this::notifyInvalidation);
     }
 
     public TwitchAPI getTwitchAPI() {
-        if (twitchAPI == null) twitchAPI = new TwitchAPI(this);
-        return twitchAPI;
-    }
-
-    void updateCredential(OAuth2Credential newOne) {
-        getCredential().updateCredential(newOne);
+        synchronized (lifecycleLock) {
+            checkOpen();
+            if (twitchAPI == null) twitchAPI = new TwitchAPI(this);
+            return twitchAPI;
+        }
     }
 
     CredentialStore getCredentialStore() {
@@ -57,7 +73,25 @@ public class Twitch implements Closeable {
     }
 
     private OAuth2Credential getCredential() {
-        return credential;
+        return credentialStore.credential();
+    }
+
+    public Set<String> credentialTokens() { return credentialStore.tokens(); }
+    public void freezeCredentials() { credentialStore.retire(); }
+    public boolean hasInvalidCredentials() { return credentialStore.isInvalid(); }
+    public boolean isClosing() { return credentialStore.isRetired(); }
+    public boolean isClosed() { synchronized (lifecycleLock) { return closed; } }
+
+    public void onInvalidated(Runnable listener) {
+        invalidated = Objects.requireNonNull(listener);
+        notifyInvalidation();
+    }
+
+    public void invalidateCredentials() { credentialStore.invalidate(); }
+
+    private void notifyInvalidation() {
+        var listener = invalidated;
+        if (hasInvalidCredentials() && listener != null && invalidationDelivered.compareAndSet(false, true)) listener.run();
     }
 
     public String getAccessToken() {
@@ -75,44 +109,43 @@ public class Twitch implements Closeable {
     /**
      * ドメインパッケージでの使用に限りたい。
      */
-    public TwitchClient getClient() {
-        return client;
+    public TwitchClients getClient() {
+        synchronized (lifecycleLock) {
+            checkOpen();
+            return client;
+        }
     }
 
     public TwitchChat getChat() {
-        return client.getChat();
+        return getClient().getChat();
     }
 
     public void logout() {
-        if (twitchAPI != null) {
-            try {
-                twitchAPI.close();
-            } catch (IOException ignored) {
-            }
-            twitchAPI = null;
-        }
-        client.close();
-
-        var credentialController = new CredentialController(credentialStore);
-        try {
-            credentialController.revokeToken();
-        } finally {
-            credentialController.disposeAuthenticate();
-        }
-
-        credentialStore.clearCredentials();
+        if (!logoutStarted.compareAndSet(false, true)) return;
+        CloseActions.runAll(this::close,
+                () -> CredentialController.revokeToken(getCredential()),
+                () -> credentialStore.removeCredential(getCredential()));
     }
 
     @Override
     public void close() {
-        if (twitchAPI != null) {
-            try {
-                twitchAPI.close();
-            } catch (IOException ignored) {
-            }
+        final TwitchAPI api;
+        synchronized (lifecycleLock) {
+            if (closed) return;
+            closed = true;
+            api = twitchAPI;
         }
+        CloseActions.runAll(this::freezeCredentials, credentialStore::awaitWrites, () -> {
+            if (api == null) return;
+            try { api.close(); }
+            catch (IOException failure) { throw new UncheckedIOException(failure); }
+        }, releaseClient, () -> {
+            if (hasInvalidCredentials()) credentialStore.removeCredential(getCredential());
+        });
+    }
 
-        client.close();
+    private void checkOpen() {
+        if (closed) throw new IllegalStateException("twitch client is closed");
     }
 
 }

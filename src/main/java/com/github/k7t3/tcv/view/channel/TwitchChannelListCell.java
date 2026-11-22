@@ -19,6 +19,7 @@ package com.github.k7t3.tcv.view.channel;
 import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.view.image.LazyImageView;
 import com.github.k7t3.tcv.view.core.JavaFXHelper;
+import com.github.k7t3.tcv.view.core.ViewResources;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Insets;
@@ -33,8 +34,12 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Rectangle;
+import javafx.util.Subscription;
 
-public class TwitchChannelListCell extends ListCell<TwitchChannelViewModel> {
+public class TwitchChannelListCell extends ListCell<TwitchChannelViewModel> implements AutoCloseable {
+    private final ViewResources layoutResources = new ViewResources();
+    private boolean closed;
+    private Subscription following;
 
     private static final double PROFILE_IMAGE_WIDTH = 32;
     private static final double PROFILE_IMAGE_HEIGHT = 32;
@@ -75,12 +80,15 @@ public class TwitchChannelListCell extends ListCell<TwitchChannelViewModel> {
         var clip = new Rectangle();
         clip.widthProperty().bind(profileImageView.fitWidthProperty());
         clip.heightProperty().bind(profileImageView.fitHeightProperty());
+        layoutResources.add(clip.widthProperty()::unbind);
+        layoutResources.add(clip.heightProperty()::unbind);
         clip.setArcWidth(PROFILE_IMAGE_WIDTH);
         clip.setArcHeight(PROFILE_IMAGE_HEIGHT);
         profileImageView.setClip(clip);
 
         live = new SimpleBooleanProperty(false);
         profileImageView.effectProperty().bind(live.map(live -> live ? null : new SepiaTone()));
+        layoutResources.add(() -> { profileImageView.effectProperty().unbind(); profileImageView.setEffect(null); });
 
         userNameLabel = new Label();
         userNameLabel.getStyleClass().add(USER_NAME_STYLE_CLASS);
@@ -99,6 +107,12 @@ public class TwitchChannelListCell extends ListCell<TwitchChannelViewModel> {
         onlineMark.managedProperty().bind(onlineMark.visibleProperty());
         viewerCountLabel.visibleProperty().bind(live);
         viewerCountLabel.managedProperty().bind(viewerCountLabel.visibleProperty());
+        layoutResources.add(gameTitleLabel.visibleProperty()::unbind);
+        layoutResources.add(gameTitleLabel.managedProperty()::unbind);
+        layoutResources.add(onlineMark.visibleProperty()::unbind);
+        layoutResources.add(onlineMark.managedProperty()::unbind);
+        layoutResources.add(viewerCountLabel.visibleProperty()::unbind);
+        layoutResources.add(viewerCountLabel.managedProperty()::unbind);
 
         // ユーザー名とゲーム名のコンテナ
         var center = new VBox(userNameLabel, gameTitleLabel);
@@ -120,6 +134,7 @@ public class TwitchChannelListCell extends ListCell<TwitchChannelViewModel> {
                         .subtract(right.widthProperty())
                         .subtract(10)
         );
+        layoutResources.add(center.prefWidthProperty()::unbind);
 
         BorderPane.setAlignment(profileImageView, Pos.CENTER);
 
@@ -151,23 +166,19 @@ public class TwitchChannelListCell extends ListCell<TwitchChannelViewModel> {
         );
         live.bind(viewModel.liveProperty());
 
-        var title = viewModel.getStreamTitle();
-        if (title != null) {
-            tooltip.setText(title);
-            setTooltip(tooltip);
-        } else {
-            setTooltip(null);
-        }
+        tooltip.textProperty().bind(viewModel.observableStreamTitle());
+        setTooltip(tooltip);
 
         // フォローPseudoクラス
-        JavaFXHelper.updatePseudoClass(this, "unfollow", !viewModel.isFollowing());
+        following = JavaFXHelper.registerPseudoClass(this, "unfollow", viewModel.followingProperty().map(value -> !value));
     }
 
     @Override
     protected void updateItem(TwitchChannelViewModel item, boolean empty) {
-        super.updateItem(item, empty);
+        clearItem();
+        super.updateItem(closed ? null : item, closed || empty);
 
-        if (item == null || empty) {
+        if (closed || item == null || empty) {
             setGraphic(null);
             setTooltip(null);
             return;
@@ -179,5 +190,23 @@ public class TwitchChannelListCell extends ListCell<TwitchChannelViewModel> {
 
         update(item);
         setGraphic(layout);
+    }
+
+    private void clearItem() {
+        if (layout == null) return;
+        if (following != null) { following.unsubscribe(); following = null; }
+        profileImageView.lazyImageProperty().unbind(); profileImageView.setLazyImage(null);
+        live.unbind(); live.set(false);
+        gameTitleLabel.textProperty().unbind(); gameTitleLabel.setText(null);
+        viewerCountLabel.textProperty().unbind(); viewerCountLabel.setText(null);
+        userNameLabel.setText(null);
+        tooltip.hide(); tooltip.textProperty().unbind(); tooltip.setText(null);
+        JavaFXHelper.updatePseudoClass(this, "unfollow", false);
+    }
+
+    @Override public void close() {
+        if (closed) return;
+        closed = true;
+        com.github.k7t3.tcv.lifecycle.CloseActions.runAll(() -> updateItem(null, true), layoutResources::close);
     }
 }

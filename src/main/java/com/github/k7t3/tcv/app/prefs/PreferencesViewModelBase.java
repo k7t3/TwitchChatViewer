@@ -21,7 +21,7 @@ import com.github.k7t3.tcv.domain.event.EventSubscribers;
 
 public interface PreferencesViewModelBase extends AppViewModel {
 
-    void sync();
+    void prepare(SettingsDraft.Builder target);
 
     boolean canSync();
 

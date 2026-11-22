@@ -26,28 +26,35 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.StringProperty;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.prefs.Preferences;
 
 public class GeneralPreferences extends PreferencesBase {
 
-    /** このアプリケーションに適用されるテーマの名称*/
-    private static final String THEME = "theme";
-    /** テーマのタイプ*/
-    private static final String THEME_TYPE = "theme.type";
-
-    /** チャンネルを複数選択して開くときの動作*/
-    private static final String MULTIPLE_OPEN_TYPE = "multiple.open.type";
-
-    /** ユーザーデータを格納するファイルのパス*/
-    private static final String USER_DATA_FILE_PATH = "user.data.file";
-
-    /**
-     * データベースを構成するためのバージョン。
-     * バージョンが異なるときはテーブルを変更する必要があるため現在の値を記録。
-     */
+    private static final PreferenceKey<Theme> THEME = PreferenceKey.enumeration("theme", ThemeManager.DEFAULT_THEME, Theme.class);
+    private static final PreferenceKey<ThemeType> THEME_TYPE = PreferenceKey.enumeration("theme.type", ThemeType.SYSTEM, ThemeType.class);
+    private static final PreferenceKey<MultipleChatOpenType> MULTIPLE_OPEN_TYPE = PreferenceKey.enumeration(
+            "multiple.open.type", MultipleChatOpenType.SEPARATED, MultipleChatOpenType.class);
     private static final String DATABASE_VERSION = "database.version";
+    private static final PreferenceKey<String> USER_DATA_FILE_PATH = new PreferenceKey<>("user.data.file",
+            () -> OS.current().getApplicationDirectory().toAbsolutePath().resolve("userdata.db").toString(),
+            java.util.function.Function.identity(), java.util.function.Function.identity());
 
-    private static final String USER_DATA_FILE_NAME = "userdata.db";
+    static Map<String, PreferenceKey<?>> editorSettings() {
+        return Map.of(THEME.name(), THEME, THEME_TYPE.name(), THEME_TYPE, MULTIPLE_OPEN_TYPE.name(), MULTIPLE_OPEN_TYPE);
+    }
+
+    static java.util.Set<String> storedKeys() {
+        var keys = new java.util.HashSet<>(editorSettings().keySet());
+        keys.add(DATABASE_VERSION);
+        keys.add(USER_DATA_FILE_PATH.name());
+        return java.util.Set.copyOf(keys);
+    }
+
+    public static Map<String, Optional<String>> editorValues(Theme theme, ThemeType type, MultipleChatOpenType open) {
+        return Map.of(THEME.name(), Optional.of(THEME.encode(theme)), THEME_TYPE.name(), Optional.of(THEME_TYPE.encode(type)),
+                MULTIPLE_OPEN_TYPE.name(), Optional.of(MULTIPLE_OPEN_TYPE.encode(open)));
+    }
 
     private ObjectProperty<Theme> theme;
     private ObjectProperty<ThemeType> themeType;
@@ -56,67 +63,27 @@ public class GeneralPreferences extends PreferencesBase {
 
     private StringProperty userDataFilePath;
 
-    GeneralPreferences(Preferences preferences, Map<String, Object> defaults) {
-        super(preferences, defaults);
-
-        defaults.put(THEME, ThemeManager.DEFAULT_THEME.name());
-        defaults.put(THEME_TYPE, ThemeType.SYSTEM.name());
-        defaults.put(MULTIPLE_OPEN_TYPE, MultipleChatOpenType.SEPARATED.name());
-        defaults.put(DATABASE_VERSION, DatabaseVersion.EMPTY.name());
-        defaults.put(USER_DATA_FILE_PATH, OS.current().getApplicationDirectory()
-                .toAbsolutePath()
-                .resolve(USER_DATA_FILE_NAME)
-                .toString());
-    }
+    GeneralPreferences(Preferences preferences) { super(preferences, editorSettings().keySet()); }
+    GeneralPreferences(PreferenceStore store) { super(store, editorSettings().keySet()); }
 
     public void setDatabaseVersion(DatabaseVersion version) {
         if (version == DatabaseVersion.EMPTY || version == DatabaseVersion.UNKNOWN) {
             throw new IllegalArgumentException();
         }
-        preferences.put(DATABASE_VERSION, version.name());
+        store.write(DATABASE_VERSION, Optional.of(version.name()), false);
     }
 
     public DatabaseVersion getDatabaseVersion() {
-        var name = preferences.get(DATABASE_VERSION, (String) defaults.get(DATABASE_VERSION));
+        var name = store.read(DATABASE_VERSION).orElse(DatabaseVersion.EMPTY.name());
         return DatabaseVersion.valueOf(name);
     }
 
-    @Override
-    protected void readFromPreferences() {
-        var themeName = get(THEME);
-        if (themeName != null) {
-            var theme = Theme.valueOf(themeName);
-            setTheme(theme);
-        }
-
-        try {
-            var type = MultipleChatOpenType.valueOf(get(MULTIPLE_OPEN_TYPE));
-            if (getMultipleOpenType() != type) {
-                setMultipleOpenType(type);
-            }
-        } catch (IllegalArgumentException ignored) {
-        }
-
-        var userDataFilePath = get(USER_DATA_FILE_PATH);
-        if (!userDataFilePath.equalsIgnoreCase(getUserDataFilePath())) {
-            setUserDataFilePath(userDataFilePath);
-        }
-
-        var databaseVersion = DatabaseVersion.valueOf(get(DATABASE_VERSION));
-        if (databaseVersion != getDatabaseVersion()) {
-            setDatabaseVersion(databaseVersion);
-        }
-    }
-
-    @Override
-    protected void writeToPreferences() {
-    }
 
     // ******************** PROPERTIES ********************
 
     public ObjectProperty<Theme> themeProperty() {
         if (theme == null) {
-            theme = createObjectProperty(THEME, Theme::valueOf, Theme::name);
+            theme = createObjectProperty(THEME);
         }
         return theme;
     }
@@ -125,7 +92,7 @@ public class GeneralPreferences extends PreferencesBase {
 
     public ObjectProperty<ThemeType> themeTypeProperty() {
         if (themeType == null) {
-            themeType = createObjectProperty(THEME_TYPE, ThemeType::valueOf, ThemeType::name);
+            themeType = createObjectProperty(THEME_TYPE);
         }
         return themeType;
     }
@@ -134,10 +101,7 @@ public class GeneralPreferences extends PreferencesBase {
 
     public ObjectProperty<MultipleChatOpenType> multipleOpenTypeProperty() {
         if (multipleOpenType == null) {
-            multipleOpenType = createObjectProperty(
-                    MULTIPLE_OPEN_TYPE,
-                    MultipleChatOpenType::valueOf,
-                    Enum::name);
+            multipleOpenType = createObjectProperty(MULTIPLE_OPEN_TYPE);
         }
         return multipleOpenType;
     }

@@ -19,75 +19,65 @@ package com.github.k7t3.tcv.app.prefs;
 import com.github.k7t3.tcv.app.channel.MultipleChatOpenType;
 import com.github.k7t3.tcv.app.theme.Theme;
 import com.github.k7t3.tcv.app.theme.ThemeType;
+import com.github.k7t3.tcv.app.theme.ThemeManager;
+import com.github.k7t3.tcv.lifecycle.CloseActions;
+import javafx.beans.value.ChangeListener;
 import com.github.k7t3.tcv.prefs.GeneralPreferences;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ReadOnlyObjectProperty;
-import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
 
-import java.util.Objects;
 
 public class GeneralPreferencesViewModel implements PreferencesViewModelBase {
 
     private final GeneralPreferences prefs;
-
-    private final ReadOnlyObjectWrapper<Theme> defaultTheme;
-    private final ReadOnlyObjectWrapper<ThemeType> defaultThemeType;
+    private final ThemeManager preview;
+    private boolean closed;
+    private final ChangeListener<Theme> themeChanged;
+    private final ChangeListener<ThemeType> typeChanged;
 
     private final ObjectProperty<Theme> theme;
     private final ObjectProperty<ThemeType> themeType;
 
     private final ObjectProperty<MultipleChatOpenType> chatOpenType;
 
-    private final StringProperty userDataFilePath;
-
     public GeneralPreferencesViewModel(GeneralPreferences prefs) {
+        this(prefs, null);
+    }
+
+    public GeneralPreferencesViewModel(GeneralPreferences prefs, ThemeManager preview) {
         this.prefs = prefs;
-        defaultTheme = new ReadOnlyObjectWrapper<>(prefs.getTheme());
-        defaultThemeType = new ReadOnlyObjectWrapper<>(prefs.getThemeType());
+        this.preview = preview;
+        themeChanged = (observable, previous, next) -> { if (!closed && preview != null) preview.setTheme(next); };
+        typeChanged = (observable, previous, next) -> { if (!closed && preview != null) preview.setThemeType(next); };
         theme = new SimpleObjectProperty<>(prefs.getTheme());
         themeType = new SimpleObjectProperty<>(prefs.getThemeType());
         chatOpenType = new SimpleObjectProperty<>(prefs.getMultipleOpenType());
-        userDataFilePath = new SimpleStringProperty(prefs.getUserDataFilePath());
+        theme.addListener(themeChanged);
+        themeType.addListener(typeChanged);
     }
 
     @Override
     public boolean canSync() {
-        return true;
+        return !closed && getTheme() != null && getThemeType() != null && getChatOpenType() != null;
+    }
+
+    @Override public void close() {
+        if (closed) return;
+        closed = true;
+        CloseActions.runAll(() -> {
+            theme.removeListener(themeChanged);
+            themeType.removeListener(typeChanged);
+        }, () -> { if (preview != null) preview.setTheme(prefs.getTheme()); },
+                () -> { if (preview != null) preview.setThemeType(prefs.getThemeType()); });
     }
 
     @Override
-    public void sync() {
-        var theme = getTheme();
-        if (!Objects.equals(getDefaultTheme(), theme)) {
-            prefs.setTheme(theme);
-        }
-
-        var themeType = getThemeType();
-        if (!Objects.equals(getDefaultThemeType(), themeType)) {
-            prefs.setThemeType(themeType);
-        }
-
-        var openType = getChatOpenType();
-        if (openType != prefs.getMultipleOpenType()) {
-            prefs.setMultipleOpenType(openType);
-        }
-
-        var userData = getUserDataFilePath();
-        if (!Objects.equals(userData, prefs.getUserDataFilePath())) {
-            prefs.setUserDataFilePath(userData);
-        }
+    public void prepare(SettingsDraft.Builder target) {
+        if (!canSync()) throw new IllegalStateException("general preferences contain an incomplete choice");
+        target.values(GeneralPreferences.editorValues(getTheme(), getThemeType(), getChatOpenType()));
     }
 
     // ******************** PROPERTIES ********************
-
-    public ReadOnlyObjectProperty<Theme> defaultThemeProperty() { return defaultTheme.getReadOnlyProperty(); }
-    public Theme getDefaultTheme() { return defaultTheme.get(); }
-
-    public ReadOnlyObjectProperty<ThemeType> defaultThemeTypeProperty() { return defaultThemeType.getReadOnlyProperty(); }
-    public ThemeType getDefaultThemeType() { return defaultThemeType.get(); }
 
     public ObjectProperty<Theme> themeProperty() { return theme; }
     public Theme getTheme() { return theme.get(); }
@@ -100,9 +90,5 @@ public class GeneralPreferencesViewModel implements PreferencesViewModelBase {
     public ObjectProperty<MultipleChatOpenType> chatOpenTypeProperty() { return chatOpenType; }
     public MultipleChatOpenType getChatOpenType() { return chatOpenType.get(); }
     public void setChatOpenType(MultipleChatOpenType chatOpenType) { this.chatOpenType.set(chatOpenType); }
-
-    public StringProperty userDataFilePathProperty() { return userDataFilePath; }
-    public String getUserDataFilePath() { return userDataFilePath.get(); }
-    public void setUserDataFilePath(String userDataFilePath) { userDataFilePathProperty().set(userDataFilePath); }
 
 }

@@ -19,7 +19,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
-<BorderPane prefWidth="200.0" styleClass="chat-room-view" stylesheets="@SingleChatRoomView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.k7t3.tcv.view.chat.SingleChatRoomView">
+<BorderPane prefWidth="200.0" styleClass="chat-room-view" stylesheets="@SingleChatRoomView.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
    <top>
       <GridPane fx:id="headerPane" styleClass="chat-room-header" BorderPane.alignment="CENTER">
          <columnConstraints>
@@ -58,7 +58,7 @@
                      </padding></CheckBox>
                   <VBox fx:id="chatRoomControlsContainer" alignment="TOP_RIGHT">
                      <children>
-                        <MenuButton fx:id="actionsMenuButton" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" text="MenuButton">
+                        <MenuButton fx:id="actionsMenuButton" accessibleText="%chat.menu.actions" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" text="MenuButton">
                           <items>
                               <CheckMenuItem fx:id="selectedMenuItem" mnemonicParsing="false" text="%chat.select" />
                               <SeparatorMenuItem mnemonicParsing="false" />
@@ -78,7 +78,7 @@
                               <FontIcon iconLiteral="fth-more-vertical" />
                            </graphic>
                         </MenuButton>
-                        <ToggleButton fx:id="scrollToEnd" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" text="↓" underline="true">
+                        <ToggleButton fx:id="scrollToEnd" accessibleText="%chat.scroll" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" text="↓" underline="true">
                            <tooltip>
                               <Tooltip text="%chat.scroll" />
                            </tooltip>

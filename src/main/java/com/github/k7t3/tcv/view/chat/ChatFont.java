@@ -16,12 +16,13 @@
 
 package com.github.k7t3.tcv.view.chat;
 
+import com.github.k7t3.tcv.app.theme.JapaneseFonts;
 import javafx.beans.property.*;
 import javafx.beans.value.ObservableDoubleValue;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
-import java.io.*;
+import com.github.k7t3.tcv.prefs.FontSettings;
 import java.util.Objects;
 
 public class ChatFont {
@@ -41,54 +42,18 @@ public class ChatFont {
     private final ObservableDoubleValue fontScale;
 
     public ChatFont(String family, double size) {
+        new FontSettings(family, size); // データ境界と同じ検証を表示モデルにも適用する。
         this.family = new ReadOnlyStringWrapper(family);
         this.font = new ReadOnlyObjectWrapper<>(Font.font(family, size));
         this.size = new ReadOnlyDoubleWrapper(size);
         this.fontScale = this.size.divide(DEFAULT_FONT_SIZE);
     }
 
-    private ChatFont() {
-        this.font = new ReadOnlyObjectWrapper<>(Font.getDefault());
-        this.family = new ReadOnlyStringWrapper(Font.getDefault().getFamily());
-        this.size = new ReadOnlyDoubleWrapper(DEFAULT_FONT_SIZE);
-        this.fontScale = this.size.divide(DEFAULT_FONT_SIZE);
-    }
-
     public static synchronized ChatFont getDefault() {
         if (DEFAULT == null) {
-            DEFAULT = new ChatFont();
+            DEFAULT = new ChatFont(JapaneseFonts.defaultDisplayFamily(), DEFAULT_FONT_SIZE);
         }
         return DEFAULT;
-    }
-
-    public byte[] serialize() {
-        try (var bo = new ByteArrayOutputStream();
-             var dos = new DataOutputStream(bo)) {
-            var family = getFamily();
-            var size = getSize();
-
-            dos.writeUTF(family);
-            dos.writeDouble(size);
-
-            return bo.toByteArray();
-
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static ChatFont deserialize(byte[] bytes) {
-        try (var bi = new ByteArrayInputStream(bytes);
-             var dis = new DataInputStream(bi)) {
-
-            var family = dis.readUTF();
-            var size = dis.readDouble();
-
-            return new ChatFont(family, size);
-
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     @Override

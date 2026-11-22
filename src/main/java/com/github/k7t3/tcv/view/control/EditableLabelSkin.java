@@ -31,6 +31,7 @@ public class EditableLabelSkin extends SkinBase<EditableLabel> {
     private final Label label = new Label();
 
     private final TextField field = new TextField();
+    private boolean disposed;
 
     protected EditableLabelSkin(EditableLabel control) {
         super(control);
@@ -90,7 +91,7 @@ public class EditableLabelSkin extends SkinBase<EditableLabel> {
 
         field.focusedProperty().addListener((ob, o, n) -> {
             // フォーカスを失ったときはキャンセル
-            if (getSkinnable().isEditing() && o && !n) {
+            if (!disposed && getSkinnable().isEditing() && o && !n) {
                 cancelEdit();
             }
         });
@@ -105,6 +106,7 @@ public class EditableLabelSkin extends SkinBase<EditableLabel> {
     }
 
     private void startEdit() {
+        if (disposed) return;
         var control = getSkinnable();
         // 編集モード
         control.setEditing(true);
@@ -122,6 +124,7 @@ public class EditableLabelSkin extends SkinBase<EditableLabel> {
     }
 
     private void commit() {
+        if (disposed) return;
         var control = getSkinnable();
         // 編集モードを切り替え
         control.setEditing(false);
@@ -136,6 +139,7 @@ public class EditableLabelSkin extends SkinBase<EditableLabel> {
     }
 
     private void cancelEdit() {
+        if (disposed) return;
         var control = getSkinnable();
         // 編集モードを切り替え
         control.setEditing(false);
@@ -145,5 +149,16 @@ public class EditableLabelSkin extends SkinBase<EditableLabel> {
         // イベントを発行
         var event = new EditableLabel.EditEvent(control, EditableLabel.editCancelEvent(), control.getText());
         control.fireEvent(event);
+    }
+
+    /** 未確定値を取り消し、文字の接続と古い編集操作を無効にする。 */
+    @Override
+    public void dispose() {
+        if (disposed) return;
+        disposed = true;
+        label.textProperty().unbind();
+        var control = getSkinnable();
+        if (control != null) control.setEditing(false);
+        super.dispose();
     }
 }

@@ -17,17 +17,19 @@
 package com.github.k7t3.tcv.app.prefs;
 
 import com.github.k7t3.tcv.app.service.FXTask;
-import com.github.k7t3.tcv.prefs.AppPreferences;
 import com.github.k7t3.tcv.prefs.ChatPreferences;
-import com.github.k7t3.tcv.view.chat.ChatFont;
-import javafx.application.Platform;
+import com.github.k7t3.tcv.prefs.FontSettings;
 import javafx.beans.property.*;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.text.Font;
 
 import java.util.List;
-import java.util.stream.IntStream;
+import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 public class ChatPreferencesViewModel implements PreferencesViewModelBase {
 
@@ -47,33 +49,66 @@ public class ChatPreferencesViewModel implements PreferencesViewModelBase {
 
     private final ObservableList<FontFamily> fontFamilies = FXCollections.observableArrayList();
 
-    private final ChatPreferences prefs;
+    private final Executor executor;
+    private final Supplier<List<String>> fontLookup;
+    private final Consumer<Throwable> failures;
+    private FXTask<List<String>> fontLoad;
+    private Object fontRequest;
+    private final ReadOnlyBooleanWrapper fontsReady = new ReadOnlyBooleanWrapper();
+    private boolean closed;
 
-    public ChatPreferencesViewModel() {
-        prefs = AppPreferences.getInstance().getChatPreferences();
+    public ChatPreferencesViewModel(ChatPreferences prefs, Executor executor, Consumer<Throwable> failures) {
+        this(prefs, executor, Font::getFamilies, failures);
+    }
+
+    ChatPreferencesViewModel(ChatPreferences prefs, Executor executor, Supplier<List<String>> fontLookup,
+                             Consumer<Throwable> failures) {
+        this.executor = executor;
+        this.fontLookup = fontLookup;
+        this.failures = failures;
         showUserName = new SimpleBooleanProperty(prefs.isShowUserName());
         showBadges = new SimpleBooleanProperty(prefs.isShowBadges());
         chatCacheSize = new SimpleIntegerProperty(prefs.getChatCacheSize());
 
         var font = prefs.getFont();
-        this.font = new SimpleObjectProperty<>(new FontFamily(font.getFamily()));
-        this.fontSize = new SimpleDoubleProperty(font.getSize());
+        this.font = new SimpleObjectProperty<>(new FontFamily(font.family()));
+        this.fontSize = new SimpleDoubleProperty(font.size());
     }
 
-    public FXTask<Void> loadFontsAsync() {
-        final var partSize = 100;
-        return FXTask.task(() -> {
-            var families = Font.getFamilies();
-            var familySize = families.size();
-            var div = families.size() / partSize;
-            var times = families.size() % partSize == 0 ? div : div + 1;
-
-            IntStream.range(0, times)
-                    .mapToObj(i -> families.subList(i * partSize, Math.min(familySize, (i + 1) * partSize)))
-                    .map(chunk -> chunk.stream().map(FontFamily::new).toList())
-                    .forEach(ff -> Platform.runLater(() -> fontFamilies.addAll(ff)));
-        }).runAsync();
+    public FXTask<List<String>> loadFontsAsync() {
+        if (closed) throw new IllegalStateException("chat preferences editor is closed");
+        if (fontLoad != null) return fontLoad;
+        var task = FXTask.task(() -> List.copyOf(fontLookup.get()));
+        fontLoad = task;
+        var request = new Object();
+        fontRequest = request;
+        task.onDone(families -> {
+            if (closed || fontRequest != request) return;
+            fontFamilies.clear();
+            publishFontBatch(families, 0, request);
+        });
+        task.onFailure(failure -> { if (!closed && fontLoad == task) failures.accept(failure); });
+        task.setFinally(() -> {
+            if (fontLoad == task && task.getState() != javafx.concurrent.Worker.State.SUCCEEDED) {
+                fontLoad = null;
+                fontRequest = null;
+            }
+        });
+        try { executor.execute(task); }
+        catch (RejectedExecutionException closing) { task.cancel(); }
+        return task;
     }
+
+    private void publishFontBatch(List<String> names, int start, Object request) {
+        if (closed || fontRequest != request) return;
+        var end = Math.min(names.size(), start + 100);
+        fontFamilies.addAll(names.subList(start, end).stream().map(FontFamily::new).toList());
+        if (closed || fontRequest != request) return;
+        if (end < names.size()) Platform.runLater(() -> publishFontBatch(names, end, request));
+        else fontsReady.set(true);
+    }
+
+    public ReadOnlyBooleanProperty fontsReadyProperty() { return fontsReady.getReadOnlyProperty(); }
 
     public ObservableList<FontFamily> getFontFamilies() {
         return fontFamilies;
@@ -81,23 +116,28 @@ public class ChatPreferencesViewModel implements PreferencesViewModelBase {
 
     @Override
     public boolean canSync() {
-        return true;
+        return !closed && getFont() != null && getFont().getFamily() != null && !getFont().getFamily().isBlank()
+                && Double.isFinite(getFontSize()) && getFontSize() > 0 && getChatCacheSize() > 0;
     }
 
     @Override
-    public void sync() {
-        var font = getFont();
-        var size = getFontSize();
+    public void prepare(SettingsDraft.Builder target) {
+        if (!canSync()) throw new IllegalStateException("chat preferences contain an invalid font or cache size");
+        target.values(ChatPreferences.editorValues(new FontSettings(getFont().getFamily(), getFontSize()),
+                isShowUserName(), isShowBadges(), getChatCacheSize()));
+    }
 
-        var currentFont = prefs.getFont();
-        if (!font.getFamily().equals(currentFont.getFamily())
-                || size != currentFont.getSize()) {
-            prefs.setFont(new ChatFont(font.getFamily(), size));
-        }
+    public boolean isClosed() { return closed; }
 
-        prefs.setShowUserName(isShowUserName());
-        prefs.setShowBadges(isShowBadges());
-        prefs.setChatCacheSize(getChatCacheSize());
+    @Override public void close() {
+        if (closed) return;
+        closed = true;
+        var pending = fontLoad;
+        fontLoad = null;
+        fontRequest = null;
+        if (pending != null) pending.cancel();
+        fontFamilies.clear();
+        fontsReady.set(false);
     }
 
     // ******************** PROPERTIES ********************

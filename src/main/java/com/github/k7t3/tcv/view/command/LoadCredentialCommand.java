@@ -18,77 +18,44 @@ package com.github.k7t3.tcv.view.command;
 
 import atlantafx.base.controls.ModalPane;
 import com.github.k7t3.tcv.app.auth.AuthenticatorViewModel;
-import com.github.k7t3.tcv.app.service.BasicCommand;
-import com.github.k7t3.tcv.app.core.ExceptionHandler;
 import com.github.k7t3.tcv.app.core.Resources;
-import com.github.k7t3.tcv.domain.auth.CredentialStore;
 import com.github.k7t3.tcv.view.auth.AuthenticatorView;
+import com.github.k7t3.tcv.view.core.ViewResources;
 import de.saxsys.mvvmfx.FluentViewLoader;
 import javafx.beans.value.ObservableValue;
-import javafx.concurrent.WorkerStateEvent;
 import javafx.geometry.Side;
+import javafx.scene.Parent;
+import java.util.function.Supplier;
 
-/**
- * 保存されている資格情報をロードするコマンド。
- * 保存されていない場合は認証フローを開始する。
- */
-public class LoadCredentialCommand extends BasicCommand {
+/** 初期認証のモデル・FXML・開始予約を、同じ一時画面の所有へまとめる。 */
+public class LoadCredentialCommand extends OwnedModalCommand {
+    private final Supplier<AuthenticatorViewModel> authenticatorFactory;
+    private boolean opening;
 
-    private final ModalPane modalPane;
-    private final CredentialStore credentialStore;
-
-    public LoadCredentialCommand(
-            ModalPane modalPane,
-            ObservableValue<Boolean> executableCondition,
-            CredentialStore credentialStore
-    ) {
-        this.modalPane = modalPane;
-        this.credentialStore = credentialStore;
-        executable.bind(executableCondition);
+    public LoadCredentialCommand(ModalPane pane, ObservableValue<Boolean> condition,
+                                 Supplier<AuthenticatorViewModel> authenticatorFactory) {
+        super(pane, condition, Side.TOP);
+        this.authenticatorFactory = authenticatorFactory;
     }
 
-    @Override
-    public void execute() {
-        // 実行中フラグを有効化
-        running.set(true);
+    @Override protected boolean mayOpen() { return !opening && !isRunning(); }
+    @Override protected boolean persistent() { return true; }
 
-        var viewModel = new AuthenticatorViewModel(credentialStore);
-        var tuple = FluentViewLoader.fxmlView(AuthenticatorView.class)
-                .viewModel(viewModel)
-                .resourceBundle(Resources.getResourceBundle())
-                .load();
-
-        var view = tuple.getView();
-
-        // 読み込み画面を表示
-        modalPane.usePredefinedTransitionFactories(Side.TOP);
-        modalPane.setPersistent(true);
-        modalPane.show(view);
-
-        // 既存の資格情報を読み込む
-        var loadAsync = viewModel.loadClientAsync();
-        loadAsync.onDone(() -> {
-            // 資格情報の取得に成功
-            if (loadAsync.getValue().isPresent()) {
-                // 実行中フラグを終了
-                running.set(false);
-                return;
-            }
-
-            // 認証が確認できなかったときは認証フローを開始する。
-            // デバイス認証フローのリンクURLが表示され、そのリンクから
-            // 認証が許可されるまでポーリングし続ける。
-
-            // 認証フローの開始
-            var flowAsync = viewModel.startAuthenticateAsync();
-            flowAsync.addEventHandler(WorkerStateEvent.WORKER_STATE_FAILED, e2 -> {
-                ExceptionHandler.handle(flowAsync.getException());
-            });
-            flowAsync.setFinally(() -> {
-                // 実行中フラグを終了
-                running.set(false);
-            });
-        });
+    @Override protected Parent load(ModalSession session) {
+        opening = true;
+        session.own(() -> opening = false);
+        var model = authenticatorFactory.get();
+        var modelLifetime = new ViewResources();
+        modelLifetime.add(model::close);
+        session.own(modelLifetime::close);
+        if (session.isReleased()) return null;
+        var controller = new AuthenticatorView(modelLifetime::close);
+        session.own(controller::close);
+        session.own(() -> { running.unbind(); running.set(false); });
+        running.bind(model.busyProperty());
+        var root = FluentViewLoader.fxmlView(AuthenticatorView.class).codeBehind(controller)
+                .viewModel(model).resourceBundle(Resources.getResourceBundle()).load().getView();
+        session.onShown(model::beginAuthentication);
+        return root;
     }
-
 }

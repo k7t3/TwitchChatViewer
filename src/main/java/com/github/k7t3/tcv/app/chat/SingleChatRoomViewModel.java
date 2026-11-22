@@ -20,6 +20,7 @@ import com.github.k7t3.tcv.app.channel.TwitchChannelViewModel;
 import com.github.k7t3.tcv.app.chat.filter.ChatFilters;
 import com.github.k7t3.tcv.app.emoji.ChatEmojiStore;
 import com.github.k7t3.tcv.app.service.FXTask;
+import com.github.k7t3.tcv.app.service.FXTaskGroup;
 import com.github.k7t3.tcv.domain.channel.TwitchChannel;
 import com.github.k7t3.tcv.domain.chat.ChatRoomState;
 import com.github.k7t3.tcv.domain.event.chat.ChatRoomStateUpdatedEvent;
@@ -36,6 +37,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.List;
 
 public class SingleChatRoomViewModel extends ChatRoomViewModel implements ViewModel {
 
@@ -44,6 +46,8 @@ public class SingleChatRoomViewModel extends ChatRoomViewModel implements ViewMo
     private final ReadOnlyObjectWrapper<TwitchChannelViewModel> channel;
 
     private final ObservableSet<ChatRoomState> roomStates = FXCollections.observableSet(new HashSet<>());
+    private boolean left;
+    private FXTask<Void> leaving;
 
     SingleChatRoomViewModel(
             ChatRoomContainerViewModel containerViewModel,
@@ -60,20 +64,24 @@ public class SingleChatRoomViewModel extends ChatRoomViewModel implements ViewMo
 
     @Override
     public FXTask<?> joinChatAsync() {
+        if (left) throw new IllegalStateException("chat room has been left");
         var channel = getChannel();
         return channel.joinChatAsync();
     }
 
     @Override
     public FXTask<Void> leaveChatAsync() {
+        if (leaving != null) return leaving;
+        stopReceivingState();
         var channel = getChannel();
-
-        if (channel.isChatJoined()) {
-            containerViewModel.onLeft(this);
-        }
-
-        return channel.leaveChatAsync();
+        containerViewModel.onLeft(this);
+        var exits = FXTaskGroup.startAll(List.of(channel), TwitchChannelViewModel::leaveChatAsync);
+        leaving = exits.task();
+        containerViewModel.trackExit(exits);
+        return exits.task();
     }
+
+    void stopReceivingState() { left = true; }
 
     @Override
     public boolean accept(TwitchChannel channel) {
@@ -103,11 +111,13 @@ public class SingleChatRoomViewModel extends ChatRoomViewModel implements ViewMo
 
     @Override
     public void onStateUpdated(ChatRoomStateUpdatedEvent e) {
+        if (left) return;
         var roomState = e.getState();
         var active = e.isActive();
 
         LOGGER.info("{} room state updated {}", getChannel().getUserLogin(), roomState);
         Platform.runLater(() -> {
+            if (left || getChannel().getChannel().getJoinedChatRoom().orElse(null) != e.getChatRoom()) return;
             if (active)
                 roomStates.add(roomState);
             else

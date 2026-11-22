@@ -17,6 +17,7 @@
 package com.github.k7t3.tcv.app.clip;
 
 import com.github.k7t3.tcv.app.image.LazyImage;
+import com.github.k7t3.tcv.app.image.ImageLoader;
 import com.github.k7t3.tcv.app.service.CachedImageStore;
 import org.jetbrains.annotations.Nullable;
 
@@ -26,16 +27,18 @@ public class ClipThumbnailStore extends CachedImageStore<PostedClipItem> {
 
     private static final double THUMBNAIL_WIDTH = 128;
     private static final double THUMBNAIL_HEIGHT = 128;
+    private final ImageLoader images;
 
-    public ClipThumbnailStore() {
+    public ClipThumbnailStore(ImageLoader images) {
         super(128, Duration.ofMinutes(5));
+        this.images = images;
     }
 
     @Override
     protected @Nullable LazyImage loadImage(PostedClipItem key) {
         var link = key.getThumbnailLink();
         if (link == null) return null;
-        return new LazyImage(link, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
+        return images.load(link, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
     }
 
 }

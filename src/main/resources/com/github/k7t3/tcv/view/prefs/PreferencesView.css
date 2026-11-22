@@ -1,10 +1,46 @@
 .preference-view {
     -fx-background-color: -color-bg-default;
-    -fx-pref-width: 800;
+    -fx-pref-width: 880;
     -fx-pref-height: 600;
 }
 
+.prefs-sidebar {
+    -fx-padding: 24 12 16 12;
+    -fx-border-color: transparent -color-border-default transparent transparent;
+}
+
+.prefs-sidebar > .label {
+    -fx-padding: 0 8;
+}
+
+.prefs-sidebar .tree-view {
+    -fx-fixed-cell-size: 40;
+    -fx-background-insets: 0;
+}
+
+.prefs-sidebar .tree-cell {
+    -fx-graphic-text-gap: 10;
+}
+
+.prefs-workspace {
+    -fx-padding: 24;
+    -fx-background-color: -color-bg-subtle;
+}
+
+.prefs-content {
+    -fx-padding: 8;
+    -fx-background-color: -color-bg-default;
+    -fx-background-radius: 8;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 8;
+}
+
+.prefs-actions {
+    -fx-padding: 12 24;
+    -fx-border-color: -color-border-default transparent transparent transparent;
+}
+
 .prefs-grid-pane {
-    -fx-hgap: 4;
-    -fx-vgap: 10;
+    -fx-hgap: 12;
+    -fx-vgap: 12;
 }

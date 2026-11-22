@@ -19,10 +19,9 @@ package com.github.k7t3.tcv.app.secure;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.crypto.KeyGenerator;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.NoSuchAlgorithmException;
 
@@ -30,23 +29,20 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class KeyManagerImplTest {
 
+    @TempDir Path directory;
     private Path storePath;
     private String password;
     private KeyManagerImpl manager;
 
     @BeforeEach
-    void setUp() throws IOException {
-        storePath = Files.createTempFile(null, null);
-        Files.delete(storePath); // ファイルの実態はあって欲しくないので削除
+    void setUp() {
+        storePath = directory.resolve("keys.p12");
         password = "changeit";
         manager = new KeyManagerImpl(storePath, password.toCharArray());
     }
 
     @AfterEach
-    void tearDown() throws Exception {
-        manager.close();
-        Files.deleteIfExists(storePath);
-    }
+    void tearDown() { manager.close(); }
 
     @Test
     void getNullTest() {
@@ -69,7 +65,7 @@ class KeyManagerImplTest {
     }
 
     @Test
-    void flushTest() throws Exception {
+    void aStoredSecretCanBeReopenedBeforeTheWriterCloses() throws Exception {
         var generator = KeyGenerator.getInstance("AES");
         generator.init(256);
 
@@ -77,9 +73,6 @@ class KeyManagerImplTest {
         var secret = generator.generateKey();
         manager.store(alias, secret);
 
-        // 永続化
-        manager.flush();
-        manager.close();
 
         // 再度ロードして取り出す
         try (var manager = new KeyManagerImpl(storePath, password.toCharArray())) {

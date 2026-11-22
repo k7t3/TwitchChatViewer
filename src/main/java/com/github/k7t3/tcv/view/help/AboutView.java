@@ -32,7 +32,8 @@ import javafx.scene.layout.Pane;
 import java.net.URL;
 import java.util.ResourceBundle;
 
-public class AboutView implements FxmlView<AboutViewModel>, Initializable {
+public class AboutView implements FxmlView<AboutViewModel>, Initializable, AutoCloseable {
+    private boolean closed;
 
     @FXML
     private Pane root;
@@ -66,6 +67,7 @@ public class AboutView implements FxmlView<AboutViewModel>, Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
+        if (closed) throw new IllegalStateException("about view is closed");
         titleLabel.getStyleClass().addAll(Styles.TITLE_3);
         gitHubButton.getStyleClass().addAll(Styles.BUTTON_CIRCLE, Styles.FLAT);
         copyrightLabel.getStyleClass().addAll(Styles.TEXT_SMALL);
@@ -76,17 +78,27 @@ public class AboutView implements FxmlView<AboutViewModel>, Initializable {
 
     @FXML
     private void browseGitHubPage() {
-        viewModel.browseGitHubPage();
+        if (!closed) viewModel.browseGitHubPage();
     }
 
     @FXML
     private void browseLicensePolicyPage() {
-        viewModel.browseLicenseWithSecurityPolicyPage();
+        if (!closed) viewModel.browseLicenseWithSecurityPolicyPage();
     }
 
     @FXML
     private void browseLibrariesPage() {
-        viewModel.browseLibrariesPage();
+        if (!closed) viewModel.browseLibrariesPage();
+    }
+
+    @Override public void close() {
+        if (closed) return;
+        closed = true;
+        if (gitHubButton != null) gitHubButton.setOnAction(null);
+        if (licensePolicyLink != null) licensePolicyLink.setOnAction(null);
+        if (librariesLink != null) librariesLink.setOnAction(null);
+        if (okButton != null) okButton.setOnAction(null);
+        if (iconImageView != null) { iconImageView.setImage(null); iconImageView.setEffect(null); }
     }
 
     public Button getOkButton() {

@@ -1,3 +1,10 @@
+import com.github.k7t3.tcv.build.JdkModulesTask
+import com.github.k7t3.tcv.build.JdkToolTask
+import com.github.k7t3.tcv.build.NativePackageTask
+import com.github.k7t3.tcv.build.PackagePlan
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.process.CommandLineArgumentProvider
+
 plugins {
     id 'application'
     id 'org.openjfx.javafxplugin' version '0.1.0'
@@ -6,193 +13,204 @@ plugins {
 
 group = 'io.github.k7t3'
 version = project.findProperty("app.version") ?: '1.0.0-dev'
+PackagePlan.nativeVersion(version.toString())
 
 repositories {
     mavenCentral()
 }
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
-}
+def javaFeature = libs.versions.java.get().toInteger()
+java { toolchain { languageVersion = JavaLanguageVersion.of(javaFeature) } }
 
-compileJava {
+tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
-}
-
-compileTestJava {
-    options.encoding = 'UTF-8'
+    options.release = javaFeature
 }
 
 javafx {
-    version = '22.0.1'
+    version = libs.versions.javafx.get()
     modules = [ 'javafx.controls', 'javafx.fxml', 'javafx.swing' ]
 }
 
 application {
     mainClass = 'com.github.k7t3.tcv.view.Launcher'
     applicationName = 'Twitch Chat Viewer'
+    applicationDefaultJvmArgs = ['--enable-native-access=ALL-UNNAMED']
+}
+
+configurations {
+    mockitoAgent { canBeConsumed = false; transitive = false }
+    runtimeClasspath {
+        // 旧Helix builderの設定依存は、上流SDKとの比較テスト側だけで使用する。
+        exclude group: 'commons-configuration', module: 'commons-configuration'
+        exclude group: 'commons-lang', module: 'commons-lang'
+        exclude group: 'commons-logging', module: 'commons-logging'
+    }
 }
 
 dependencies {
 
     // Logger
-    implementation 'org.slf4j:slf4j-api:2.0.11'
-    implementation 'org.slf4j:slf4j-jdk14:2.0.11'
+    implementation libs.slf4j.api
+    implementation libs.slf4j.jdk14
 
     // Twitchクライアント
-    // TODO 必要なモジュールのみにする
-    implementation 'com.github.twitch4j:twitch4j:1.21.0'
+    implementation libs.twitch.auth
+    implementation libs.twitch.chat
+    implementation libs.twitch.common
+    implementation(libs.twitch.helix) {
+        exclude group: 'io.github.openfeign', module: 'feign-hystrix'
+    }
+    implementation libs.feign.core
+    implementation libs.feign.jackson
+    implementation libs.feign.okhttp
+    implementation libs.bucket4j
 
     // キャッシュ
-    implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
+    implementation libs.caffeine
 
     // 永続化
-    implementation 'org.xerial:sqlite-jdbc:3.45.3.0'
+    implementation libs.sqlite
 
     // Twitch認証用のQRコード生成
-    implementation 'com.google.zxing:javase:3.5.3'
+    implementation libs.zxing
 
     // AtlantaFXと同じアイコンパックを使用する
-    implementation 'io.github.mkpaz:atlantafx-base:2.0.1'
-    implementation 'org.kordamp.ikonli:ikonli-javafx:12.3.1'
-    implementation 'org.kordamp.ikonli:ikonli-feather-pack:12.3.1'
-    implementation 'org.kordamp.ikonli:ikonli-material2-pack:12.3.1'
+    implementation libs.atlantafx
+    implementation libs.ikonli.javafx
+    implementation libs.ikonli.feather
+    implementation libs.ikonli.material2
 
     // アイコンパック
-    implementation 'org.kordamp.ikonli:ikonli-fontawesome5-pack:12.3.1'
+    implementation libs.ikonli.fontawesome5
 
     // MVVM
-    implementation "de.saxsys:mvvmfx:1.8.0"
+    implementation libs.mvvmfx
 
     // チャットビュー用のVirtualFlow
-    implementation 'org.fxmisc.flowless:flowless:0.7.2'
+    implementation libs.flowless
 
     // テスト
-    testImplementation platform('org.junit:junit-bom:5.9.1')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation platform(libs.junit.bom)
+    testImplementation libs.junit.jupiter
+    testRuntimeOnly libs.junit.launcher
 
-    testImplementation 'org.testfx:testfx-junit5:4.0.18'
-    testImplementation 'org.testfx:openjfx-monocle:21.0.2' // headless
+    testImplementation libs.testfx.junit5
 
-    testImplementation 'org.assertj:assertj-core:3.13.2'
-    testImplementation 'org.hamcrest:hamcrest:2.1'
+    testImplementation libs.assertj
+    testImplementation libs.hamcrest
 
 
-    testImplementation 'org.mockito:mockito-core:5.11.0'
+    testImplementation libs.mockito
+    // 上流SDKとのHTTP契約比較だけは、従来のコマンド実行をテスト側で維持する。
+    testImplementation libs.twitch.helix
+    mockitoAgent libs.mockito
 }
 
-// SSL通信のためにjdk.crypto.ecモジュールが必要
-// https://stackoverflow.com/questions/63932217/java-ssl-handshake-failure-if-app-built-with-jpackage
-def cryptoPackage = 'jdk.crypto.ec'
+// 配布入力を専用ディレクトリに同期する。古いアプリ JAR や依存 JAR を混入させない。
+def javafxArtifacts = configurations.runtimeClasspath.incoming.artifactView {
+    componentFilter { id -> id instanceof ModuleComponentIdentifier && id.group == 'org.openjfx' }
+}.files
+def applicationArtifacts = configurations.runtimeClasspath.incoming.artifactView {
+    componentFilter { id -> !(id instanceof ModuleComponentIdentifier && id.group == 'org.openjfx') }
+}.files
 
-def jdkModules = ''
-tasks.register('checkJDKModules', Exec) {
-    dependsOn jar, copyDependencies, copyJavaFXModules
-
-    // プラットフォームに依存したクラスパスのセパレータ
-    var s = org.gradle.internal.os.OperatingSystem.current().isWindows()
-            ? ';'
-            : ':'
-
-    commandLine 'jdeps',
-            '--add-modules', 'ALL-MODULE-PATH',
-            '--multi-release', '9',
-            '--ignore-missing-deps',
-            '--print-module-deps',
-            '--class-path', "build/libs/*${s}build/javafx/*",
-            "build/libs/${-> tasks.jar.archiveFile.get().asFile.name}"
-
-    standardOutput = new ByteArrayOutputStream()
-    ext.output = { return standardOutput.toString().trim() }
-    doLast {
-        jdkModules = output()
-        if (!jdkModules.contains(cryptoPackage)) {
-            jdkModules += ',' + cryptoPackage
-        }
-    }
+def packageInput = tasks.register('copyDependencies', Sync) {
+    from applicationArtifacts
+    from tasks.named('jar', Jar).flatMap { it.archiveFile }
+    from('LICENSE.md')
+    from('src/main/packaging')
+    from('docs') { include 'license.md', 'external-libraries.md', 'licenses/**'; into 'docs' }
+    into layout.buildDirectory.dir('packaging/input')
 }
 
-tasks.register('copyDependencies', Copy) {
-    from configurations.runtimeClasspath
-    into 'build/libs'
-    exclude 'javafx-**'
+def javafxInput = tasks.register('copyJavaFXModules', Sync) {
+    from javafxArtifacts
+    into layout.buildDirectory.dir('packaging/javafx')
 }
 
-tasks.register('copyJavaFXModules', Copy) {
-    from configurations.runtimeClasspath
-    into 'build/javafx'
-    include 'javafx-**'
+def packageJava = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(javaFeature) }
+tasks.withType(JdkToolTask).configureEach { javaFeatureVersion = javaFeature }
+def moduleCheck = tasks.register('checkJDKModules', JdkModulesTask) {
+    dependsOn packageInput, javafxInput
+    javaLauncher = packageJava
+    inputDirectory = layout.buildDirectory.dir('packaging/input')
+    moduleDirectory = layout.buildDirectory.dir('packaging/javafx')
+    mainJar = tasks.named('jar', Jar).flatMap { it.archiveFileName }
+    javafxModules = javafx.modules
+    modulesFile = layout.buildDirectory.file('packaging/jdk-modules.txt')
 }
 
-def deployDir = 'build/app'
-tasks.register('make', Exec) {
+def packagePlatform = PackagePlan.Platform.fromOsName(System.getProperty('os.name'))
+tasks.withType(NativePackageTask).configureEach {
     group = 'distribution'
-    description = 'アプリケーションパッケージを生成するタスク'
-    dependsOn checkJDKModules
+    dependsOn moduleCheck
+    javaLauncher = packageJava
+    inputDirectory = layout.buildDirectory.dir('packaging/input')
+    moduleDirectory = layout.buildDirectory.dir('packaging/javafx')
+    modulesFile = moduleCheck.flatMap { it.modulesFile }
+    mainJar = tasks.named('jar', Jar).flatMap { it.archiveFileName }
+    mainClass = application.mainClass
+    fullVersion = project.version.toString()
+    platformName = packagePlatform.name()
+    projectRoot = layout.projectDirectory
+    packageResources.from(layout.projectDirectory.file('docs/license.md'),
+            layout.projectDirectory.file("src/main/resources/icons/${packagePlatform.iconName()}"))
+    logFile = layout.buildDirectory.file("reports/packaging/${name}.log")
+}
 
-    doFirst {
-        delete deployDir
-    }
+tasks.register('make', NativePackageTask) {
+    description = '現在の OS 向けインストーラーを生成する'
+    appImage = false
+    outputDirectory = layout.buildDirectory.dir('app')
+}
 
-    ArrayList<String> commandArgs = [
-            'jpackage',
-            '--verbose',
-            '--name', 'Twitch Chat Viewer',
-            '--description', 'Chat Viewer for twitch.tv',
-            '--copyright', 'Copyright (c) 2024 k7t3. All rights reserved.',
-            '--vendor', 'k7t3',
-            // バージョンの末尾に文字があると違反になるため取り除く処置
-            '--app-version', version.toString().replaceAll('\\D+$', ''),
-            '--dest', deployDir,
-            '--module-path', 'build/javafx',
-            '--add-modules', "${-> jdkModules},${javafx.modules.join(',')}",
-            '--input', 'build/libs',
-            '--main-jar', "${-> tasks.jar.archiveFile.get().asFile.name}",
-            '--main-class', application.mainClass.get(),
-            '--license-file', 'docs/license.md',
-            '--java-options', "'-Dapp.version=${version}'"
-    ]
+tasks.register('appImage', NativePackageTask) {
+    description = 'インストール不要のアプリケーションイメージを生成する'
+    appImage = true
+    outputDirectory = layout.buildDirectory.dir('app-image')
+}
 
-    def os = org.gradle.internal.os.OperatingSystem.current()
+abstract class MockitoAgentProvider implements CommandLineArgumentProvider {
+    @InputFiles
+    @PathSensitive(PathSensitivity.RELATIVE)
+    abstract ConfigurableFileCollection getAgentJar()
 
-    if (os.isWindows()) {
-        commandArgs.addAll('--type', 'exe')
-        commandArgs.addAll('--icon', 'src/main/resources/icons/TwitchChatViewer.ico')
-        commandArgs.addAll('--win-shortcut')
-        commandArgs.addAll('--win-menu')
-        commandArgs.addAll('--win-menu-group', 'TwitchChatViewer')
-        commandArgs.addAll('--win-per-user-install')
-        commandArgs.addAll('--win-shortcut-prompt')
-        commandArgs.addAll('--win-upgrade-uuid', 'b78817e8-f9b8-4650-bf0a-34bca5ff4106')
-        commandArgs.addAll('--win-help-url', 'https://github.com/k7t3/TwitchChatViewer')
-        commandArgs.addAll('--win-update-url', 'https://github.com/k7t3/TwitchChatViewer/releases')
-    }
-    else if (os.isMacOsX()) {
-        commandArgs.addAll('--type', 'dmg')
-        commandArgs.addAll('--icon', 'src/main/resources/icons/TwitchChatViewer.icns')
-        commandArgs.addAll('--mac-package-identifier', 'TwitchChatViewer')
-    }
-    else if (os.isLinux()) {
-        commandArgs.addAll('--type', 'deb')
-        commandArgs.addAll('--icon', 'src/main/resources/icons/TwitchChatViewer-64.png')
-        commandArgs.addAll('--linux-menu-group', 'Network')
-        commandArgs.addAll('--linux-rpm-license-type', 'Apache-2.0')
-        commandArgs.addAll('--linux-shortcut')
-    }
+    @Override Iterable<String> asArguments() { ["-javaagent:${agentJar.singleFile.absolutePath}"] }
+}
 
-    commandLine commandArgs
+abstract class ProductionClasspathProvider implements CommandLineArgumentProvider {
+    @InputFiles
+    @PathSensitive(PathSensitivity.RELATIVE)
+    abstract ConfigurableFileCollection getRuntimeClasspath()
+
+    @Override Iterable<String> asArguments() { ["-Dtcv.test.production.classpath=${runtimeClasspath.asPath}"] }
 }
 
 test {
-    if (!project.hasProperty("headless") || project.headless == "true") {
-        // execute TestFX Tests headless -- switch off by using ./gradlew -Pheadless=false
-        systemProperty("testfx.robot", "glass")
-        systemProperty("testfx.headless", "true")
+    def headlessMode = !project.hasProperty('headless') || project.headless == 'true'
+    // GUI の toolkit とウィンドウの状態をテストクラス間で共有しない。
+    forkEvery = headlessMode ? 0 : 1
+    systemProperty('tcv.test.headless', headlessMode.toString())
+    systemProperty('testfx.robot', 'glass')
+    // TestFX's legacy bootstrap selects Monocle; the toolkit now owns headless mode.
+    systemProperty('testfx.headless', 'false')
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+    jvmArgumentProviders.add(objects.newInstance(MockitoAgentProvider).tap {
+        agentJar.from(configurations.mockitoAgent)
+    })
+    jvmArgumentProviders.add(objects.newInstance(ProductionClasspathProvider).tap {
+        runtimeClasspath.from(sourceSets.main.runtimeClasspath)
+    })
+    if (headlessMode) {
+        systemProperty('glass.platform', 'headless')
+        systemProperty('java.awt.headless', 'true')
         systemProperty("prism.order", "sw")
-        systemProperty("prism.text", "t2k")
-        systemProperty("headless.geometry", "1600x1200-32")
     }
 
-    useJUnitPlatform()
+    useJUnitPlatform {
+        if (!providers.gradleProperty('osKeychainTests').map { it.toBoolean() }.getOrElse(false)) {
+            excludeTags 'os-keychain'
+        }
+    }
 }

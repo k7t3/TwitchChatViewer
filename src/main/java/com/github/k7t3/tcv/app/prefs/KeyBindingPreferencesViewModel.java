@@ -23,21 +23,15 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 public class KeyBindingPreferencesViewModel implements PreferencesViewModelBase {
 
-    private final KeyBindingPreferences preferences;
-
-    private final KeyBindingCombinations combinations;
-
     private final ObservableList<KeyBindingCombination> combinationList;
 
-    public KeyBindingPreferencesViewModel(KeyBindingPreferences preferences, KeyBindingCombinations combinations) {
-        this.preferences = preferences;
-        this.combinations = combinations;
+    public KeyBindingPreferencesViewModel(KeyBindingCombinations combinations) {
         this.combinationList = FXCollections.observableList(combinations.getAllBindings());
         combinationList.forEach(binding -> binding.combinationProperty().addListener((ob, o, n) -> checkDuplicate()));
+        checkDuplicate();
     }
 
     public ObservableList<KeyBindingCombination> getCombinationList() {
@@ -57,6 +51,7 @@ public class KeyBindingPreferencesViewModel implements PreferencesViewModelBase 
         for (var check : items) {
             for (var compare : items) {
                 if (check == compare) continue;
+                if (check.getCombination() == null || compare.getCombination() == null) continue;
                 if (Objects.equals(check.getCombination().getDisplayText(),
                         compare.getCombination().getDisplayText())) {
                     check.setDuplicated(true);
@@ -68,26 +63,17 @@ public class KeyBindingPreferencesViewModel implements PreferencesViewModelBase 
 
     @Override
     public boolean canSync() {
-        return combinationList.stream().noneMatch(KeyBindingCombination::isDuplicated);
+        return combinationList.stream().allMatch(item -> item.getCombination() != null && !item.isDuplicated());
     }
 
     @Override
-    public void sync() {
-        var current = combinations.getAllBindings();
-        var currentValues = current.stream().collect(
-                Collectors.toMap(
-                        KeyBindingCombination::getBinding,
-                        KeyBindingCombination::getCombination
-                )
-        );
+    public void prepare(SettingsDraft.Builder target) {
+        if (!canSync()) throw new IllegalStateException("key bindings are incomplete or duplicated");
+        var values = new java.util.HashMap<String, java.util.Optional<String>>();
         for (var entry : combinationList) {
-            var currentCombination = currentValues.get(entry.getBinding());
-            // 変更されている場合更新
-            if (!currentCombination.equals(entry.getCombination())) {
-                preferences.storeCombination(entry.getBinding(), entry.getCombination());
-                combinations.updateCombination(entry.getBinding(), entry.getCombination());
-            }
+            values.put(entry.getBinding().getId(), KeyBindingPreferences.editorValue(entry.getBinding(), entry.getCombination()));
         }
+        target.values(values);
     }
 
 }

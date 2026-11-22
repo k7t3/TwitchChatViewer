@@ -17,43 +17,41 @@
 package com.github.k7t3.tcv.view.core;
 
 import atlantafx.base.theme.Styles;
+import com.github.k7t3.tcv.app.core.Resources;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.TableCell;
-import javafx.scene.control.TableColumn;
-import javafx.util.Callback;
 import org.kordamp.ikonli.feather.Feather;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.util.function.Consumer;
 
-public class DeleteButtonTableColumn<T> extends TableCell<T, T> {
+public class DeleteButtonTableColumn<T> extends TableCell<T, T> implements AutoCloseable {
 
     private Button button;
 
     private final Consumer<T> buttonAction;
+    private boolean closed;
 
     public DeleteButtonTableColumn(Consumer<T> buttonAction) {
         this.buttonAction = buttonAction;
         setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
     }
 
-    public static <S> Callback<TableColumn<S, S>, TableCell<S, S>> create(Consumer<S> consumer) {
-        return (s) -> new DeleteButtonTableColumn<>(consumer);
-    }
-
     private Button createButton() {
         var button = new Button(null, new FontIcon(Feather.TRASH));
+        button.setAccessibleText(Resources.getString("menu.remove"));
         button.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.DANGER);
         button.setOnAction(e -> {
             var item = getItem();
-            buttonAction.accept(item);
+            if (!closed && !isEmpty() && item != null) buttonAction.accept(item);
         });
         return button;
     }
 
     @Override
     protected void updateItem(T t, boolean b) {
+        if (closed) { super.updateItem(null, true); setGraphic(null); return; }
         super.updateItem(t, b);
 
         if (t == null || b) {
@@ -66,5 +64,13 @@ public class DeleteButtonTableColumn<T> extends TableCell<T, T> {
         }
 
         setGraphic(button);
+    }
+
+    @Override public void close() {
+        if (closed) return;
+        closed = true;
+        if (button != null) button.setOnAction(null);
+        updateTableRow(null);
+        updateItem(null, true);
     }
 }

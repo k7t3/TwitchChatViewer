@@ -19,7 +19,7 @@ package com.github.k7t3.tcv.app.prefs;
 import com.github.k7t3.tcv.app.chat.filter.ChatFilters;
 import com.github.k7t3.tcv.app.chat.filter.KeywordFilterEntry;
 import com.github.k7t3.tcv.app.chat.filter.KeywordFilterType;
-import com.github.k7t3.tcv.app.event.KeywordFilteringEvent;
+import com.github.k7t3.tcv.entity.ChatKeywordFilterEntity;
 import javafx.beans.Observable;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
@@ -34,14 +34,11 @@ public class KeywordFilterViewModel implements PreferencesViewModelBase {
     private final ObservableList<Wrapper> keywordEntries;
     private final FilteredList<Wrapper> filtered;
 
-    private final ChatFilters chatFilters;
-
     public KeywordFilterViewModel(ChatFilters filters) {
-        this.chatFilters = filters;
         keywordEntries = FXCollections.observableArrayList((w) -> new Observable[] { w.removedProperty() });
         keywordEntries.addAll(filters.getKeywordEntries()
                 .stream()
-                .map(e -> new Wrapper(e, chatFilters))
+                .map(e -> new Wrapper(e))
                 .toList());
         filtered = new FilteredList<>(keywordEntries);
         filtered.setPredicate(w -> !w.isRemoved());
@@ -52,7 +49,7 @@ public class KeywordFilterViewModel implements PreferencesViewModelBase {
     }
 
     public void addEntry(KeywordFilterEntry entry) {
-        keywordEntries.add(new Wrapper(entry, chatFilters));
+        keywordEntries.add(new Wrapper(entry));
     }
 
     @Override
@@ -61,18 +58,18 @@ public class KeywordFilterViewModel implements PreferencesViewModelBase {
     }
 
     @Override
-    public void sync() {
-        keywordEntries.stream().filter(Wrapper::isDirty).forEach(w -> {
-            w.save();
-            var entry = w.entry;
-            var event = new KeywordFilteringEvent(entry);
-            publish(event);
-        });
+    public void prepare(SettingsDraft.Builder target) {
+        if (!canSync()) throw new IllegalStateException("keyword filters contain invalid entries");
+        for (var row : keywordEntries) {
+            if (row.isRemoved()) { target.deleteKeyword(row.entry.getFilterId()); continue; }
+            if (row.isDirty() || row.entry.getFilterId() < 1) {
+                target.keyword(new ChatKeywordFilterEntity(Math.max(0, row.entry.getFilterId()), row.getFilterType().getType(), row.getKeyword()));
+            }
+        }
     }
 
     public static class Wrapper {
         private final KeywordFilterEntry entry;
-        private final ChatFilters chatFilters;
         private final ObjectProperty<KeywordFilterType> filterType = new SimpleObjectProperty<>() {
             @Override
             protected void invalidated() {
@@ -97,19 +94,19 @@ public class KeywordFilterViewModel implements PreferencesViewModelBase {
         private final ReadOnlyBooleanWrapper invalid = new ReadOnlyBooleanWrapper(true);
         private Pattern patternCache;
 
-        private Wrapper(KeywordFilterEntry entry, ChatFilters chatFilters) {
+        private Wrapper(KeywordFilterEntry entry) {
             this.entry = entry;
-            this.chatFilters = chatFilters;
             setKeyword(entry.getKeyword());
             setFilterType(entry.getFilterType());
 
             if (entry.getFilterType() == KeywordFilterType.REGEXP) {
                 patternCache = entry.getPattern();
             }
+            dirty.set(false);
         }
 
         private void update(String keyword, KeywordFilterType filterType) {
-            if (keyword == null || keyword.trim().isEmpty()) {
+            if (filterType == null || keyword == null || keyword.trim().isEmpty()) {
                 invalid.set(true);
                 return;
             }
@@ -133,28 +130,6 @@ public class KeywordFilterViewModel implements PreferencesViewModelBase {
 
         private void markDirty() {
             dirty.set(true);
-        }
-
-        private void save() {
-            if (!isDirty()) return;
-            if (isRemoved()) {
-                chatFilters.deleteKeywordFilter(entry);
-                return;
-            }
-
-            var keyword = getKeyword();
-            if (getFilterType() == KeywordFilterType.REGEXP) {
-                if (!isInvalid()) {
-                    entry.setKeyword(keyword);
-                    entry.setPattern(patternCache);
-                    entry.setFilterType(getFilterType());
-                    chatFilters.saveKeywordFilter(entry);
-                }
-            } else {
-                entry.setKeyword(keyword);
-                entry.setFilterType(getFilterType());
-                chatFilters.saveKeywordFilter(entry);
-            }
         }
 
         public ReadOnlyBooleanProperty dirtyProperty() { return dirty.getReadOnlyProperty(); }
