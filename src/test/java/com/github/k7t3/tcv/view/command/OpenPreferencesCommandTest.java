@@ -50,6 +50,25 @@ class OpenPreferencesCommandTest {
     @TempDir Path directory;
 
     @Test
+    void headingTracksTheSelectedCategory(FxRobot robot) {
+        var fixture = create(robot);
+        try {
+            robot.interact(() -> {
+                fixture.command.execute();
+                var scene = fixture.windows.getLast().getScene();
+                var pages = (TreeView<?>) scene.lookup("#pagesTreeView");
+                var heading = (javafx.scene.control.Label) scene.lookup("#pageHeading");
+                assertThat(heading).as("active category heading").isNotNull();
+                for (int i = 0; i < pages.getRoot().getChildren().size(); i++) {
+                    var item = pages.getRoot().getChildren().get(i);
+                    pages.getSelectionModel().select(i);
+                    assertThat(heading.getText()).isEqualTo(((PreferencesPage<?>) item.getValue()).getName());
+                }
+            });
+        } finally { fixture.close(robot); }
+    }
+
+    @Test
     void fontLookupFailureReportsToTheEditorThatStartedIt(FxRobot robot) {
         var fixture = create(robot);
         var failure = new IllegalStateException("font lookup unavailable");

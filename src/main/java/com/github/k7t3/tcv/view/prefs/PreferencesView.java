@@ -35,6 +35,7 @@ import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
+import javafx.scene.control.Label;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
@@ -70,6 +71,9 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
 
     @FXML
     private TreeView<PreferencesPage<?>> pagesTreeView;
+
+    @FXML
+    private Label pageHeading;
 
     @FXML
     private StackPane contentPane;
@@ -108,6 +112,7 @@ public class PreferencesView implements FxmlView<PreferencesViewModel>, Initiali
         pagesTreeView.setCellFactory(v -> new PreferencesPageTreeCell());
         pageSelection = (ob, o, n) -> {
             if (closed) return;
+            pageHeading.setText(n == null ? "" : n.getValue().getName());
             if (n == null) {
                 contentPane.getChildren().clear();
             } else {
