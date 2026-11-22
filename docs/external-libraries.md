@@ -12,14 +12,6 @@ URL:     https://github.com/hfg-gmuend/openmoji
 License: CC BY-SA 4.0
 ```
 
-## OS-provided secret storage
-
-The application uses OS-provided native services through the JDK Foreign Function and Memory API. These native libraries are not bundled in the application image.
-
-- macOS: Security and CoreFoundation frameworks for Keychain access.
-- Windows: [Credential Manager](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credreadw), provided by Advapi32.dll.
-- Linux: [libsecret binary API](https://gnome.pages.gitlab.gnome.org/libsecret/func.password_storev_binary_sync.html) (0.19.0 or later), GLib, and a Secret Service available on the existing session D-Bus. The DEB declares a dependency on [libsecret-1-0](https://packages.debian.org/trixie/libsecret-1-0).
-
 ## License
 
 ```yaml

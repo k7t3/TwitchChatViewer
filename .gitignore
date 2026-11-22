@@ -40,6 +40,12 @@ bin/
 
 userinfo
 
+# ローカル専用の開発資料
+/docs/architecture.md
+/docs/development.md
+/docs/technical-debt*.md
+/docs/internal/
+
 # AI
 .agents
 .opencode
